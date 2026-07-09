@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -156,5 +156,10 @@ function canListen(port: number): Promise<boolean> {
 }
 
 function resolveWebDist(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "web", "dist");
+  const distDir = path.dirname(fileURLToPath(import.meta.url));
+  const packaged = path.join(distDir, "web");
+  if (existsSync(path.join(packaged, "index.html"))) {
+    return packaged;
+  }
+  return path.resolve(distDir, "..", "..", "web", "dist");
 }

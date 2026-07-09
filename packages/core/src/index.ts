@@ -17,3 +17,4 @@ export * from "./rules.js";
 export * from "./coverage.js";
 export * from "./structure/index.js";
 export * from "./classify/index.js";
+export * from "./demo.js";

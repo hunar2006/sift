@@ -74,15 +74,12 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@3.25.76)
-      '@sift-review/claude-adapter':
-        specifier: workspace:*
-        version: link:../claude-adapter
-      '@sift-review/core':
-        specifier: workspace:*
-        version: link:../core
       commander:
         specifier: ^13.1.0
         version: 13.1.0
+      fast-xml-parser:
+        specifier: ^5.9.3
+        version: 5.9.3
       hono:
         specifier: ^4.7.2
         version: 4.12.28
@@ -92,9 +89,25 @@ importers:
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
+      tree-sitter-wasms:
+        specifier: ^0.1.13
+        version: 0.1.13
+      web-tree-sitter:
+        specifier: ^0.26.10
+        version: 0.26.10
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       zod:
         specifier: ^3.24.2
         version: 3.25.76
+    devDependencies:
+      '@sift-review/claude-adapter':
+        specifier: 0.1.0
+        version: link:../claude-adapter
+      '@sift-review/core':
+        specifier: 0.1.0
+        version: link:../core
 
   packages/core:
     dependencies:

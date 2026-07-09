@@ -9,19 +9,36 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup && tsc -p tsconfig.build.json --emitDeclarationOnly && node scripts/copy-assets.mjs",
     "test": "cd ../.. && vitest run packages/cli/src",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "files": [
+    "dist/index.js",
+    "dist/*.d.ts",
+    "dist/*.d.ts.map",
+    "dist/web",
+    "dist/grammars",
+    "package.json"
+  ],
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@sift-review/claude-adapter": "workspace:*",
-    "@sift-review/core": "workspace:*",
     "commander": "^13.1.0",
+    "fast-xml-parser": "^5.9.3",
     "hono": "^4.7.2",
     "open": "^10.1.0",
     "picocolors": "^1.1.1",
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "^0.26.10",
+    "yaml": "^2.9.0",
     "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@sift-review/claude-adapter": "0.1.0",
+    "@sift-review/core": "0.1.0"
   }
 }

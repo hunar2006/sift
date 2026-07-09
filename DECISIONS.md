@@ -29,3 +29,7 @@
 - The open provenance file remains `~/.sift/provenance.jsonl`; generic ingestion skips `source=claude-code` records so the legacy Claude hook path and third-party records can share one file without duplicate matches.
 - The MCP server is stdio-only and read-only. It uses a separate no-write state reader instead of the normal state helper because the normal helper may back up corrupt files.
 - MCP tool inputs are restricted to ids and enums; no path, glob, shell, HTTP, or review-state mutation tools are exposed.
+- `sift print` is implemented as a CLI-local renderer over the same pipeline/state/stats path as reports. JSON output exposes compact triage data rather than the full review model so terminal automation has a stable small shape.
+- The demo repository generator now lives in core and only invokes `git`; both `pnpm demo` and `sift demo` reuse it, with demo provenance isolated through demo-specific `SIFT_HOME` and `SIFT_CLAUDE_DIR` values.
+- CLI publish-readiness uses `tsup` for the CLI bundle with `@sift-review/*` packages bundled into `dist/index.js`. The CLI build copies the web dist into `dist/web` and selected `tree-sitter-wasms` grammars into `dist/grammars`; runtime resolution prefers those package-local assets and falls back to the monorepo web dist for development.
+- Internal workspace packages are dev-only semver dependencies in the CLI package, and `pnpm-workspace.yaml` links matching workspace versions. This keeps the packed manifest free of `workspace:` ranges while preserving local development resolution.

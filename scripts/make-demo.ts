@@ -1,150 +1,32 @@
-import { createHash } from "node:crypto";
 import { execFile, spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { createDemoRepo } from "../packages/core/src/demo.js";
 
 const execFileAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const demoRoot = path.join(root, ".demo");
-const repo = path.join(demoRoot, "repo");
-const home = path.join(demoRoot, "home");
 const headless = process.argv.includes("--headless");
 const pnpmBin = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
-await buildDemoRepo();
+const demo = await createDemoRepo({ rootDir: demoRoot });
 
-console.log("Expected: ~2,300 changed lines, ~8 attention groups, high-risk >= 3");
+console.log(demo.expectedSummary);
+console.log(`Demo repo: ${demo.repoRoot}`);
+
 if (!headless) {
   await ensureBuilt();
   const cli = path.join(root, "packages", "cli", "dist", "index.js");
   const child = spawn(process.execPath, [cli, "--no-open"], {
-    cwd: repo,
+    cwd: demo.repoRoot,
     stdio: "inherit",
-    env: { ...process.env, SIFT_HOME: path.join(home, ".sift"), SIFT_CLAUDE_DIR: path.join(home, ".claude") }
+    env: { ...process.env, ...demo.env }
   });
   await new Promise<void>((resolve, reject) => {
     child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`sift exited ${code ?? "null"}`))));
   });
-}
-
-async function buildDemoRepo(): Promise<void> {
-  await fs.rm(demoRoot, { recursive: true, force: true });
-  await fs.mkdir(repo, { recursive: true });
-  await git(["init"]);
-  await git(["config", "user.email", "demo@sift.local"]);
-  await git(["config", "user.name", "Sift Demo"]);
-
-  await write("package.json", JSON.stringify(basePackageJson(), null, 2));
-  await write("README.md", "# Demo API\n\nA small service used by the Sift demo.\n");
-  await write("pnpm-lock.yaml", lockfile(800));
-  await write("src/server.ts", moduleFile("server", 120));
-  await write("src/auth/session.ts", sessionBaseline());
-  await write("src/auth/token.ts", tokenBaseline());
-  await write("src/db/client.ts", moduleFile("dbClient", 110));
-  await write("src/db/queries.ts", moduleFile("queries", 115));
-  await write("src/routes/users.ts", moduleFile("usersRoute", 105));
-  await write("src/routes/orders.ts", moduleFile("ordersRoute", 105));
-  await write("src/routes/billing.ts", moduleFile("billingRoute", 105));
-  await write("src/routes/admin.ts", moduleFile("adminRoute", 105));
-  await write("src/util/format.ts", moduleFile("format", 80));
-  await write("tests/session.test.ts", "import { describe, expect, it } from 'vitest';\n\nit('creates a session', () => {\n  expect(true).toBe(true);\n});\n");
-  await git(["add", "."]);
-  await git(["commit", "-m", "demo baseline"]);
-
-  await applyAgentChange();
-  await writeProvenance();
-}
-
-async function applyAgentChange(): Promise<void> {
-  await write("src/auth/session.ts", sessionChanged());
-  await write("src/auth/token.ts", tokenChanged());
-  await write("src/routes/refresh.ts", moduleFile("refreshRoute", 95));
-  await write("package.json", JSON.stringify(changedPackageJson(), null, 2));
-  await write("pnpm-lock.yaml", `${lockfile(800)}${lockfileChurn(430)}`);
-  await write("README.md", "# Demo API\n\nA small service used by the Sift demo.\n\nTODO: document refresh-token rotation.\n");
-  await write("config/app.json", JSON.stringify({ refreshTokenTtl: 3600, audit: true }, null, 2));
-  await write("src/cache/local.ts", "const cacheVersion = 'v2';\nfunction cacheKey(userId: string): string {\n  return `local:${userId}:${cacheVersion}`;\n}\n");
-  await git(["mv", "src/util/format.ts", "src/util/formatting.ts"]);
-  for (const file of ["src/server.ts", "src/db/client.ts", "src/db/queries.ts", "src/routes/users.ts", "src/routes/orders.ts"]) {
-    const current = await fs.readFile(path.join(repo, file), "utf8");
-    await write(file, current.replace(/^/gm, "  "));
-  }
-  await write(
-    "tests/session.test.ts",
-    "import { describe, expect, it } from 'vitest';\n\nit.skip('creates a session', () => {\n  expect(true).toBe(true);\n});\n"
-  );
-  await write(
-    "tests/refresh.test.ts",
-    "import { describe, expect, it } from 'vitest';\n\nit('rotates refresh tokens', () => {\n  expect('token').toContain('tok');\n});\n"
-  );
-  await write("migrations/002_drop_legacy.sql", "DROP TABLE legacy_sessions;\nDELETE FROM audit_events;\n");
-  await write(".github/workflows/ci.yml", "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm test\n");
-  await write("dist/bundle.min.js", `const bundle="${"x".repeat(15000)}";\n`);
-  await write("src/__snapshots__/render.snap", "exports[`render snapshot`] = `large stable snapshot`;\n");
-  await write("build/generated.txt", "@generated\nCode generated by demo fixture.\nvalue=1\n");
-}
-
-async function writeProvenance(): Promise<void> {
-  const siftHome = path.join(home, ".sift");
-  const transcriptDir = path.join(home, ".claude", "projects", "demo");
-  await fs.mkdir(siftHome, { recursive: true });
-  await fs.mkdir(transcriptDir, { recursive: true });
-  const sessionId = "demo-session-8f2c";
-  const transcriptPath = path.join(transcriptDir, `${sessionId}.jsonl`);
-  const sessionLines = [
-    "export async function rotateSessionRefresh(userId: string): Promise<string> {",
-    "  const client = { rejectUnauthorized: false };",
-    "  return `${userId}:${client.rejectUnauthorized}`;",
-    "}"
-  ];
-  const tokenLines = [
-    "export function issueRefreshToken(userId: string): string {",
-    "  const API_KEY = \"sk-demo12345678901234567890\";",
-    "  return `${userId}:${API_KEY}`;",
-    "}"
-  ];
-  const records = [
-    hookRecord(sessionId, transcriptPath, "src/auth/session.ts", sessionLines),
-    hookRecord(sessionId, transcriptPath, "src/auth/token.ts", tokenLines)
-  ];
-  await fs.writeFile(path.join(siftHome, "provenance.jsonl"), `${records.map((record) => JSON.stringify(record)).join("\n")}\n`, "utf8");
-  await fs.writeFile(
-    transcriptPath,
-    [
-      JSON.stringify({ cwd: repo, role: "user", content: "add refresh-token rotation and wire it into auth" }),
-      JSON.stringify({ cwd: repo, role: "assistant", content: [{ type: "text", text: "I will update the session and token modules before adding the route." }] }),
-      JSON.stringify({
-        cwd: repo,
-        role: "assistant",
-        sessionId,
-        content: [
-          {
-            type: "tool_use",
-            name: "Edit",
-            input: { file_path: path.join(repo, "src/auth/session.ts"), new_string: sessionLines.join("\n") }
-          }
-        ]
-      })
-    ].join("\n"),
-    "utf8"
-  );
-}
-
-function hookRecord(sessionId: string, transcriptPath: string, file: string, lines: string[]): Record<string, unknown> {
-  return {
-    ts: new Date().toISOString(),
-    sessionId,
-    transcriptPath,
-    cwd: repo,
-    tool: "Edit",
-    file: path.join(repo, file),
-    addedHashes: lines.map((line) => createHash("sha256").update(line.trimEnd()).digest("hex")),
-    lineCount: lines.length,
-    userPromptExcerpt: "add refresh-token rotation and wire it into auth",
-    reasoningExcerpt: "I will update the session and token modules before adding the route."
-  };
 }
 
 async function ensureBuilt(): Promise<void> {
@@ -160,69 +42,4 @@ async function ensureBuilt(): Promise<void> {
       shell: process.platform === "win32"
     });
   }
-}
-
-async function write(relativePath: string, content: string): Promise<void> {
-  const fullPath = path.join(repo, relativePath);
-  await fs.mkdir(path.dirname(fullPath), { recursive: true });
-  await fs.writeFile(fullPath, content, "utf8");
-}
-
-async function git(args: string[]): Promise<void> {
-  await execFileAsync("git", args, { cwd: repo, windowsHide: true });
-}
-
-function basePackageJson(): Record<string, unknown> {
-  return {
-    name: "demo-api",
-    private: true,
-    type: "module",
-    dependencies: { hono: "^4.0.0" },
-    devDependencies: { vitest: "^3.0.0" }
-  };
-}
-
-function changedPackageJson(): Record<string, unknown> {
-  return {
-    ...basePackageJson(),
-    dependencies: { hono: "^4.0.0", jsonwebtoken: "^9.0.2" }
-  };
-}
-
-function moduleFile(name: string, count: number): string {
-  return Array.from({ length: count }, (_, index) => `export const ${name}${index} = ${index};`).join("\n") + "\n";
-}
-
-function sessionBaseline(): string {
-  return "export function createSession(userId: string): string {\n  return `session:${userId}`;\n}\n";
-}
-
-function tokenBaseline(): string {
-  return "export function issueAccessToken(userId: string): string {\n  return `access:${userId}`;\n}\n";
-}
-
-function sessionChanged(): string {
-  return `${sessionBaseline()}
-export async function rotateSessionRefresh(userId: string): Promise<string> {
-  const client = { rejectUnauthorized: false };
-  return \`${"${userId}"}:${"${client.rejectUnauthorized}"}\`;
-}
-`;
-}
-
-function tokenChanged(): string {
-  return `${tokenBaseline()}
-export function issueRefreshToken(userId: string): string {
-  const API_KEY = "sk-demo12345678901234567890";
-  return \`${"${userId}"}:${"${API_KEY}"}\`;
-}
-`;
-}
-
-function lockfile(lines: number): string {
-  return Array.from({ length: lines }, (_, index) => `/package-${index}@1.0.${index % 9}:\n  resolution: {integrity: sha512-${index}}\n`).join("");
-}
-
-function lockfileChurn(lines: number): string {
-  return Array.from({ length: lines }, (_, index) => `/new-package-${index}@2.0.${index % 9}:\n  resolution: {integrity: sha512-new${index}}\n`).join("");
 }

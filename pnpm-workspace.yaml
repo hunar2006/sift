@@ -1,6 +1,9 @@
 packages:
   - "packages/*"
 
+linkWorkspacePackages: true
+preferWorkspacePackages: true
+
 onlyBuiltDependencies:
   - esbuild
 allowBuilds:

@@ -12,7 +12,8 @@ export default tseslint.config(
       ".sift/**",
       "node_modules/**",
       "pnpm-lock.yaml",
-      "scripts/**"
+      "scripts/**",
+      "packages/cli/scripts/**"
     ]
   },
   js.configs.recommended,
@@ -27,7 +28,7 @@ export default tseslint.config(
       },
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["*.js", "vitest.config.ts", "packages/web/vite.config.ts"]
+          allowDefaultProject: ["*.js", "vitest.config.ts", "packages/web/vite.config.ts", "packages/cli/tsup.config.ts"]
         },
         tsconfigRootDir: import.meta.dirname
       }

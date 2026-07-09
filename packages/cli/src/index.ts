@@ -16,6 +16,7 @@ import {
   readReviewState,
   renderMarkdownReport,
   renderStats,
+  createDemoRepo,
   type EffectiveRules,
   type RuleFileReport
 } from "@sift-review/core";
@@ -25,6 +26,7 @@ import { runPipeline, type RunPipelineOptions } from "./pipeline-runner.js";
 import { startServer } from "./server.js";
 import type { AiMode } from "./ai.js";
 import { runMcpServer } from "./mcp.js";
+import { printPayload, renderPrintReport } from "./print.js";
 
 const program = new Command();
 
@@ -114,6 +116,27 @@ program
     await appendStats(result.model.meta.repoRoot, stats);
   });
 
+program
+  .command("print")
+  .argument("[range]", "git ref/range to diff against HEAD")
+  .option("--staged", "review staged changes")
+  .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
+  .option("--json", "emit JSON")
+  .action(async (range: string | undefined, options: PrintCommandOptions) => {
+    const result = await runPipeline({ cwd: process.cwd(), staged: options.staged, range, coverage: options.coverage });
+    const { state, warning } = await readReviewState(result.model.meta.repoRoot);
+    if (warning) {
+      console.error(warning);
+    }
+    const stats = computeStats(result.model, state);
+    const wantsJson = options.json === true || process.argv.includes("--json");
+    console.log(
+      wantsJson
+        ? JSON.stringify(printPayload(result.model, state, stats), null, 2)
+        : renderPrintReport(result.model, state, stats, { color: colorEnabled() })
+    );
+  });
+
 program.command("stats").option("--json", "emit JSON").option("--coverage <path>", "parse coverage artifact instead of autodetecting").action(async (options: JsonOption & CoverageOption) => {
   const result = await runPipeline({ cwd: process.cwd(), coverage: options.coverage });
   const { state } = await readReviewState(result.model.meta.repoRoot);
@@ -182,7 +205,27 @@ hooks.command("uninstall").option("--project", "use repo-local Claude settings")
 hooks.command("status").option("--project", "use repo-local Claude settings").action(async (options: HookOptions) => {
   const installed = await hooksStatus(process.cwd(), options.project);
   console.log(installed ? "Sift hook installed." : "Sift hook not installed.");
-});
+  });
+
+program
+  .command("demo")
+  .option("--dir <path>", "directory where the demo repo should be created")
+  .option("--port <n>", "preferred localhost port", "4111")
+  .option("--no-open", "do not open a browser")
+  .action(async (options: DemoCommandOptions) => {
+    const demo = await createDemoRepo(options.dir ? { repoDir: options.dir } : undefined);
+    process.env.SIFT_HOME = demo.siftHome;
+    process.env.SIFT_CLAUDE_DIR = demo.claudeDir;
+    console.log(demo.expectedSummary);
+    console.log(`Demo repo: ${demo.repoRoot}`);
+    const result = await runPipeline({ cwd: demo.repoRoot });
+    const server = await startServer({ ...result, refresh: () => runPipeline({ cwd: demo.repoRoot }) }, Number.parseInt(options.port, 10));
+    console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention - sift v${SIFT_VERSION}`);
+    if (options.open) {
+      await open(server.url);
+    }
+    await waitForShutdown(() => server.close());
+  });
 
 program.command("hook-capture", { hidden: true }).action(async () => {
   await runHookCapture();
@@ -222,6 +265,10 @@ interface ReportOptions {
   coverage?: string;
 }
 
+interface PrintCommandOptions extends JsonOption, CoverageOption {
+  staged?: boolean;
+}
+
 interface JsonOption {
   json?: boolean;
 }
@@ -232,6 +279,12 @@ interface CoverageOption {
 
 interface HookOptions {
   project?: boolean;
+}
+
+interface DemoCommandOptions {
+  dir?: string;
+  port: string;
+  open: boolean;
 }
 
 function parseAiOption(value: true | string | undefined): RunPipelineOptions["ai"] {
@@ -282,6 +335,10 @@ function renderRulesList(rules: EffectiveRules): string {
     }
   }
   return lines.join("\n");
+}
+
+function colorEnabled(): boolean {
+  return program.opts<{ color?: boolean }>().color !== false && !process.argv.includes("--no-color");
 }
 
 function waitForShutdown(close: () => Promise<void>): Promise<void> {

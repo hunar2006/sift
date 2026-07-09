@@ -19,6 +19,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - AI annotation v2 provider selection with `cross`, `same`, and `both` modes, provider-tagged `aiAnnotations`, optional drift text, and transcript-derived generator model family detection.
 - Open provenance JSONL ingest via `~/.sift/provenance.jsonl`, a core provenance provider interface, generic provider support, `docs/PROVENANCE.md`, and `/api/timeline`.
 - Read-only stdio MCP server via `sift mcp`, exposing summary, flagged/unreviewed lists, hunk detail, and stats tools with `docs/MCP.md`.
+- Terminal-first `sift print` output with compact text and JSON modes.
+- `sift demo`, backed by the same reusable demo-repo generator as `pnpm demo`.
 
 ### Changed
 
@@ -31,6 +33,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Risk remains the default queue ordering to preserve v0.1 behavior.
 - Bare `--ai` now resolves as cross-model review; when provenance does not identify a generator family, Sift falls back to configured keys and prints the selected provider.
 - User-facing provenance match wording now says `line match` instead of exposing the internal confidence field.
+- CLI builds now bundle workspace packages with tsup and copy package-local web and grammar assets for dry-run packaging checks.
 
 ### Fixed
 
