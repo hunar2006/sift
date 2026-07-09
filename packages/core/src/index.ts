@@ -12,4 +12,5 @@ export * from "./pipeline.js";
 export * from "./state.js";
 export * from "./stats.js";
 export * from "./report.js";
+export * from "./rules.js";
 export * from "./classify/index.js";

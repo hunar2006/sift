@@ -1,8 +1,10 @@
 import {
   analyzeDiff,
   generatedPathsFromGitAttributes,
+  formatRuleFileProblem,
   ingestDiff,
   ingestPrDiff,
+  loadRules,
   parseUnifiedDiff,
   type IngestedDiff,
   type ReviewModel
@@ -43,7 +45,13 @@ export async function buildModelFromIngested(
     ingested.repoRoot,
     parsed.files.map((file) => file.path)
   );
-  let model = analyzeDiff({ ...ingested, generatedPaths });
+  const loadedRules = await loadRules(ingested.repoRoot);
+  for (const report of loadedRules.reports) {
+    if (report.status === "error") {
+      console.error(`Ignoring invalid Sift rules file: ${formatRuleFileProblem(report)}`);
+    }
+  }
+  let model = analyzeDiff({ ...ingested, generatedPaths, rules: loadedRules.rules });
   const records = await loadProvenance(ingested.repoRoot);
   if (records.length > 0) {
     model = { ...model, hunks: attachProvenance(model.hunks, records) };

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { EffectiveRules } from "./rules.js";
 
 export type HunkCategory =
   | "logic"
@@ -177,6 +178,7 @@ export interface AnalyzeOptions {
   git: GitMeta;
   provenance?: ProvenanceRef[];
   generatedPaths?: Set<string>;
+  rules?: EffectiveRules;
 }
 
 export type HunkWithState = Hunk & StoredHunkState;

@@ -17,7 +17,7 @@ export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
   const testScopes = testScopesFor(identified, generatedPaths);
   const hasCoverageData = identified.some((hunk) => Boolean(hunk.coverage));
   const hunks = identified.map((hunk) =>
-    classifier.classify(hunk, generatedPaths, undefined, { testScopes, hasCoverageData })
+    classifier.classify(hunk, generatedPaths, undefined, { testScopes, hasCoverageData, rules: options.rules })
   );
   const { hunks: groupedHunks, groups } = assignGroups(hunks);
   const ordered = orderReview(groupedHunks, groups);

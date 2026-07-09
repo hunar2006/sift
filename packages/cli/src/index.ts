@@ -6,12 +6,18 @@ import { promises as fs } from "node:fs";
 import {
   appendStats,
   computeStats,
+  discoverRepoRoot,
+  formatRuleFileProblem,
   GitError,
+  lintRuleFiles,
+  loadRules,
   mergeReviewState,
   readHistory,
   readReviewState,
   renderMarkdownReport,
-  renderStats
+  renderStats,
+  type EffectiveRules,
+  type RuleFileReport
 } from "@sift-review/core";
 import { hooksStatus, installHooks, runHookCapture, uninstallHooks } from "@sift-review/claude-adapter";
 import { BINARY_NAME, PRODUCT_NAME, SIFT_VERSION } from "@sift-review/core";
@@ -130,6 +136,32 @@ program
     console.log(`Check passed: debt ${(stats.debt * 100).toFixed(1)}%, no flagged hunks.`);
   });
 
+const rules = program.command("rules");
+rules.command("lint").action(async () => {
+  const repoRoot = await discoverRepoRoot(process.cwd());
+  const reports = await lintRuleFiles(repoRoot);
+  console.log(renderRuleReports(reports));
+  if (reports.some((report) => report.status === "error")) {
+    process.exitCode = 1;
+  }
+});
+rules.command("list").option("--json", "emit JSON").action(async (options: JsonOption) => {
+  const repoRoot = await discoverRepoRoot(process.cwd());
+  const loaded = await loadRules(repoRoot);
+  const wantsJson = options.json === true || process.argv.includes("--json");
+  if (wantsJson) {
+    console.log(JSON.stringify(loaded, null, 2));
+    return;
+  }
+  for (const report of loaded.reports) {
+    if (report.status === "error") {
+      console.error(`Ignoring invalid Sift rules file: ${formatRuleFileProblem(report)}`);
+    }
+  }
+  console.log(renderRuleReports(loaded.reports));
+  console.log(renderRulesList(loaded.rules));
+});
+
 const hooks = program.command("hooks");
 hooks.command("install").option("--project", "use repo-local Claude settings").action(async (options: HookOptions) => {
   const file = await installHooks(process.cwd(), options.project);
@@ -190,6 +222,43 @@ function parseAiOption(value: true | string | undefined): RunPipelineOptions["ai
     return value satisfies AiProvider;
   }
   throw new Error("--ai must be anthropic, openai, or passed without a provider.");
+}
+
+function renderRuleReports(reports: RuleFileReport[]): string {
+  return reports
+    .map((report) => {
+      if (report.status === "ok") {
+        return `${pc.green("OK")} ${report.scope} ${report.path}`;
+      }
+      if (report.status === "missing") {
+        return `${pc.dim("missing")} ${report.scope} ${report.path}`;
+      }
+      return `${pc.red("ERROR")} ${report.scope} ${formatRuleFileProblem(report)}`;
+    })
+    .join("\n");
+}
+
+function renderRulesList(rules: EffectiveRules): string {
+  const lines = ["", "Effective rules:"];
+  if (rules.rules.length === 0 && rules.adjust.length === 0) {
+    lines.push("  none");
+    return lines.join("\n");
+  }
+  if (rules.rules.length > 0) {
+    lines.push("  custom signals");
+    for (const rule of rules.rules) {
+      const pattern = rule.pattern ? ` pattern=${rule.pattern}` : " path-only";
+      lines.push(`  - USER_${rule.id} weight=${rule.weight} tier=${rule.tier} paths=${rule.paths.join(",")}${pattern}`);
+    }
+  }
+  if (rules.adjust.length > 0) {
+    lines.push("  adjustments");
+    for (const adjustment of rules.adjust) {
+      const paths = adjustment.paths ? adjustment.paths.join(",") : "**";
+      lines.push(`  - ${adjustment.code} weight=${adjustment.weight} paths=${paths}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 function waitForShutdown(close: () => Promise<void>): Promise<void> {
