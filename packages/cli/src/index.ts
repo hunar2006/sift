@@ -40,9 +40,10 @@ program
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
   .option("--ai [provider]", "opt-in AI annotations: anthropic or openai")
+  .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (range: string | undefined, options: ReviewCommandOptions) => {
     const ai = parseAiOption(options.ai);
-    const result = await runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai });
+    const result = await runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai, coverage: options.coverage });
     if (result.model.hunks.length === 0) {
       console.log("Nothing to review.");
       return;
@@ -50,7 +51,7 @@ program
     const server = await startServer(
       {
         ...result,
-        refresh: () => runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai })
+        refresh: () => runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai, coverage: options.coverage })
       },
       Number.parseInt(options.port, 10)
     );
@@ -68,14 +69,18 @@ program
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
   .option("--ai [provider]", "opt-in AI annotations: anthropic or openai")
+  .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (pr: string, options: ReviewCommandOptions) => {
     const ai = parseAiOption(options.ai);
-    const result = await runPipeline({ cwd: process.cwd(), pr, ai });
+    const result = await runPipeline({ cwd: process.cwd(), pr, ai, coverage: options.coverage });
     if (result.model.hunks.length === 0) {
       console.log("Nothing to review.");
       return;
     }
-    const server = await startServer({ ...result, refresh: () => runPipeline({ cwd: process.cwd(), pr, ai }) }, Number.parseInt(options.port, 10));
+    const server = await startServer(
+      { ...result, refresh: () => runPipeline({ cwd: process.cwd(), pr, ai, coverage: options.coverage }) },
+      Number.parseInt(options.port, 10)
+    );
     console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention · ${result.model.groups.length} groups · sift v${SIFT_VERSION}`);
     if (options.open) {
       await open(server.url);
@@ -88,8 +93,9 @@ program
   .option("--md", "emit markdown", true)
   .option("--json", "emit JSON")
   .option("-o, --output <file>", "write report to file")
+  .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (options: ReportOptions) => {
-    const result = await runPipeline({ cwd: process.cwd() });
+    const result = await runPipeline({ cwd: process.cwd(), coverage: options.coverage });
     const { state, warning } = await readReviewState(result.model.meta.repoRoot);
     if (warning) {
       console.error(warning);
@@ -107,8 +113,8 @@ program
     await appendStats(result.model.meta.repoRoot, stats);
   });
 
-program.command("stats").option("--json", "emit JSON").action(async (options: JsonOption) => {
-  const result = await runPipeline({ cwd: process.cwd() });
+program.command("stats").option("--json", "emit JSON").option("--coverage <path>", "parse coverage artifact instead of autodetecting").action(async (options: JsonOption & CoverageOption) => {
+  const result = await runPipeline({ cwd: process.cwd(), coverage: options.coverage });
   const { state } = await readReviewState(result.model.meta.repoRoot);
   const stats = computeStats(result.model, state);
   if (options.json) {
@@ -121,8 +127,9 @@ program.command("stats").option("--json", "emit JSON").action(async (options: Js
 program
   .command("check")
   .option("--max-debt <pct>", "maximum allowed debt percentage", "40")
-  .action(async (options: { maxDebt: string }) => {
-    const result = await runPipeline({ cwd: process.cwd() });
+  .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
+  .action(async (options: { maxDebt: string } & CoverageOption) => {
+    const result = await runPipeline({ cwd: process.cwd(), coverage: options.coverage });
     const { state } = await readReviewState(result.model.meta.repoRoot);
     const stats = computeStats(result.model, state);
     const maxDebt = Number.parseFloat(options.maxDebt);
@@ -195,16 +202,22 @@ interface ReviewCommandOptions {
   port: string;
   open: boolean;
   ai?: true | string;
+  coverage?: string;
 }
 
 interface ReportOptions {
   md?: boolean;
   json?: boolean;
   output?: string;
+  coverage?: string;
 }
 
 interface JsonOption {
   json?: boolean;
+}
+
+interface CoverageOption {
+  coverage?: string;
 }
 
 interface HookOptions {

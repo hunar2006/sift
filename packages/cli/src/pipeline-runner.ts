@@ -4,6 +4,7 @@ import {
   formatRuleFileProblem,
   ingestDiff,
   ingestPrDiff,
+  loadCoverage,
   loadRules,
   parseUnifiedDiff,
   type IngestedDiff,
@@ -23,6 +24,7 @@ export interface RunPipelineOptions {
   range?: string;
   pr?: string;
   ai?: true | AiProvider;
+  coverage?: string;
 }
 
 export interface PipelineResult {
@@ -33,25 +35,30 @@ export interface PipelineResult {
 
 export async function runPipeline(options: RunPipelineOptions): Promise<PipelineResult> {
   const ingested = options.pr ? await ingestPrDiff(options.cwd, options.pr) : await ingestDiff(options);
-  return buildModelFromIngested(ingested, options.ai);
+  return buildModelFromIngested(ingested, options.ai, options.coverage);
 }
 
 export async function buildModelFromIngested(
   ingested: IngestedDiff,
-  ai?: true | AiProvider
+  ai?: true | AiProvider,
+  coveragePath?: string
 ): Promise<PipelineResult> {
   const parsed = parseUnifiedDiff(ingested.patch);
   const generatedPaths = await generatedPathsFromGitAttributes(
     ingested.repoRoot,
     parsed.files.map((file) => file.path)
   );
+  const coverage = await loadCoverage(ingested.repoRoot, parsed.files, coveragePath);
+  for (const warning of coverage.warnings) {
+    console.error(warning);
+  }
   const loadedRules = await loadRules(ingested.repoRoot);
   for (const report of loadedRules.reports) {
     if (report.status === "error") {
       console.error(`Ignoring invalid Sift rules file: ${formatRuleFileProblem(report)}`);
     }
   }
-  let model = analyzeDiff({ ...ingested, generatedPaths, rules: loadedRules.rules });
+  let model = analyzeDiff({ ...ingested, generatedPaths, rules: loadedRules.rules, coverage: coverage.coverage });
   const records = await loadProvenance(ingested.repoRoot);
   if (records.length > 0) {
     model = { ...model, hunks: attachProvenance(model.hunks, records) };

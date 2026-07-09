@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { EffectiveRules } from "./rules.js";
+import type { CoverageData } from "./coverage.js";
 
 export type HunkCategory =
   | "logic"
@@ -179,6 +180,7 @@ export interface AnalyzeOptions {
   provenance?: ProvenanceRef[];
   generatedPaths?: Set<string>;
   rules?: EffectiveRules;
+  coverage?: CoverageData;
 }
 
 export type HunkWithState = Hunk & StoredHunkState;

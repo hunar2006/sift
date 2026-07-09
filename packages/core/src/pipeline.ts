@@ -7,10 +7,11 @@ import { assignHunkIds } from "./identity.js";
 import { parseUnifiedDiff } from "./parse.js";
 import { assignGroups } from "./group.js";
 import { orderReview } from "./order.js";
+import { attachCoverageToHunks } from "./coverage.js";
 
 export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
   const parsed = parseUnifiedDiff(options.patch);
-  const parsedHunks = synthesizeQueueHunks(parsed.files, parsed.hunks);
+  const parsedHunks = attachCoverageToHunks(synthesizeQueueHunks(parsed.files, parsed.hunks), options.coverage);
   const identified = assignHunkIds(parsedHunks);
   const classifier = new HeuristicClassifier();
   const generatedPaths = options.generatedPaths ?? new Set<string>();

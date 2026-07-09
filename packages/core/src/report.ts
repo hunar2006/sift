@@ -16,9 +16,9 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
   return [
     `# Sift review - ${repo} (${model.meta.diffSpec}) - ${new Date(stats.at).toLocaleDateString()}`,
     "",
-    `**${stats.changedLines} lines changed · ${model.totals.attentionLines} needed attention · debt ${(
+    `**${stats.changedLines} lines changed | ${model.totals.attentionLines} needed attention | debt ${(
       stats.debt * 100
-    ).toFixed(1)}% · provenance ${(stats.provenanceCoverage * 100).toFixed(0)}%**`,
+    ).toFixed(1)}% | provenance ${(stats.provenanceCoverage * 100).toFixed(0)}%${coverageSummary(stats)}**`,
     "",
     `## Flagged (${flagged.length})`,
     ...(flagged.length === 0
@@ -42,14 +42,25 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
     "## Skimmed in bulk",
     skimGroups.length === 0
       ? "None"
-      : skimGroups
-          .map((group) => `${group.title} ${group.totalAdded + group.totalRemoved} lines`)
-          .join(" · "),
+      : skimGroups.map((group) => `${group.title} ${group.totalAdded + group.totalRemoved} lines`).join(" | "),
     "",
     "## Provenance",
     `${(stats.provenanceCoverage * 100).toFixed(0)}% of attention hunks matched Claude Code sessions (${provenanceSessions.size} sessions).${
       topPrompt ? ` Top prompt: "${topPrompt}"` : ""
     }`,
+    ...(stats.coverageOnChangedLines === undefined
+      ? []
+      : [
+          "",
+          "## Coverage",
+          `${(stats.coverageOnChangedLines * 100).toFixed(0)}% of changed executable lines were covered by parsed artifacts.`
+        ]),
     ""
   ].join("\n");
+}
+
+function coverageSummary(stats: StatsSnapshot): string {
+  return stats.coverageOnChangedLines === undefined
+    ? ""
+    : ` | coverage ${(stats.coverageOnChangedLines * 100).toFixed(0)}%`;
 }

@@ -13,4 +13,5 @@ export * from "./state.js";
 export * from "./stats.js";
 export * from "./report.js";
 export * from "./rules.js";
+export * from "./coverage.js";
 export * from "./classify/index.js";
