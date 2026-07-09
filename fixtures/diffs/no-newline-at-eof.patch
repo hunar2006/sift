@@ -1,0 +1,8 @@
+diff --git a/src/eof.ts b/src/eof.ts
+--- a/src/eof.ts
++++ b/src/eof.ts
+@@ -1 +1 @@
+-export const eof = false;
+\ No newline at end of file
++export const eof = true;
+\ No newline at end of file

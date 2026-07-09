@@ -1,0 +1,7 @@
+diff --git a/src/crlf.txt b/src/crlf.txt
+--- a/src/crlf.txt
++++ b/src/crlf.txt
+@@ -1,2 +1,2 @@
+ line one
+-line two
++line too

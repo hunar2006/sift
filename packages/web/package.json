@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "test": "vitest run",
+    "test": "cd ../.. && vitest run packages/web/src",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

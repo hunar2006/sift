@@ -10,7 +10,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run",
+    "test": "cd ../.. && vitest run packages/cli/src",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

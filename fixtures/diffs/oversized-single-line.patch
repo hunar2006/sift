@@ -1,0 +1,6 @@
+diff --git a/dist/bundle.min.js b/dist/bundle.min.js
+--- a/dist/bundle.min.js
++++ b/dist/bundle.min.js
+@@ -1 +1 @@
+-old
++__SIFT_OVERSIZED_LINE__

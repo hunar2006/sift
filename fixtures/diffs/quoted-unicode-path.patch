@@ -1,0 +1,6 @@
+diff --git "a/path with spaces/\303\251.txt" "b/path with spaces/\303\251.txt"
+--- "a/path with spaces/\303\251.txt"
++++ "b/path with spaces/\303\251.txt"
+@@ -1 +1 @@
+-old
++new

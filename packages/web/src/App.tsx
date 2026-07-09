@@ -14,6 +14,7 @@ import {
 import { keyboardCommand, nextUnreviewedAfter } from "./keyboard.js";
 import { useReviewStore, visibleHunks } from "./store.js";
 import type { ApiMeta, ReviewHunk, ReviewModel } from "./types.js";
+import { highlightDiffLines } from "./highlight.js";
 import "./styles.css";
 
 export function App() {
@@ -257,12 +258,30 @@ function DiffViewer({
   onOpenFile(hunk: ReviewHunk): void;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const [highlightedLines, setHighlightedLines] = useState<string[] | null>(null);
   const rowVirtualizer = useVirtualizer({
     count: hunk?.lines.length ?? 0,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 24,
     overscan: 12
   });
+  useEffect(() => {
+    let cancelled = false;
+    setHighlightedLines(null);
+    if (!hunk) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    void highlightDiffLines(hunk.id, hunk.language, hunk.lines).then((html) => {
+      if (!cancelled) {
+        setHighlightedLines(html);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hunk]);
   if (!hunk) {
     return <section className="diff">No hunk selected</section>;
   }
@@ -295,7 +314,11 @@ function DiffViewer({
               >
                 <span className="oldno">{line.oldLine ?? ""}</span>
                 <span className="newno">{line.newLine ?? ""}</span>
-                <code>{line.text}</code>
+                {highlightedLines?.[virtualRow.index] ? (
+                  <code dangerouslySetInnerHTML={{ __html: highlightedLines[virtualRow.index] ?? "" }} />
+                ) : (
+                  <code>{line.text}</code>
+                )}
               </div>
             );
           })}
