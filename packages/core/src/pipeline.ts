@@ -6,7 +6,7 @@ import { scopeKeyForPath } from "./classify/signals.js";
 import { assignHunkIds } from "./identity.js";
 import { parseUnifiedDiff } from "./parse.js";
 import { assignGroups } from "./group.js";
-import { orderReview } from "./order.js";
+import { assignReadingRanks, orderReview } from "./order.js";
 import { attachCoverageToHunks } from "./coverage.js";
 import { applyRenamePatternGroups, enrichParsedHunksWithStructure } from "./structure/index.js";
 
@@ -25,7 +25,8 @@ export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
   );
   const structuralHunks = applyRenamePatternGroups(hunks);
   const { hunks: groupedHunks, groups } = assignGroups(structuralHunks);
-  const ordered = orderReview(groupedHunks, groups);
+  const rankedHunks = assignReadingRanks(groupedHunks, groups);
+  const ordered = orderReview(rankedHunks, groups);
   const hunkIdsByFile = new Map<string, string[]>();
   for (const hunk of ordered.hunks) {
     hunkIdsByFile.set(hunk.file, [...(hunkIdsByFile.get(hunk.file) ?? []), hunk.id]);

@@ -18,6 +18,7 @@ export type KeyboardCommand =
   | { type: "toggle-help" }
   | { type: "filter" }
   | { type: "refresh" }
+  | { type: "cycle-sort" }
   | { type: "collapse-all"; collapsed: boolean }
   | { type: "focus-note" };
 
@@ -58,6 +59,8 @@ export function keyboardCommand(state: KeyboardState, key: string): KeyboardComm
       return { type: "filter" };
     case "r":
       return { type: "refresh" };
+    case "s":
+      return { type: "cycle-sort" };
     case "[":
       return { type: "collapse-all", collapsed: true };
     case "]":

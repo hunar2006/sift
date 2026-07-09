@@ -15,6 +15,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - YAML user rules with global/repo precedence, custom `USER_*` signals, built-in signal adjustments, `sift rules lint`, `sift rules list`, and `docs/RULES.md`.
 - Parse-only coverage ingest for LCOV and Cobertura artifacts, `.sift/config.json` coverage discovery, `--coverage <path>` CLI overrides, per-hunk coverage summaries, stats/report coverage lines, and stale-artifact handling.
 - Structural token-stream layer for format-only mechanical detection, definition/reference extraction, and cross-file rename-pattern skim groups.
+- Queue sort modes for risk, reading order, and path order; reading mode uses core-computed `readingRank` from changed-hunk definition/reference edges, and the web UI persists the selected mode.
 
 ### Changed
 
@@ -24,6 +25,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Invalid rules files are reported and skipped during analysis; `sift rules lint` exits non-zero for invalid existing files.
 - Coverage artifacts are read from disk only; Sift still does not run repository tests, scripts, or configs.
 - Comment-only and token-format-only mechanical hunks now stay in skim formatting groups.
+- Risk remains the default queue ordering to preserve v0.1 behavior.
 
 ### Fixed
 

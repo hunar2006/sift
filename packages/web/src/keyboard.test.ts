@@ -42,6 +42,10 @@ describe("keyboardCommand", () => {
     expect(keyboardCommand(state, "u")).toEqual({ type: "status", status: "unreviewed" });
   });
 
+  it("cycles sort mode from the keyboard", () => {
+    expect(keyboardCommand(state, "s")).toEqual({ type: "cycle-sort" });
+  });
+
   it("advances to next unreviewed after status", () => {
     expect(nextUnreviewedAfter([hunk("a", "a.ts", "approved"), hunk("b", "b.ts")], "a")).toBe("b");
   });

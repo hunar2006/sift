@@ -12,7 +12,7 @@ import {
   setHunkStatus
 } from "./api.js";
 import { keyboardCommand, nextUnreviewedAfter } from "./keyboard.js";
-import { useReviewStore, visibleHunks } from "./store.js";
+import { sortReviewHunks, useReviewStore, visibleHunks } from "./store.js";
 import type { ApiMeta, ReviewHunk, ReviewModel } from "./types.js";
 import { highlightDiffLines } from "./highlight.js";
 import "./styles.css";
@@ -26,6 +26,7 @@ export function App() {
     split,
     helpOpen,
     filter,
+    sortMode,
     collapsed,
     toast,
     setData,
@@ -34,6 +35,7 @@ export function App() {
     setSplit,
     setHelp,
     setFilter,
+    cycleSortMode,
     setCollapsed,
     collapseAll,
     setToast
@@ -47,7 +49,10 @@ export function App() {
     void loadAll(setData, setToast);
   }, [setData, setToast]);
 
-  const visible = useMemo(() => visibleHunks(model, filter, collapsed), [model, filter, collapsed]);
+  const visible = useMemo(
+    () => visibleHunks(model, filter, collapsed, sortMode),
+    [model, filter, collapsed, sortMode]
+  );
   const selected = visible.find((hunk) => hunk.id === selectedId) ?? visible[0];
 
   useEffect(() => {
@@ -93,6 +98,9 @@ export function App() {
       if (command.type === "refresh") {
         void refresh();
       }
+      if (command.type === "cycle-sort") {
+        cycleSortMode();
+      }
       if (command.type === "collapse-all") {
         collapseAll(command.collapsed);
       }
@@ -102,7 +110,19 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [collapseAll, filterFocused, helpOpen, pendingG, selected, setHelp, setSelected, setSplit, split, visible]);
+  }, [
+    collapseAll,
+    cycleSortMode,
+    filterFocused,
+    helpOpen,
+    pendingG,
+    selected,
+    setHelp,
+    setSelected,
+    setSplit,
+    split,
+    visible
+  ]);
 
   async function refresh(): Promise<void> {
     try {
@@ -174,9 +194,16 @@ export function App() {
               onFocus={() => setFilterFocused(true)}
               onBlur={() => setFilterFocused(false)}
             />
+            <button className="sort-mode" onClick={() => cycleSortMode()}>
+              Sort: {sortLabel(sortMode)}
+            </button>
           </div>
           {model.groups.map((group) => {
-            const groupHunks = model.hunks.filter((hunk) => group.hunkIds.includes(hunk.id));
+            const groupHunks = sortReviewHunks(
+              model.hunks.filter((hunk) => hunk.groupId === group.id),
+              model,
+              sortMode
+            );
             const reviewed = groupHunks.filter((hunk) => hunk.status !== "unreviewed").length;
             const isCollapsed = Boolean(collapsed[group.id]);
             return (
@@ -234,7 +261,7 @@ export function App() {
         />
       </section>
 
-      <footer className="footer">j/k hunk · J/K file · a approve · x flag · u undo · o split · ? help</footer>
+      <footer className="footer">j/k hunk · J/K file · a approve · x flag · u undo · o split · s sort · ? help</footer>
       {toast && (
         <button className="toast" onClick={() => setToast(undefined)}>
           {toast}
@@ -244,6 +271,10 @@ export function App() {
       {fileModal && <FileModal modal={fileModal} onClose={() => setFileModal(null)} />}
     </main>
   );
+}
+
+function sortLabel(mode: "risk" | "reading" | "path"): string {
+  return mode === "risk" ? "Risk" : mode === "reading" ? "Reading" : "Path";
 }
 
 function DiffViewer({
@@ -427,7 +458,7 @@ function HelpOverlay({ onClose }: { onClose(): void }) {
         <button onClick={onClose}>Close</button>
         <h1>Keys</h1>
         <p>j/k next/prev hunk · J/K next/prev file · g g first · G last</p>
-        <p>a approve · x flag · u unreviewed · n note · o split · / filter · r refresh</p>
+        <p>a approve · x flag · u unreviewed · n note · o split · s sort · / filter · r refresh</p>
         <p>[ collapse all · ] expand all · ? help · Esc close</p>
       </div>
     </div>

@@ -105,6 +105,8 @@ textarea:focus-visible {
 .queue-tools {
   padding: 8px;
   border-bottom: 1px solid #27272a;
+  display: grid;
+  gap: 8px;
 }
 
 .queue-tools input {
@@ -114,6 +116,11 @@ textarea:focus-visible {
   color: #e4e4e7;
   border-radius: 6px;
   padding: 7px 8px;
+}
+
+.sort-mode {
+  width: 100%;
+  text-align: left;
 }
 
 .group-row,
