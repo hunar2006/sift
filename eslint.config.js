@@ -11,7 +11,8 @@ export default tseslint.config(
       ".demo/**",
       ".sift/**",
       "node_modules/**",
-      "pnpm-lock.yaml"
+      "pnpm-lock.yaml",
+      "scripts/**"
     ]
   },
   js.configs.recommended,
@@ -26,7 +27,7 @@ export default tseslint.config(
       },
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["*.js", "scripts/*.ts", "scripts/*.mjs", "packages/web/vite.config.ts"]
+          allowDefaultProject: ["*.js", "vitest.config.ts", "packages/web/vite.config.ts"]
         },
         tsconfigRootDir: import.meta.dirname
       }
@@ -36,7 +37,8 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
-      "@typescript-eslint/no-unnecessary-condition": "off"
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/unbound-method": "off"
     }
   }
 );
