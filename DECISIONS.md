@@ -27,3 +27,5 @@
 - AI v2 keeps `aiSummary` and `aiConcern` as compatibility accessors, but new annotations are stored per provider in `aiAnnotations[]` with optional drift text.
 - Provenance matching now lives in core behind a `ProvenanceProvider` interface. Claude Code is the first provider; generic JSONL records from other tools are matched after Claude so canonical hook/transcript matches win ties.
 - The open provenance file remains `~/.sift/provenance.jsonl`; generic ingestion skips `source=claude-code` records so the legacy Claude hook path and third-party records can share one file without duplicate matches.
+- The MCP server is stdio-only and read-only. It uses a separate no-write state reader instead of the normal state helper because the normal helper may back up corrupt files.
+- MCP tool inputs are restricted to ids and enums; no path, glob, shell, HTTP, or review-state mutation tools are exposed.

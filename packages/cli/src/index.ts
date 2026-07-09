@@ -24,6 +24,7 @@ import { BINARY_NAME, PRODUCT_NAME, SIFT_VERSION } from "@sift-review/core";
 import { runPipeline, type RunPipelineOptions } from "./pipeline-runner.js";
 import { startServer } from "./server.js";
 import type { AiMode } from "./ai.js";
+import { runMcpServer } from "./mcp.js";
 
 const program = new Command();
 
@@ -186,6 +187,15 @@ hooks.command("status").option("--project", "use repo-local Claude settings").ac
 program.command("hook-capture", { hidden: true }).action(async () => {
   await runHookCapture();
 });
+
+program
+  .command("mcp")
+  .argument("[range]", "git ref/range to diff against HEAD")
+  .option("--staged", "review staged changes")
+  .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
+  .action(async (range: string | undefined, options: { staged?: boolean; coverage?: string }) => {
+    await runMcpServer(await runPipeline({ cwd: process.cwd(), staged: options.staged, range, coverage: options.coverage }));
+  });
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   if (error instanceof GitError) {

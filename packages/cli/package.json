@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@sift-review/claude-adapter": "workspace:*",
     "@sift-review/core": "workspace:*",
     "commander": "^13.1.0",
