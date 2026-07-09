@@ -1,6 +1,8 @@
 import type { AnalyzeOptions, FileChange, Hunk, ParsedHunk, ReviewModel } from "./types.js";
 import { SIFT_VERSION } from "./brand.js";
 import { HeuristicClassifier } from "./classify/index.js";
+import { classifyHunk } from "./classify/categories.js";
+import { scopeKeyForPath } from "./classify/signals.js";
 import { assignHunkIds } from "./identity.js";
 import { parseUnifiedDiff } from "./parse.js";
 import { assignGroups } from "./group.js";
@@ -11,8 +13,11 @@ export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
   const parsedHunks = synthesizeQueueHunks(parsed.files, parsed.hunks);
   const identified = assignHunkIds(parsedHunks);
   const classifier = new HeuristicClassifier();
+  const generatedPaths = options.generatedPaths ?? new Set<string>();
+  const testScopes = testScopesFor(identified, generatedPaths);
+  const hasCoverageData = identified.some((hunk) => Boolean(hunk.coverage));
   const hunks = identified.map((hunk) =>
-    classifier.classify(hunk, options.generatedPaths ?? new Set())
+    classifier.classify(hunk, generatedPaths, undefined, { testScopes, hasCoverageData })
   );
   const { hunks: groupedHunks, groups } = assignGroups(hunks);
   const ordered = orderReview(groupedHunks, groups);
@@ -37,6 +42,16 @@ export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
     groups: ordered.groups,
     totals: totalsFor(ordered.hunks, ordered.groups)
   };
+}
+
+function testScopesFor(hunks: ParsedHunk[], generatedPaths: Set<string>): Set<string> {
+  const scopes = new Set<string>();
+  for (const hunk of hunks) {
+    if (classifyHunk(hunk, [], generatedPaths).category === "tests") {
+      scopes.add(scopeKeyForPath(hunk.file));
+    }
+  }
+  return scopes;
 }
 
 function synthesizeQueueHunks(files: FileChange[], hunks: ParsedHunk[]): ParsedHunk[] {

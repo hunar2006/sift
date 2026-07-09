@@ -16,6 +16,7 @@ export interface RiskReason {
   code: string;
   label: string;
   weight: number;
+  tier?: "primary" | "nit";
   line?: number;
   evidence?: string;
 }
@@ -55,6 +56,7 @@ export interface Hunk {
   risk: number;
   band: RiskBand;
   reasons: RiskReason[];
+  coverage?: CoverageSummary;
   groupId: string;
   oldStart?: number;
   newStart?: number;
@@ -123,6 +125,13 @@ export interface StatsSnapshot {
   flaggedHunks: number;
   debt: number;
   provenanceCoverage: number;
+  coverageOnChangedLines?: number;
+}
+
+export interface CoverageSummary {
+  covered: number;
+  total: number;
+  stale: boolean;
 }
 
 export interface ParsedHunk {
@@ -137,6 +146,7 @@ export interface ParsedHunk {
   addedLines: number;
   removedLines: number;
   parserReasons: RiskReason[];
+  coverage?: CoverageSummary;
   isRenameOnly?: boolean;
   isModeChange?: boolean;
   isBinary?: boolean;
@@ -175,9 +185,16 @@ export type ReviewModelWithState = Omit<ReviewModel, "hunks"> & { hunks: HunkWit
 const riskReasonSchema: z.ZodType<RiskReason> = z.object({
   code: z.string(),
   label: z.string(),
-  weight: z.number(),
+  weight: z.number().min(-50).max(50),
+  tier: z.union([z.literal("primary"), z.literal("nit")]).optional().default("primary"),
   line: z.number().optional(),
   evidence: z.string().max(120).optional()
+});
+
+export const coverageSummarySchema: z.ZodType<CoverageSummary> = z.object({
+  covered: z.number().min(0),
+  total: z.number().min(0),
+  stale: z.boolean()
 });
 
 const provenanceSchema: z.ZodType<ProvenanceRef> = z.object({
@@ -222,6 +239,7 @@ export const hunkSchema: z.ZodType<Hunk> = z.object({
   risk: z.number().min(0).max(100),
   band: z.union([z.literal("high"), z.literal("medium"), z.literal("low"), z.literal("skim")]),
   reasons: z.array(riskReasonSchema),
+  coverage: coverageSummarySchema.optional(),
   groupId: z.string(),
   oldStart: z.number().optional(),
   newStart: z.number().optional(),
@@ -256,5 +274,6 @@ export const statsSnapshotSchema: z.ZodType<StatsSnapshot> = z.object({
   reviewedReviewableLines: z.number(),
   flaggedHunks: z.number(),
   debt: z.number(),
-  provenanceCoverage: z.number()
+  provenanceCoverage: z.number(),
+  coverageOnChangedLines: z.number().optional()
 });

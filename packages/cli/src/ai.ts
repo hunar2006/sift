@@ -17,7 +17,11 @@ export type AiProvider = "anthropic" | "openai";
 export async function annotateWithAi(model: ReviewModel, requested: true | AiProvider): Promise<ReviewModel> {
   const provider = resolveProvider(requested);
   const hunks = model.hunks
-    .filter((hunk) => (hunk.band === "high" || hunk.band === "medium") && !hunk.reasons.some((reason) => reason.code === "SECRET_LIKE"))
+    .filter(
+      (hunk) =>
+        (hunk.band === "high" || hunk.band === "medium") &&
+        !hunk.reasons.some((reason) => reason.code === "SECRET_LIKE" || reason.code === "SECRET_ENTROPY")
+    )
     .slice(0, 40);
   if (hunks.length === 0) {
     return model;

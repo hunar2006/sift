@@ -3,6 +3,12 @@ import type { DiffLine, HunkCategory, ParsedHunk, RiskReason } from "../types.js
 import { extension, normalizeRepoRelative, safeEvidence } from "../path-utils.js";
 import { SIGNAL_WEIGHTS } from "../score.js";
 import { isTestPath, isManifestPath } from "./categories.js";
+import { POPULAR_PACKAGE_NAMES } from "./signals/popular-packages.js";
+
+export interface SignalContext {
+  testScopes?: Set<string>;
+  hasCoverageData?: boolean;
+}
 
 const SECURITY_PATH_RE =
   /(auth|security|crypt|password|token|secret|session|permission|acl|payment|billing|login|oauth)/i;
@@ -38,21 +44,22 @@ const PUBLIC_TS_RE =
 const DEBUG_RE = /console\.log\(|\bprint\(|debugger;|binding\.pry/;
 const TODO_RE = /\b(TODO|FIXME|HACK)\b/i;
 
-export function computeRiskSignals(hunk: ParsedHunk, category: HunkCategory): RiskReason[] {
+export function computeRiskSignals(
+  hunk: ParsedHunk,
+  category: HunkCategory,
+  context: SignalContext = {}
+): RiskReason[] {
   const reasons: RiskReason[] = [...hunk.parserReasons];
   const file = normalizeRepoRelative(hunk.file);
   const added = hunk.lines.filter((line) => line.kind === "add");
   const removed = hunk.lines.filter((line) => line.kind === "del");
+  const unchanged = hunk.lines.filter((line) => line.kind === "context");
 
   if (SECURITY_PATH_RE.test(file)) {
     reasons.push({ code: "SEC_PATH", label: "Security-sensitive path", weight: SIGNAL_WEIGHTS.SEC_PATH });
   }
 
-  pushFirstLineSignal(reasons, added, SECRET_RE_LIST, {
-    code: "SECRET_LIKE",
-    label: "Secret-like value added",
-    weight: SIGNAL_WEIGHTS.SECRET_LIKE
-  });
+  pushSecretSignals(reasons, added, category);
   pushFirstLineSignal(reasons, added, [TLS_RE], {
     code: "TLS_DISABLED",
     label: "Disables TLS verification",
@@ -61,13 +68,13 @@ export function computeRiskSignals(hunk: ParsedHunk, category: HunkCategory): Ri
 
   const dangerous = distinctLineMatches(added, DANGEROUS_RE_LIST);
   if (dangerous.length > 0) {
+    const siteWeight =
+      category === "tests" ? SIGNAL_WEIGHTS.DANGEROUS_API_TEST_SITE : SIGNAL_WEIGHTS.DANGEROUS_API_SITE;
+    const cap = category === "tests" ? SIGNAL_WEIGHTS.DANGEROUS_API_TEST_CAP : SIGNAL_WEIGHTS.DANGEROUS_API_CAP;
     reasons.push({
       code: "DANGEROUS_API",
       label: "Dangerous API usage added",
-      weight: Math.min(
-        dangerous.length * SIGNAL_WEIGHTS.DANGEROUS_API_SITE,
-        SIGNAL_WEIGHTS.DANGEROUS_API_CAP
-      ),
+      weight: Math.min(dangerous.length * siteWeight, cap),
       line: dangerous[0]?.line.newLine,
       evidence: safeEvidence(dangerous.map((match) => match.line.text).join(" | "))
     });
@@ -76,7 +83,7 @@ export function computeRiskSignals(hunk: ParsedHunk, category: HunkCategory): Ri
   pushFirstLineSignal(reasons, added, [SQL_CONCAT_RE], {
     code: "SQL_CONCAT",
     label: "SQL string appears concatenated",
-    weight: SIGNAL_WEIGHTS.SQL_CONCAT
+    weight: category === "tests" ? SIGNAL_WEIGHTS.SQL_CONCAT_TEST : SIGNAL_WEIGHTS.SQL_CONCAT
   });
 
   if (category === "tests") {
@@ -102,7 +109,7 @@ export function computeRiskSignals(hunk: ParsedHunk, category: HunkCategory): Ri
   if (swallowed) {
     reasons.push({
       code: "ERROR_SWALLOWED",
-      label: "Error appears swallowed",
+      label: "Error appears swallowed or broadly caught",
       weight: SIGNAL_WEIGHTS.ERROR_SWALLOWED,
       line: swallowed.newLine,
       evidence: safeEvidence(swallowed.text)
@@ -140,6 +147,24 @@ export function computeRiskSignals(hunk: ParsedHunk, category: HunkCategory): Ri
       evidence: safeEvidence(newDeps.join(", "))
     });
   }
+  const typoMatches = typosquatMatches(file, newDeps, [...removed, ...unchanged]);
+  if (typoMatches.length > 0) {
+    reasons.push({
+      code: "TYPOSQUAT_SUSPECT",
+      label: "New dependency resembles an existing or popular package",
+      weight: SIGNAL_WEIGHTS.TYPOSQUAT_SUSPECT,
+      line: added.find((line) => typoMatches.some((match) => line.text.includes(match.name)))?.newLine,
+      evidence: safeEvidence(typoMatches.map((match) => `${match.name} ~ ${match.target}`).join(", "))
+    });
+  }
+
+  if (isAgentGuidanceFile(file)) {
+    reasons.push({
+      code: "AGENT_GUIDANCE_EDIT",
+      label: "Edits AI-agent guidance - verify the agent is not changing its own instructions",
+      weight: SIGNAL_WEIGHTS.AGENT_GUIDANCE_EDIT
+    });
+  }
 
   const publicApiLine = [...added, ...removed].find((line) => isPublicApiLine(file, line));
   if (publicApiLine) {
@@ -152,19 +177,22 @@ export function computeRiskSignals(hunk: ParsedHunk, category: HunkCategory): Ri
     });
   }
 
-  if (category === "logic") {
-    const weight = Math.floor(
-      Math.min(hunk.addedLines, SIGNAL_WEIGHTS.LARGE_NOVEL_CAP_LINES) /
-        SIGNAL_WEIGHTS.LARGE_NOVEL_UNIT
-    );
-    if (weight > 0) {
-      reasons.push({
-        code: "LARGE_NOVEL",
-        label: "Large novel logic addition",
-        weight
-      });
-    }
+  const concurrency = concurrencyMatches(file, added, category);
+  if (concurrency.length > 0) {
+    reasons.push({
+      code: "CONCURRENCY_HAZARD",
+      label: "Concurrency primitive added",
+      weight: Math.min(
+        concurrency.length * SIGNAL_WEIGHTS.CONCURRENCY_HAZARD_SITE,
+        SIGNAL_WEIGHTS.CONCURRENCY_HAZARD_CAP
+      ),
+      line: concurrency[0]?.line.newLine,
+      evidence: safeEvidence(concurrency.map((match) => match.line.text).join(" | "))
+    });
   }
+
+  pushCoverageSignals(reasons, hunk, category, context);
+  pushNovelUntestedSignal(reasons, hunk, category, context);
 
   if (hunk.isModeChange && hunk.newMode === "100755" && !reasons.some((reason) => reason.code === "MODE_EXEC")) {
     reasons.push({ code: "MODE_EXEC", label: "Mode changed to executable", weight: SIGNAL_WEIGHTS.MODE_EXEC });
@@ -180,7 +208,8 @@ export function computeRiskSignals(hunk: ParsedHunk, category: HunkCategory): Ri
       reasons.push({
         code: "DEBUG_LEFTOVER",
         label: "Debug statement left in logic",
-        weight: Math.min(debugLines.length * 5, SIGNAL_WEIGHTS.DEBUG_LEFTOVER_CAP),
+        weight: Math.min(debugLines.length * SIGNAL_WEIGHTS.DEBUG_LEFTOVER_SITE, SIGNAL_WEIGHTS.DEBUG_LEFTOVER_CAP),
+        tier: "nit",
         line: debugLines[0]?.newLine,
         evidence: safeEvidence(debugLines.map((line) => line.text).join(" | "))
       });
@@ -193,6 +222,7 @@ export function computeRiskSignals(hunk: ParsedHunk, category: HunkCategory): Ri
       code: "TODO_ADDED",
       label: "TODO-style marker added",
       weight: SIGNAL_WEIGHTS.TODO_ADDED,
+      tier: "nit",
       line: todoLine.newLine,
       evidence: safeEvidence(todoLine.text)
     });
@@ -213,7 +243,7 @@ function pushFirstLineSignal(
   reasons: RiskReason[],
   lines: DiffLine[],
   regexes: RegExp[],
-  meta: Pick<RiskReason, "code" | "label" | "weight">
+  meta: Pick<RiskReason, "code" | "label" | "weight" | "tier">
 ): void {
   const match = lines.find((line) => regexes.some((regex) => regex.test(line.text)));
   if (!match) {
@@ -223,6 +253,40 @@ function pushFirstLineSignal(
     ...meta,
     line: match.newLine,
     evidence: safeEvidence(match.text)
+  });
+}
+
+function pushSecretSignals(reasons: RiskReason[], added: DiffLine[], category: HunkCategory): void {
+  const secretLikeLine = added.find((line) => lineMatchesAny(line.text, SECRET_RE_LIST));
+  let secretWeight = 0;
+  if (secretLikeLine) {
+    reasons.push({
+      code: "SECRET_LIKE",
+      label: "Secret-like value added",
+      weight: SIGNAL_WEIGHTS.SECRET_LIKE,
+      line: secretLikeLine.newLine,
+      evidence: safeEvidence(secretLikeLine.text)
+    });
+    secretWeight += SIGNAL_WEIGHTS.SECRET_LIKE;
+  }
+  if (category === "deps" || category === "generated") {
+    return;
+  }
+  const entropy = findEntropySecret(added);
+  if (!entropy) {
+    return;
+  }
+  const remainingSecretWeight = SIGNAL_WEIGHTS.SECRET_COMBINED_CAP - secretWeight;
+  const weight = Math.min(SIGNAL_WEIGHTS.SECRET_ENTROPY, Math.max(0, remainingSecretWeight));
+  if (weight <= 0) {
+    return;
+  }
+  reasons.push({
+    code: "SECRET_ENTROPY",
+    label: "High-entropy string literal added",
+    weight,
+    line: entropy.line.newLine,
+    evidence: safeEvidence(`${entropy.value.slice(0, 80)} entropy ${entropy.entropy.toFixed(2)}`)
   });
 }
 
@@ -244,11 +308,66 @@ function distinctLineMatches(lines: DiffLine[], regexes: RegExp[]): Array<{ line
   return matches;
 }
 
+function lineMatchesAny(text: string, regexes: RegExp[]): boolean {
+  return regexes.some((regex) => regex.test(text));
+}
+
+function findEntropySecret(lines: DiffLine[]): { line: DiffLine; value: string; entropy: number } | undefined {
+  for (const line of lines) {
+    if (lineMatchesAny(line.text, SECRET_RE_LIST)) {
+      continue;
+    }
+    for (const value of quotedStrings(line.text)) {
+      if (/^https?:\/\//i.test(value) || !isEntropyCharset(value)) {
+        continue;
+      }
+      const entropy = shannonEntropy(value);
+      if (entropy >= 4.2) {
+        return { line, value, entropy };
+      }
+    }
+  }
+  return undefined;
+}
+
+function quotedStrings(text: string): string[] {
+  const strings: string[] = [];
+  const quoted = /(["'`])((?:\\.|(?!\1).){20,})\1/g;
+  let match = quoted.exec(text);
+  while (match) {
+    if (match[2]) {
+      strings.push(match[2]);
+    }
+    match = quoted.exec(text);
+  }
+  return strings;
+}
+
+function isEntropyCharset(value: string): boolean {
+  return /^[A-Za-z0-9+/_=.-]+$/.test(value);
+}
+
+function shannonEntropy(value: string): number {
+  const counts = new Map<string, number>();
+  for (const char of value) {
+    counts.set(char, (counts.get(char) ?? 0) + 1);
+  }
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const p = count / value.length;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
+}
+
 function findSwallowedError(added: DiffLine[]): DiffLine | undefined {
   for (let index = 0; index < added.length; index += 1) {
     const line = added[index];
     if (!line || !/\b(catch|except)\b/.test(line.text)) {
       continue;
+    }
+    if (isBroadExcept(line.text)) {
+      return line;
     }
     const body = added
       .slice(index + 1, index + 4)
@@ -261,6 +380,10 @@ function findSwallowedError(added: DiffLine[]): DiffLine | undefined {
   return undefined;
 }
 
+function isBroadExcept(text: string): boolean {
+  return /^\s*except\s*(?::|(?:Exception|BaseException)?(?:\s+as\s+\w+)?\s*:)/.test(text);
+}
+
 function isCiWorkflow(file: string): boolean {
   return file.startsWith(".github/workflows/") || file === ".gitlab-ci.yml" || file === "Jenkinsfile";
 }
@@ -271,13 +394,13 @@ function migrationWeight(file: string, added: DiffLine[]): number {
   }
   const text = added.map((line) => line.text).join("\n");
   let weight = SIGNAL_WEIGHTS.MIGRATION_BASE;
-  if (/DROP TABLE|DROP COLUMN|DELETE FROM/i.test(text)) {
+  if (/DROP\s+(TABLE|COLUMN)/i.test(text)) {
     weight += SIGNAL_WEIGHTS.MIGRATION_DROP;
   }
   if (/DELETE FROM/i.test(text) && !/DELETE FROM[^\n]+WHERE/i.test(text)) {
     weight += SIGNAL_WEIGHTS.MIGRATION_UNSCOPED_DELETE;
   }
-  return Math.min(weight, 40);
+  return Math.min(weight, SIGNAL_WEIGHTS.MIGRATION_CAP);
 }
 
 function newDependencyNames(file: string, added: DiffLine[], removed: DiffLine[]): string[] {
@@ -287,6 +410,78 @@ function newDependencyNames(file: string, added: DiffLine[], removed: DiffLine[]
   const removedDeps = new Set(removed.flatMap((line) => extractDependencyNames(file, line.text)));
   const addedDeps = added.flatMap((line) => extractDependencyNames(file, line.text));
   return [...new Set(addedDeps.filter((dep) => !removedDeps.has(dep)))];
+}
+
+function typosquatMatches(
+  file: string,
+  newDeps: string[],
+  comparisonLines: DiffLine[]
+): Array<{ name: string; target: string }> {
+  if (!isManifestPath(file)) {
+    return [];
+  }
+  const localNames = comparisonLines.flatMap((line) => extractDependencyNames(file, line.text));
+  const comparisonNames = uniqueNormalizedNames([...localNames, ...POPULAR_PACKAGE_NAMES]);
+  const matches: Array<{ name: string; target: string; distance: number }> = [];
+  for (const dep of newDeps) {
+    const candidate = normalizePackageName(dep);
+    if (candidate.length < 4) {
+      continue;
+    }
+    let closest: { target: string; distance: number } | undefined;
+    for (const target of comparisonNames) {
+      if (candidate === target) {
+        continue;
+      }
+      const distance = damerauLevenshtein(candidate, target);
+      if (distance <= 2 && (!closest || distance < closest.distance)) {
+        closest = { target, distance };
+      }
+    }
+    if (closest) {
+      matches.push({ name: dep, target: closest.target, distance: closest.distance });
+    }
+  }
+  return matches.map(({ name, target }) => ({ name, target }));
+}
+
+function uniqueNormalizedNames(names: readonly string[]): string[] {
+  return [...new Set(names.map((name) => normalizePackageName(name)).filter(Boolean))];
+}
+
+function normalizePackageName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function damerauLevenshtein(left: string, right: string): number {
+  const rows = left.length + 1;
+  const cols = right.length + 1;
+  const matrix = Array.from({ length: rows }, () => Array<number>(cols).fill(0));
+  for (let row = 0; row < rows; row += 1) {
+    matrix[row]![0] = row;
+  }
+  for (let col = 0; col < cols; col += 1) {
+    matrix[0]![col] = col;
+  }
+  for (let row = 1; row < rows; row += 1) {
+    for (let col = 1; col < cols; col += 1) {
+      const cost = left[row - 1] === right[col - 1] ? 0 : 1;
+      matrix[row]![col] = Math.min(
+        matrix[row - 1]![col]! + 1,
+        matrix[row]![col - 1]! + 1,
+        matrix[row - 1]![col - 1]! + cost
+      );
+      if (
+        row > 1 &&
+        col > 1 &&
+        left[row - 1] === right[col - 2] &&
+        left[row - 2] === right[col - 1]
+      ) {
+        matrix[row]![col] = Math.min(matrix[row]![col]!, matrix[row - 2]![col - 2]! + 1);
+      }
+    }
+  }
+  return matrix[left.length]![right.length]!;
 }
 
 function extractDependencyNames(file: string, text: string): string[] {
@@ -309,6 +504,121 @@ function extractDependencyNames(file: string, text: string): string[] {
     return match ? [match[1] ?? ""] .filter(Boolean) : [];
   }
   return [];
+}
+
+function isAgentGuidanceFile(file: string): boolean {
+  const base = path.posix.basename(file);
+  return (
+    base === "CLAUDE.md" ||
+    base === "AGENTS.md" ||
+    file === ".cursorrules" ||
+    file.startsWith(".cursor/rules/") ||
+    file === ".github/copilot-instructions.md" ||
+    /^\.claude\/settings.*\.json$/.test(file) ||
+    (file.startsWith(".claude/") && file.endsWith(".md"))
+  );
+}
+
+function concurrencyMatches(
+  file: string,
+  lines: DiffLine[],
+  category: HunkCategory
+): Array<{ line: DiffLine; key: string }> {
+  if (category !== "logic") {
+    return [];
+  }
+  const regexes = concurrencyRegexesFor(file);
+  return distinctLineMatches(lines, regexes);
+}
+
+function concurrencyRegexesFor(file: string): RegExp[] {
+  const ext = extension(file);
+  if (["ts", "tsx", "js", "jsx", "mjs", "cjs"].includes(ext)) {
+    return [/new Worker\(/, /SharedArrayBuffer/, /Atomics\./, /worker_threads/];
+  }
+  if (ext === "py") {
+    return [/threading\.Thread/, /\bmultiprocessing\b/, /\bLock\(\)/, /\bSemaphore\(/];
+  }
+  if (ext === "go") {
+    return [/\bgo\s+func\(/, /sync\.Mutex/, /sync\.RWMutex/, /atomic\./];
+  }
+  if (ext === "rs") {
+    return [/std::thread::spawn/, /tokio::spawn/, /\bMutex</, /\bRwLock</];
+  }
+  if (["java", "kt", "kts"].includes(ext)) {
+    return [/\bsynchronized\b/, /\bReentrantLock\b/, /new Thread\(/];
+  }
+  return [];
+}
+
+function pushCoverageSignals(
+  reasons: RiskReason[],
+  hunk: ParsedHunk,
+  category: HunkCategory,
+  context: SignalContext
+): void {
+  if (category !== "logic" || !context.hasCoverageData || !hunk.coverage || hunk.coverage.total <= 0) {
+    return;
+  }
+  const ratio = hunk.coverage.covered / hunk.coverage.total;
+  if (hunk.addedLines >= 5 && hunk.coverage.covered === 0) {
+    reasons.push({
+      code: "UNTESTED_CHANGE",
+      label: "Changed logic has no covered added lines",
+      weight: SIGNAL_WEIGHTS.UNTESTED_CHANGE,
+      evidence: coverageEvidence(hunk.coverage)
+    });
+  }
+  if (!hunk.coverage.stale && ratio >= 0.8) {
+    reasons.push({
+      code: "COVERED_CHANGE",
+      label: "Changed logic is covered by test evidence",
+      weight: SIGNAL_WEIGHTS.COVERED_CHANGE,
+      evidence: coverageEvidence(hunk.coverage)
+    });
+  }
+}
+
+function pushNovelUntestedSignal(
+  reasons: RiskReason[],
+  hunk: ParsedHunk,
+  category: HunkCategory,
+  context: SignalContext
+): void {
+  if (category !== "logic" || hunk.addedLines < 40) {
+    return;
+  }
+  if (context.testScopes?.has(scopeKeyForPath(hunk.file))) {
+    return;
+  }
+  const coverageRatio =
+    context.hasCoverageData && hunk.coverage && hunk.coverage.total > 0
+      ? hunk.coverage.covered / hunk.coverage.total
+      : undefined;
+  if (coverageRatio !== undefined && coverageRatio >= 0.3) {
+    return;
+  }
+  reasons.push({
+    code: "NOVEL_UNTESTED",
+    label: "Large logic addition without nearby test evidence",
+    weight:
+      coverageRatio !== undefined
+        ? SIGNAL_WEIGHTS.NOVEL_UNTESTED_COVERAGE_CONFIRMED
+        : SIGNAL_WEIGHTS.NOVEL_UNTESTED,
+    evidence:
+      coverageRatio !== undefined
+        ? coverageEvidence(hunk.coverage!)
+        : `no test hunks under ${scopeKeyForPath(hunk.file)}`
+  });
+}
+
+function coverageEvidence(coverage: { covered: number; total: number; stale: boolean }): string {
+  return `${coverage.covered}/${coverage.total}${coverage.stale ? " stale" : ""}`;
+}
+
+export function scopeKeyForPath(file: string): string {
+  const normalized = normalizeRepoRelative(file);
+  return normalized.split("/").find((segment) => segment.length > 0) ?? ".";
 }
 
 function isPublicApiLine(file: string, line: DiffLine): boolean {
