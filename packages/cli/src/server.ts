@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { promises as fs } from "node:fs";
 import net from "node:net";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   BulkApproveBlockedError,
   approveGroup,
@@ -152,5 +153,5 @@ function canListen(port: number): Promise<boolean> {
 }
 
 function resolveWebDist(): string {
-  return path.resolve(process.cwd(), "packages", "web", "dist");
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "web", "dist");
 }
