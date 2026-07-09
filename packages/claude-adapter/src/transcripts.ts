@@ -80,6 +80,7 @@ export async function parseTranscript(filePath: string, repoRoot: string): Promi
   const records: ProvenanceRecord[] = [];
   let lastUser = "";
   let lastAssistant = "";
+  let lastModelFamily: ProvenanceRecord["modelFamily"];
   for (const line of raw.split(/\r?\n/)) {
     if (!line.trim()) {
       continue;
@@ -102,6 +103,9 @@ export async function parseTranscript(filePath: string, repoRoot: string): Promi
       if (role === "assistant" && text) {
         lastAssistant = excerpt(text, 400);
       }
+      if (role === "assistant") {
+        lastModelFamily = modelFamilyFor(stringValue(entry.model) ?? stringValue(isRecord(entry.message) ? entry.message.model : undefined));
+      }
       for (const tool of extractToolUses(content)) {
         records.push({
           source: "transcript-scan",
@@ -113,7 +117,8 @@ export async function parseTranscript(filePath: string, repoRoot: string): Promi
           filePath: tool.filePath,
           newStrings: tool.newStrings,
           userPromptExcerpt: lastUser,
-          reasoningExcerpt: lastAssistant
+          reasoningExcerpt: lastAssistant,
+          modelFamily: lastModelFamily
         });
       }
     } catch {
@@ -195,4 +200,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+function modelFamilyFor(model: string | undefined): ProvenanceRecord["modelFamily"] {
+  if (!model) {
+    return undefined;
+  }
+  const normalized = model.toLowerCase();
+  if (normalized.includes("claude") || normalized.includes("anthropic")) {
+    return "anthropic";
+  }
+  if (normalized.includes("gpt") || normalized.includes("openai") || normalized.includes("o3") || normalized.includes("o4")) {
+    return "openai";
+  }
+  return "unknown";
 }

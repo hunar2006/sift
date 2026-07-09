@@ -23,3 +23,5 @@
 - Cross-file rename-pattern groups are synthesized only when one identifier mapping appears in at least three files and five sites, and only for hunks without signals weighted 15 or higher.
 - Reading-order ranks are annotations only; the persisted review model still defaults to v0.1 risk ordering, while the web client applies the user's persisted sort mode locally.
 - Reading-order ties, cycles, and hunks without definition/reference edges fall back to risk ordering so ambiguous structural data never hides higher-risk work.
+- AI provider resolution treats bare `--ai` as `cross`: use the opposite provider when provenance reveals a dominant generator family and that key exists, otherwise use configured keys with an informational line.
+- AI v2 keeps `aiSummary` and `aiConcern` as compatibility accessors, but new annotations are stored per provider in `aiAnnotations[]` with optional drift text.

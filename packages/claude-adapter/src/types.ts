@@ -10,6 +10,7 @@ export interface ProvenanceRecord {
   addedHashes?: string[];
   userPromptExcerpt?: string;
   reasoningExcerpt?: string;
+  modelFamily?: "anthropic" | "openai" | "unknown";
 }
 
 export interface HookCapturePayload {

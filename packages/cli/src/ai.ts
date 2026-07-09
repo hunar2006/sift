@@ -1,21 +1,42 @@
-import type { Hunk, ReviewModel } from "@sift-review/core";
+import type { AiAnnotation, Hunk, ReviewModel } from "@sift-review/core";
 import { z } from "zod";
 
+const ANTHROPIC_MODEL = "claude-sonnet-4-6";
+const OPENAI_MODEL = "gpt-4.1-mini";
+
 const SYSTEM_PROMPT =
-  'You annotate code-review hunks. For each hunk, return strict JSON: an array of objects {"id": string, "summary": string, "concern": string|null}. "summary" is ONE sentence, ≤ 140 chars, describing what the change does. "concern" is ONE sentence naming the single most review-worthy risk, or null if nothing stands out. Do not praise. Do not suggest style changes. Do not invent issues. Output JSON only.';
+  'You annotate code-review hunks. For each hunk, return strict JSON: an array of objects {"id": string, "summary": string, "concern": string|null, "drift": string|null}. "summary" is ONE sentence, <= 140 chars, describing what the change does. "concern" is ONE sentence naming the single most review-worthy risk, or null if nothing stands out. If "userPromptExcerpt" is present, "drift" is ONE sentence naming a way the implementation appears to exceed or miss that request, else null. Do not praise. Do not suggest style changes. Do not invent issues. Output JSON only.';
 
 const annotationSchema = z.array(
   z.object({
     id: z.string(),
     summary: z.string().max(180),
-    concern: z.string().nullable()
+    concern: z.string().nullable(),
+    drift: z.string().max(220).nullable().optional()
   })
 );
 
 export type AiProvider = "anthropic" | "openai";
+export type AiMode = AiProvider | "same" | "cross" | "both";
 
-export async function annotateWithAi(model: ReviewModel, requested: true | AiProvider): Promise<ReviewModel> {
-  const provider = resolveProvider(requested);
+export interface AiProviderResolution {
+  providers: AiProvider[];
+  reason?: string;
+  dominantFamily?: AiProvider;
+}
+
+export interface ParsedAiAnnotation {
+  id: string;
+  summary: string;
+  concern: string | null;
+  drift: string | null;
+}
+
+export async function annotateWithAi(model: ReviewModel, requested: true | AiMode): Promise<ReviewModel> {
+  const resolution = resolveAiProviders(model, requested);
+  if (resolution.reason) {
+    console.error(`AI: ${resolution.reason}`);
+  }
   const hunks = model.hunks
     .filter(
       (hunk) =>
@@ -26,48 +47,131 @@ export async function annotateWithAi(model: ReviewModel, requested: true | AiPro
   if (hunks.length === 0) {
     return model;
   }
-  const annotations = new Map<string, { summary: string; concern: string | null }>();
-  for (let index = 0; index < hunks.length; index += 8) {
-    const batch = hunks.slice(index, index + 8);
-    try {
-      const raw = provider === "anthropic" ? await callAnthropic(batch) : await callOpenAi(batch);
-      for (const item of parseAnnotationJson(raw)) {
-        annotations.set(item.id, { summary: item.summary, concern: item.concern });
+
+  const annotations = new Map<string, AiAnnotation[]>();
+  for (const provider of resolution.providers) {
+    for (let index = 0; index < hunks.length; index += 8) {
+      const batch = hunks.slice(index, index + 8);
+      try {
+        const raw = provider === "anthropic" ? await callAnthropic(batch) : await callOpenAi(batch);
+        for (const item of parseAnnotationJson(raw)) {
+          const annotation: AiAnnotation = {
+            provider,
+            model: modelForProvider(provider),
+            summary: item.summary,
+            concern: item.concern,
+            drift: item.drift
+          };
+          annotations.set(item.id, [...(annotations.get(item.id) ?? []), annotation]);
+        }
+      } catch {
+        console.error(`AI ${provider} annotations failed; continuing without those annotations.`);
       }
-    } catch {
-      console.error("AI annotations failed; continuing without annotations.");
     }
   }
+
   return {
     ...model,
-    hunks: model.hunks.map((hunk) => {
-      const annotation = annotations.get(hunk.id);
-      return annotation ? { ...hunk, aiSummary: annotation.summary, aiConcern: annotation.concern ?? undefined } : hunk;
-    })
+    hunks: model.hunks.map((hunk) => mergeAiAnnotations(hunk, annotations.get(hunk.id) ?? []))
   };
 }
 
-function resolveProvider(requested: true | AiProvider): AiProvider {
-  if (requested !== true) {
-    ensureKey(requested);
-    return requested;
+export function resolveAiProviders(
+  model: Pick<ReviewModel, "hunks">,
+  requested: true | AiMode,
+  env: NodeJS.ProcessEnv = process.env
+): AiProviderResolution {
+  const mode: AiMode = requested === true ? "cross" : requested;
+  if (mode === "anthropic" || mode === "openai") {
+    ensureKey(mode, env);
+    return { providers: [mode] };
   }
-  if (process.env.ANTHROPIC_API_KEY) {
-    return "anthropic";
+  if (mode === "both") {
+    ensureKey("anthropic", env);
+    ensureKey("openai", env);
+    return { providers: ["anthropic", "openai"] };
   }
-  if (process.env.OPENAI_API_KEY) {
-    return "openai";
+
+  const dominantFamily = dominantProvenanceFamily(model);
+  if (mode === "same") {
+    if (!dominantFamily) {
+      throw new Error("Cannot resolve --ai=same without a known dominant provenance model family.");
+    }
+    ensureKey(dominantFamily, env);
+    return {
+      providers: [dominantFamily],
+      dominantFamily,
+      reason: `using ${dominantFamily} because --ai=same matched the dominant provenance family.`
+    };
+  }
+
+  if (dominantFamily) {
+    const opposite = oppositeProvider(dominantFamily);
+    if (hasKey(opposite, env)) {
+      return {
+        providers: [opposite],
+        dominantFamily,
+        reason: `using ${opposite} because the dominant provenance family is ${dominantFamily}.`
+      };
+    }
+  }
+
+  const available = (["anthropic", "openai"] as const).filter((provider) => hasKey(provider, env));
+  if (available.length === 1) {
+    const provider = available[0] ?? "anthropic";
+    return {
+      providers: [provider],
+      dominantFamily,
+      reason: `using ${provider} because it is the only configured provider.`
+    };
+  }
+  if (available.length > 1) {
+    return {
+      providers: ["anthropic"],
+      dominantFamily,
+      reason: dominantFamily
+        ? `using anthropic because the opposite provider for ${dominantFamily} is unavailable.`
+        : "using anthropic because no dominant provenance family was detected and both keys are configured."
+    };
   }
   throw new Error("Missing AI provider key. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or omit --ai.");
 }
 
-function ensureKey(provider: AiProvider): void {
-  if (provider === "anthropic" && !process.env.ANTHROPIC_API_KEY) {
-    throw new Error("Missing ANTHROPIC_API_KEY for --ai=anthropic.");
+export function parseAnnotationJson(raw: string): ParsedAiAnnotation[] {
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  return annotationSchema.parse(JSON.parse(cleaned)).map((item) => ({ ...item, drift: item.drift ?? null }));
+}
+
+function dominantProvenanceFamily(model: Pick<ReviewModel, "hunks">): AiProvider | undefined {
+  const counts: Record<AiProvider, number> = { anthropic: 0, openai: 0 };
+  for (const hunk of model.hunks) {
+    const family = hunk.provenance?.modelFamily;
+    if (family === "anthropic" || family === "openai") {
+      counts[family] += 1;
+    }
   }
-  if (provider === "openai" && !process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY for --ai=openai.");
+  if (counts.anthropic === counts.openai) {
+    return undefined;
   }
+  return counts.anthropic > counts.openai ? "anthropic" : "openai";
+}
+
+function ensureKey(provider: AiProvider, env: NodeJS.ProcessEnv = process.env): void {
+  if (!hasKey(provider, env)) {
+    throw new Error(`Missing ${provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} for --ai=${provider}.`);
+  }
+}
+
+function hasKey(provider: AiProvider, env: NodeJS.ProcessEnv): boolean {
+  return Boolean(provider === "anthropic" ? env.ANTHROPIC_API_KEY : env.OPENAI_API_KEY);
+}
+
+function oppositeProvider(provider: AiProvider): AiProvider {
+  return provider === "anthropic" ? "openai" : "anthropic";
+}
+
+function modelForProvider(provider: AiProvider): string {
+  return provider === "anthropic" ? ANTHROPIC_MODEL : OPENAI_MODEL;
 }
 
 async function callAnthropic(hunks: Hunk[]): Promise<string> {
@@ -79,7 +183,7 @@ async function callAnthropic(hunks: Hunk[]): Promise<string> {
       "anthropic-version": "2023-06-01"
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: ANTHROPIC_MODEL,
       max_tokens: 1200,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: payloadFor(hunks) }]
@@ -102,7 +206,7 @@ async function callOpenAi(hunks: Hunk[]): Promise<string> {
       authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ""}`
     },
     body: JSON.stringify({
-      model: "gpt-4.1-mini",
+      model: OPENAI_MODEL,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: payloadFor(hunks) }
@@ -126,6 +230,7 @@ function payloadFor(hunks: Hunk[]): string {
     hunks.map((hunk) => ({
       id: hunk.id,
       file: hunk.file,
+      userPromptExcerpt: hunk.provenance?.userPromptExcerpt,
       patch: hunk.lines
         .map((line) => `${line.kind === "add" ? "+" : line.kind === "del" ? "-" : " "}${line.text}`)
         .join("\n")
@@ -134,9 +239,41 @@ function payloadFor(hunks: Hunk[]): string {
   );
 }
 
-function parseAnnotationJson(raw: string): Array<{ id: string; summary: string; concern: string | null }> {
-  const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-  return annotationSchema.parse(JSON.parse(cleaned));
+function mergeAiAnnotations(hunk: Hunk, incoming: AiAnnotation[]): Hunk {
+  const existing = normalizedAiAnnotations(hunk);
+  if (existing.length === 0 && incoming.length === 0) {
+    return hunk;
+  }
+  const byProvider = new Map(existing.map((annotation) => [annotation.provider, annotation]));
+  for (const annotation of incoming) {
+    byProvider.set(annotation.provider, annotation);
+  }
+  const aiAnnotations = [...byProvider.values()];
+  const primary = aiAnnotations.find((annotation) => annotation.provider !== "unknown") ?? aiAnnotations[0];
+  return {
+    ...hunk,
+    aiAnnotations,
+    aiSummary: primary?.summary,
+    aiConcern: primary?.concern ?? undefined
+  };
+}
+
+function normalizedAiAnnotations(hunk: Hunk): AiAnnotation[] {
+  if (hunk.aiAnnotations && hunk.aiAnnotations.length > 0) {
+    return hunk.aiAnnotations;
+  }
+  if (!hunk.aiSummary) {
+    return [];
+  }
+  return [
+    {
+      provider: "unknown",
+      model: "legacy",
+      summary: hunk.aiSummary,
+      concern: hunk.aiConcern ?? null,
+      drift: null
+    }
+  ];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

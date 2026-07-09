@@ -23,7 +23,7 @@ import { hooksStatus, installHooks, runHookCapture, uninstallHooks } from "@sift
 import { BINARY_NAME, PRODUCT_NAME, SIFT_VERSION } from "@sift-review/core";
 import { runPipeline, type RunPipelineOptions } from "./pipeline-runner.js";
 import { startServer } from "./server.js";
-import type { AiProvider } from "./ai.js";
+import type { AiMode } from "./ai.js";
 
 const program = new Command();
 
@@ -39,7 +39,7 @@ program
   .option("--staged", "review staged changes")
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
-  .option("--ai [provider]", "opt-in AI annotations: anthropic or openai")
+  .option("--ai [provider]", "opt-in AI annotations: anthropic, openai, same, cross, or both")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (range: string | undefined, options: ReviewCommandOptions) => {
     const ai = parseAiOption(options.ai);
@@ -68,7 +68,7 @@ program
   .argument("<numberOrUrl>")
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
-  .option("--ai [provider]", "opt-in AI annotations: anthropic or openai")
+  .option("--ai [provider]", "opt-in AI annotations: anthropic, openai, same, cross, or both")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (pr: string, options: ReviewCommandOptions) => {
     const ai = parseAiOption(options.ai);
@@ -231,10 +231,10 @@ function parseAiOption(value: true | string | undefined): RunPipelineOptions["ai
   if (value === true) {
     return true;
   }
-  if (value === "anthropic" || value === "openai") {
-    return value satisfies AiProvider;
+  if (value === "anthropic" || value === "openai" || value === "same" || value === "cross" || value === "both") {
+    return value satisfies AiMode;
   }
-  throw new Error("--ai must be anthropic, openai, or passed without a provider.");
+  throw new Error("--ai must be anthropic, openai, same, cross, both, or passed without a provider.");
 }
 
 function renderRuleReports(reports: RuleFileReport[]): string {

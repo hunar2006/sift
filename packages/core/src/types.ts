@@ -38,10 +38,19 @@ export interface ProvenanceRef {
   transcriptPath: string;
   matchedVia: "hook-log" | "transcript-scan";
   confidence: number;
+  modelFamily?: "anthropic" | "openai" | "unknown";
   userPromptExcerpt?: string;
   reasoningExcerpt?: string;
   toolName?: string;
   timestamp?: string;
+}
+
+export interface AiAnnotation {
+  provider: "anthropic" | "openai" | "unknown";
+  model: string;
+  summary: string;
+  concern: string | null;
+  drift: string | null;
 }
 
 export interface Hunk {
@@ -66,6 +75,7 @@ export interface Hunk {
   oldStart?: number;
   newStart?: number;
   provenance?: ProvenanceRef;
+  aiAnnotations?: AiAnnotation[];
   aiSummary?: string;
   aiConcern?: string;
 }
@@ -212,10 +222,19 @@ const provenanceSchema: z.ZodType<ProvenanceRef> = z.object({
   transcriptPath: z.string(),
   matchedVia: z.union([z.literal("hook-log"), z.literal("transcript-scan")]),
   confidence: z.number().min(0).max(1),
+  modelFamily: z.union([z.literal("anthropic"), z.literal("openai"), z.literal("unknown")]).optional(),
   userPromptExcerpt: z.string().max(200).optional(),
   reasoningExcerpt: z.string().max(400).optional(),
   toolName: z.string().optional(),
   timestamp: z.string().optional()
+});
+
+export const aiAnnotationSchema: z.ZodType<AiAnnotation> = z.object({
+  provider: z.union([z.literal("anthropic"), z.literal("openai"), z.literal("unknown")]),
+  model: z.string(),
+  summary: z.string().max(180),
+  concern: z.string().nullable(),
+  drift: z.string().max(220).nullable()
 });
 
 export const diffLineSchema: z.ZodType<DiffLine> = z.object({
@@ -256,6 +275,7 @@ export const hunkSchema: z.ZodType<Hunk> = z.object({
   oldStart: z.number().optional(),
   newStart: z.number().optional(),
   provenance: provenanceSchema.optional(),
+  aiAnnotations: z.array(aiAnnotationSchema).optional(),
   aiSummary: z.string().optional(),
   aiConcern: z.string().optional()
 });

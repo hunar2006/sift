@@ -63,6 +63,7 @@ describe("claude adapter", () => {
         JSON.stringify({
           cwd: repoRoot,
           role: "assistant",
+          model: "claude-sonnet-4-5",
           sessionId: "s2",
           content: [
             {
@@ -76,7 +77,7 @@ describe("claude adapter", () => {
       "utf8"
     );
     const records = await parseTranscript(transcript, repoRoot);
-    expect(records[0]).toMatchObject({ sessionId: "s2", userPromptExcerpt: "change auth" });
+    expect(records[0]).toMatchObject({ sessionId: "s2", userPromptExcerpt: "change auth", modelFamily: "anthropic" });
     expect(createHash("sha256").update("export const token = 1;").digest("hex")).toHaveLength(64);
   });
 });

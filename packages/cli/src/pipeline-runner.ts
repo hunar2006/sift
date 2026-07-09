@@ -16,14 +16,14 @@ import {
   loadTranscriptRecords,
   type ProvenanceRecord
 } from "@sift-review/claude-adapter";
-import { annotateWithAi, type AiProvider } from "./ai.js";
+import { annotateWithAi, type AiMode } from "./ai.js";
 
 export interface RunPipelineOptions {
   cwd: string;
   staged?: boolean;
   range?: string;
   pr?: string;
-  ai?: true | AiProvider;
+  ai?: true | AiMode;
   coverage?: string;
 }
 
@@ -40,7 +40,7 @@ export async function runPipeline(options: RunPipelineOptions): Promise<Pipeline
 
 export async function buildModelFromIngested(
   ingested: IngestedDiff,
-  ai?: true | AiProvider,
+  ai?: true | AiMode,
   coveragePath?: string
 ): Promise<PipelineResult> {
   const parsed = parseUnifiedDiff(ingested.patch);

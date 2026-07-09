@@ -277,6 +277,28 @@ function sortLabel(mode: "risk" | "reading" | "path"): string {
   return mode === "risk" ? "Risk" : mode === "reading" ? "Reading" : "Path";
 }
 
+function aiAnnotationsFor(hunk: ReviewHunk): NonNullable<ReviewHunk["aiAnnotations"]> {
+  if (hunk.aiAnnotations && hunk.aiAnnotations.length > 0) {
+    return hunk.aiAnnotations;
+  }
+  if (!hunk.aiSummary) {
+    return [];
+  }
+  return [
+    {
+      provider: "unknown",
+      model: "legacy",
+      summary: hunk.aiSummary,
+      concern: hunk.aiConcern ?? null,
+      drift: null
+    }
+  ];
+}
+
+function providerLabel(provider: string): string {
+  return provider === "anthropic" ? "Anthropic" : provider === "openai" ? "OpenAI" : "AI";
+}
+
 function DiffViewer({
   hunk,
   split,
@@ -375,6 +397,9 @@ function Inspector({
   if (!hunk) {
     return <aside className="inspector">No hunk selected</aside>;
   }
+  const aiAnnotations = aiAnnotationsFor(hunk);
+  const judgesDisagree =
+    aiAnnotations.length > 1 && new Set(aiAnnotations.map((annotation) => Boolean(annotation.concern))).size > 1;
   return (
     <aside className="inspector">
       <div className="scoreline">
@@ -420,11 +445,24 @@ function Inspector({
           <p>No provenance found - run `sift hooks install` to enable precise tracking.</p>
         )}
       </section>
-      {hunk.aiSummary && (
+      {aiAnnotations.length > 0 && (
         <section>
-          <h2>AI</h2>
-          <p>{hunk.aiSummary}</p>
-          {hunk.aiConcern && <p>{hunk.aiConcern}</p>}
+          <h2>
+            AI {judgesDisagree && <span className="ai-badge">judges disagree</span>}
+          </h2>
+          {aiAnnotations.map((annotation) => (
+            <div className="ai-annotation" key={`${annotation.provider}-${annotation.model}`}>
+              <p>
+                <strong>{providerLabel(annotation.provider)}</strong> {annotation.summary}
+              </p>
+              {annotation.concern && <p>{annotation.concern}</p>}
+              {annotation.drift && (
+                <p>
+                  <span className="ai-badge">drift?</span> {annotation.drift}
+                </p>
+              )}
+            </div>
+          ))}
         </section>
       )}
       <section>

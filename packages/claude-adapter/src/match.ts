@@ -33,6 +33,7 @@ export function matchProvenance(hunks: Hunk[], records: ProvenanceRecord[]): Map
       transcriptPath: best.record.transcriptPath,
       matchedVia: best.record.source,
       confidence: best.confidence,
+      modelFamily: best.record.modelFamily,
       userPromptExcerpt: best.record.userPromptExcerpt,
       reasoningExcerpt: best.record.reasoningExcerpt,
       toolName: best.record.toolName,
