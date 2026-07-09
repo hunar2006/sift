@@ -1,11 +1,29 @@
 import { describe, expect, it } from "vitest";
+import { promises as fs } from "node:fs";
+import { execFile } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
 import type { ParsedHunk } from "./types.js";
 import { parseUnifiedDiff, unquoteGitPath } from "./parse.js";
 import { assignHunkIds, baseHunkId } from "./identity.js";
 import { analyzeDiff } from "./pipeline.js";
 import { bandForRisk } from "./score.js";
-import { computeStats } from "./stats.js";
-import { emptyState } from "./state.js";
+import { computeStats, renderStats, sparkline } from "./stats.js";
+import {
+  BulkApproveBlockedError,
+  approveGroup,
+  emptyState,
+  mergeReviewState,
+  readReviewState,
+  updateHunkStatus
+} from "./state.js";
+import { renderMarkdownReport } from "./report.js";
+import { computeRiskSignals } from "./classify/signals.js";
+import { discoverRepoRoot, generatedPathsFromGitAttributes, readWorktreeFile, runGit, syntheticDiffForUntracked } from "./git.js";
+import { ingestDiff } from "./ingest.js";
+
+const execFileAsync = promisify(execFile);
 
 describe("parseUnifiedDiff", () => {
   it("parses rename plus edit and line numbers", () => {
@@ -50,6 +68,91 @@ Binary files a/img.png and b/img.png differ
     expect(parsed.hunks[0]?.lines.find((line) => line.kind === "add")?.text.length).toBeLessThan(4050);
   });
 });
+
+describe("git ingest", () => {
+  it("discovers a repo, reads worktree files, and includes untracked synthetic diffs", async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sift-git-"));
+    await git(repoRoot, ["init"]);
+    await git(repoRoot, ["config", "user.email", "test@sift.local"]);
+    await git(repoRoot, ["config", "user.name", "Sift Test"]);
+    await fs.writeFile(path.join(repoRoot, "tracked.ts"), "export const a = 1;\n", "utf8");
+    await git(repoRoot, ["add", "."]);
+    await git(repoRoot, ["commit", "-m", "base"]);
+    await fs.writeFile(path.join(repoRoot, "tracked.ts"), "export const a = 2;\n", "utf8");
+    await fs.writeFile(path.join(repoRoot, "new.ts"), "export const b = 1;\n", "utf8");
+
+    expect(await discoverRepoRoot(repoRoot)).toBe(repoRoot);
+    expect(await readWorktreeFile(repoRoot, "tracked.ts")).toContain("a = 2");
+    expect(await generatedPathsFromGitAttributes(repoRoot, ["tracked.ts"])).toBeInstanceOf(Set);
+    expect(await syntheticDiffForUntracked(repoRoot, "new.ts")).toContain("+++ b/new.ts");
+    expect(await runGit(["rev-parse", "--show-toplevel"], repoRoot)).toContain(repoRoot.replace(/\\/g, "/").split("/").at(-1) ?? "");
+
+    const ingested = await ingestDiff({ cwd: repoRoot });
+    expect(ingested.diffSpec).toBe("WORKTREE");
+    expect(ingested.patch).toContain("tracked.ts");
+    expect(ingested.patch).toContain("new.ts");
+  });
+});
+
+describe("signals, state, stats, and reports", () => {
+  it("fires representative risk signals with evidence", () => {
+    const hunk: ParsedHunk = {
+      file: ".env.local",
+      language: "text",
+      header: "@@",
+      lines: [
+        { kind: "add", text: 'API_KEY = "sk-12345678901234567890"', newLine: 1 },
+        { kind: "add", text: 'const q = "SELECT * FROM users WHERE id=" + id;', newLine: 2 },
+        { kind: "add", text: "console.log(q); // TODO remove", newLine: 3 }
+      ],
+      addedLines: 3,
+      removedLines: 0,
+      parserReasons: []
+    };
+    const codes = computeRiskSignals(hunk, "logic").map((reason) => reason.code);
+    expect(codes).toEqual(expect.arrayContaining(["SECRET_LIKE", "SQL_CONCAT", "ENV_FILE", "DEBUG_LEFTOVER", "TODO_ADDED"]));
+  });
+
+  it("persists state, merges statuses, blocks hot bulk approval, and renders stats/report", async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sift-state-"));
+    const model = analyzeDiff({
+      repoRoot,
+      diffSpec: "WORKTREE",
+      git: { headSha: "abc", branch: "main" },
+      patch: `diff --git a/src/auth/session.ts b/src/auth/session.ts
+--- a/src/auth/session.ts
++++ b/src/auth/session.ts
+@@ -1 +1,2 @@
+ export const session = true;
++export const unsafe = { rejectUnauthorized: false };
+diff --git a/docs/guide.md b/docs/guide.md
+--- a/docs/guide.md
++++ b/docs/guide.md
+@@ -1 +1,2 @@
+ # Guide
++More detail.
+`
+    });
+    const first = model.hunks[0];
+    expect(first).toBeDefined();
+    if (!first) {
+      return;
+    }
+    await updateHunkStatus(repoRoot, first.id, "flagged", "check tls");
+    const { state } = await readReviewState(repoRoot);
+    expect(state.hunks[first.id]?.status).toBe("flagged");
+    expect(mergeReviewState(model, state).hunks[0]?.note).toBe("check tls");
+    await expect(approveGroup(repoRoot, model, first.groupId)).rejects.toBeInstanceOf(BulkApproveBlockedError);
+    const stats = computeStats(model, state);
+    expect(renderStats(stats, [stats, { ...stats, debt: 0.25 }])).toContain("Debt trend:");
+    expect(sparkline([0.9, 0.5, 0.1])).toHaveLength(3);
+    expect(renderMarkdownReport(model, state, stats)).toContain("## Flagged (1)");
+  });
+});
+
+async function git(cwd: string, args: string[]): Promise<void> {
+  await execFileAsync("git", args, { cwd, windowsHide: true });
+}
 
 describe("identity", () => {
   const hunk = (file: string, addText: string, start: number): ParsedHunk => ({

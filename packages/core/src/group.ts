@@ -85,7 +85,10 @@ const DEFINITIONS: GroupDefinition[] = [
     title: "Lockfiles",
     kind: "skim",
     order: 140,
-    accepts: (hunk) => hunk.category === "deps" && isLockfilePath(hunk.file) && hunk.band === "skim"
+    accepts: (hunk) =>
+      hunk.category === "deps" &&
+      isLockfilePath(hunk.file) &&
+      !hunk.reasons.some((reason) => reason.weight >= 15)
   },
   {
     id: "generated-files",
@@ -157,11 +160,11 @@ export function groupForHunk(hunk: Hunk): GroupDefinition {
 
 function isSkimEligible(hunk: Hunk): boolean {
   return (
-    hunk.band === "skim" &&
-    (hunk.category === "mechanical" ||
-      hunk.category === "generated" ||
-      hunk.category === "binary" ||
-      (hunk.category === "deps" && isLockfilePath(hunk.file)))
+    (hunk.band === "skim" &&
+      (hunk.category === "mechanical" || hunk.category === "generated" || hunk.category === "binary")) ||
+    (hunk.category === "deps" &&
+      isLockfilePath(hunk.file) &&
+      !hunk.reasons.some((reason) => reason.weight >= 15))
   );
 }
 
