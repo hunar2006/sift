@@ -22,6 +22,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Terminal-first `sift print` output with compact text and JSON modes.
 - `sift demo`, backed by the same reusable demo-repo generator as `pnpm demo`.
 - Web cockpit command palette, provenance timeline panel, stats panel, minimap rail, first-run help strip, light theme, coverage badges, and inline reason chips.
+- Demo v2 fixture covering new signals, repo rules, coverage reducers/untested changes, rename-pattern groups, reading-order ranks, timeline provenance, print output, rules lint, and MCP smoke coverage.
 
 ### Changed
 
@@ -37,6 +38,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - CLI builds now bundle workspace packages with tsup and copy package-local web and grammar assets for dry-run packaging checks.
 - Web keymap remapped note focus from `n` to `i`; `n`/`p` now move between unreviewed attention hunks, `space` collapses the current hunk, `Ctrl/Cmd+K` opens the palette, and `t` opens the timeline.
 - Risk color language now reserves a distinct filled critical tier for hunks scoring 80 or higher; ordinary high-risk hunks use outlined red-orange treatment.
+- README now leads with developer-facing review language and documents rules, coverage, MCP, open provenance, print/demo, privacy, and the personal-only framing for `sift check`.
 
 ### Fixed
 

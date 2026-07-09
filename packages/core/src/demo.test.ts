@@ -13,10 +13,15 @@ describe("demo repository generator", () => {
         dependencies: Record<string, string>;
       };
       const provenance = await fs.readFile(path.join(demo.siftHome, "provenance.jsonl"), "utf8");
+      const rules = await fs.readFile(path.join(demo.repoRoot, ".sift", "rules.yml"), "utf8");
+      const coverage = await fs.readFile(path.join(demo.repoRoot, "coverage", "lcov.info"), "utf8");
 
       await expect(fs.stat(path.join(demo.repoRoot, ".git"))).resolves.toBeTruthy();
       await expect(fs.stat(path.join(demo.repoRoot, "migrations", "002_drop_legacy.sql"))).resolves.toBeTruthy();
       expect(packageJson.dependencies).toHaveProperty("jsonwebtoken");
+      expect(packageJson.dependencies).toHaveProperty("lodahs");
+      expect(rules).toContain("BAN_LEGACY_AUTH");
+      expect(coverage).toContain("SF:src/coverage/covered.ts");
       expect(provenance).toContain('"source":"claude-code"');
       expect(demo.env).toMatchObject({
         SIFT_HOME: demo.siftHome,

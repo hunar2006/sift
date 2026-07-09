@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { promisify } from "node:util";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -10,16 +11,18 @@ const repo = path.join(root, ".demo", "repo");
 const home = path.join(root, ".demo", "home");
 const pnpmBin = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const npmBin = process.platform === "win32" ? "npm.cmd" : "npm";
+const cliPath = path.join(root, "packages", "cli", "dist", "index.js");
+const demoEnv = { ...process.env, SIFT_HOME: path.join(home, ".sift"), SIFT_CLAUDE_DIR: path.join(home, ".claude") };
 
 await execFileAsync(pnpmBin, ["demo", "--", "--headless"], {
   cwd: root,
   windowsHide: true,
   shell: process.platform === "win32"
 });
-const { stdout } = await execFileAsync(process.execPath, [path.join(root, "packages", "cli", "dist", "index.js"), "report", "--json"], {
+const { stdout } = await execFileAsync(process.execPath, [cliPath, "report", "--json"], {
   cwd: repo,
   windowsHide: true,
-  env: { ...process.env, SIFT_HOME: path.join(home, ".sift"), SIFT_CLAUDE_DIR: path.join(home, ".claude") },
+  env: demoEnv,
   maxBuffer: 32 * 1024 * 1024
 });
 const parsed = JSON.parse(stdout);
@@ -27,8 +30,96 @@ if (!parsed.model || parsed.model.hunks.length <= 0 || parsed.model.groups.lengt
   throw new Error("Smoke failed: expected report JSON with hunks and more than three groups.");
 }
 
+assertDemoSignals(parsed.model);
+await assertPrint();
+await assertRulesLint();
+await assertMcpSummary();
 await assertCliPack();
 console.log(`smoke ok: ${parsed.model.hunks.length} hunks, ${parsed.model.groups.length} groups`);
+
+function assertDemoSignals(model) {
+  const codes = new Set(model.hunks.flatMap((hunk) => hunk.reasons.map((reason) => reason.code)));
+  for (const code of [
+    "CONCURRENCY_HAZARD",
+    "SECRET_ENTROPY",
+    "TYPOSQUAT_SUSPECT",
+    "AGENT_GUIDANCE_EDIT",
+    "COVERED_CHANGE",
+    "UNTESTED_CHANGE",
+    "USER_BAN_LEGACY_AUTH"
+  ]) {
+    if (!codes.has(code)) {
+      throw new Error(`Smoke failed: demo missing signal ${code}.`);
+    }
+  }
+  if (codes.has("ERROR_SWALLOWED")) {
+    throw new Error("Smoke failed: demo rules did not suppress ERROR_SWALLOWED.");
+  }
+  if (!model.groups.some((group) => group.title === "Rename: formatDate -> renderDate")) {
+    throw new Error("Smoke failed: demo missing rename-pattern skim group.");
+  }
+  if (model.hunks.filter((hunk) => hunk.coverage).length < 2) {
+    throw new Error("Smoke failed: expected coverage on at least two demo hunks.");
+  }
+  if (!model.hunks.some((hunk) => hunk.readingRank !== undefined)) {
+    throw new Error("Smoke failed: expected reading-order ranks in demo model.");
+  }
+}
+
+async function assertPrint() {
+  const { stdout: printStdout } = await execFileAsync(process.execPath, [cliPath, "print", "--json"], {
+    cwd: repo,
+    windowsHide: true,
+    env: demoEnv,
+    maxBuffer: 32 * 1024 * 1024
+  });
+  const printed = JSON.parse(printStdout);
+  for (const field of ["changedLines", "attentionLines", "reviewableLines", "debt", "provenanceCoverage"]) {
+    if (typeof printed.headline?.[field] !== "number") {
+      throw new Error(`Smoke failed: print JSON missing headline.${field}.`);
+    }
+  }
+  if (typeof printed.headline.coverageOnChangedLines !== "number") {
+    throw new Error("Smoke failed: print JSON missing coverage headline.");
+  }
+}
+
+async function assertRulesLint() {
+  await execFileAsync(process.execPath, [cliPath, "rules", "lint"], {
+    cwd: repo,
+    windowsHide: true,
+    env: demoEnv,
+    maxBuffer: 32 * 1024 * 1024
+  });
+}
+
+async function assertMcpSummary() {
+  const cliRequire = createRequire(path.join(root, "packages", "cli", "package.json"));
+  const [{ Client }, { StdioClientTransport }] = await Promise.all([
+    import(pathToFileURL(cliRequire.resolve("@modelcontextprotocol/sdk/client/index.js")).href),
+    import(pathToFileURL(cliRequire.resolve("@modelcontextprotocol/sdk/client/stdio.js")).href)
+  ]);
+  const client = new Client({ name: "sift-smoke", version: "0.0.0" });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [cliPath, "mcp"],
+    cwd: repo,
+    env: demoEnv
+  });
+  await client.connect(transport);
+  try {
+    const tools = await client.listTools();
+    if (!tools.tools.some((tool) => tool.name === "sift_get_summary")) {
+      throw new Error("Smoke failed: MCP summary tool missing.");
+    }
+    const summary = readJson(await client.callTool({ name: "sift_get_summary", arguments: {} }));
+    if (typeof summary.debt !== "number" || !summary.totals || typeof summary.flaggedHunks !== "number") {
+      throw new Error("Smoke failed: MCP summary shape invalid.");
+    }
+  } finally {
+    await client.close();
+  }
+}
 
 async function assertCliPack() {
   const cliDir = path.join(root, "packages", "cli");
@@ -49,4 +140,12 @@ async function assertCliPack() {
       throw new Error(`Smoke failed: npm pack missing ${expected}.`);
     }
   }
+}
+
+function readJson(result) {
+  const first = Array.isArray(result.content) ? result.content[0] : undefined;
+  if (!first || first.type !== "text" || typeof first.text !== "string") {
+    throw new Error("Smoke failed: expected MCP text result.");
+  }
+  return JSON.parse(first.text);
 }
