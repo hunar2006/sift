@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   BulkApproveBlockedError,
   approveGroup,
+  buildProvenanceTimeline,
   computeStats,
   mergeReviewState,
   readGitFile,
@@ -94,6 +95,8 @@ export function createSiftApp(context: ServerContext): Hono {
     const { state } = await readReviewState(current.model.meta.repoRoot);
     return c.json(computeStats(current.model, state));
   });
+
+  app.get("/api/timeline", (c) => c.json(buildProvenanceTimeline(current.model)));
 
   app.get("/api/meta", (c) =>
     c.json({

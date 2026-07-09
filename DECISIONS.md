@@ -25,3 +25,5 @@
 - Reading-order ties, cycles, and hunks without definition/reference edges fall back to risk ordering so ambiguous structural data never hides higher-risk work.
 - AI provider resolution treats bare `--ai` as `cross`: use the opposite provider when provenance reveals a dominant generator family and that key exists, otherwise use configured keys with an informational line.
 - AI v2 keeps `aiSummary` and `aiConcern` as compatibility accessors, but new annotations are stored per provider in `aiAnnotations[]` with optional drift text.
+- Provenance matching now lives in core behind a `ProvenanceProvider` interface. Claude Code is the first provider; generic JSONL records from other tools are matched after Claude so canonical hook/transcript matches win ties.
+- The open provenance file remains `~/.sift/provenance.jsonl`; generic ingestion skips `source=claude-code` records so the legacy Claude hook path and third-party records can share one file without duplicate matches.

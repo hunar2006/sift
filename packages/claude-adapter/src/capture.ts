@@ -21,6 +21,8 @@ export async function captureHookInput(raw: string, env: NodeJS.ProcessEnv = pro
       .slice(0, MAX_HASHES)
       .map((line) => createHash("sha256").update(line).digest("hex"));
     const line = {
+      source: "claude-code",
+      matchedVia: "hook-log",
       ts: new Date().toISOString(),
       sessionId: payload.sessionId,
       transcriptPath: payload.transcriptPath,

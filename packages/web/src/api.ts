@@ -1,4 +1,4 @@
-import type { ApiMeta, ReviewModel, Status } from "./types.js";
+import type { ApiMeta, ProvenanceTimelineSession, ReviewModel, Status } from "./types.js";
 import type { StatsSnapshot, StoredHunkState } from "@sift-review/core";
 
 async function checked<T>(response: Response): Promise<T> {
@@ -18,6 +18,10 @@ export async function fetchStats(): Promise<StatsSnapshot> {
 
 export async function fetchMeta(): Promise<ApiMeta> {
   return checked<ApiMeta>(await fetch("/api/meta"));
+}
+
+export async function fetchTimeline(): Promise<ProvenanceTimelineSession[]> {
+  return checked<ProvenanceTimelineSession[]>(await fetch("/api/timeline"));
 }
 
 export async function setHunkStatus(id: string, status: Status, note?: string): Promise<StoredHunkState> {

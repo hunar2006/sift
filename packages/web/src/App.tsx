@@ -433,7 +433,8 @@ function Inspector({
         {hunk.provenance ? (
           <div className="provenance">
             <p>
-              session {hunk.provenance.sessionId.slice(0, 8)} · {(hunk.provenance.confidence * 100).toFixed(0)}%
+              session {hunk.provenance.sessionId.slice(0, 8)} · line match{" "}
+              {(hunk.provenance.confidence * 100).toFixed(0)}%
             </p>
             {hunk.provenance.userPromptExcerpt && <p>{hunk.provenance.userPromptExcerpt}</p>}
             {hunk.provenance.reasoningExcerpt && <p>{hunk.provenance.reasoningExcerpt}</p>}

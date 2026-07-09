@@ -1,4 +1,5 @@
 import type { HunkWithState, ReviewModelWithState, StatsSnapshot } from "@sift-review/core";
+import type { TimelineSession } from "@sift-review/core";
 
 export type ReviewModel = ReviewModelWithState;
 export type ReviewHunk = HunkWithState;
@@ -18,3 +19,5 @@ export interface AppData {
   stats: StatsSnapshot;
   meta: ApiMeta;
 }
+
+export type ProvenanceTimelineSession = TimelineSession;

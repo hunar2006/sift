@@ -19,9 +19,14 @@ export async function loadHookLog(repoRoot: string, env: NodeJS.ProcessEnv = pro
         if (cwd && !isParentOrChild(cwd, repoRoot)) {
           return [];
         }
+        const source = stringValue(parsed.source);
+        if (source && source !== "claude-code") {
+          return [];
+        }
         return [
           {
-            source: "hook-log" as const,
+            source: "claude-code",
+            matchedVia: "hook-log" as const,
             sessionId: stringValue(parsed.sessionId) ?? "unknown",
             transcriptPath: stringValue(parsed.transcriptPath) ?? "",
             cwd,
@@ -108,7 +113,8 @@ export async function parseTranscript(filePath: string, repoRoot: string): Promi
       }
       for (const tool of extractToolUses(content)) {
         records.push({
-          source: "transcript-scan",
+          source: "claude-code",
+          matchedVia: "transcript-scan",
           sessionId: stringValue(entry.sessionId) ?? stringValue(entry.session_id) ?? path.basename(filePath, ".jsonl"),
           transcriptPath: filePath,
           cwd,

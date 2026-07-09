@@ -1,4 +1,5 @@
 import path from "node:path";
+import { provenanceSourceLabel } from "./provenance.js";
 import type { ReviewModel, ReviewStateFile, StatsSnapshot } from "./types.js";
 
 export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile, stats: StatsSnapshot): string {
@@ -9,7 +10,10 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
   );
   const skimGroups = model.groups.filter((group) => group.kind === "skim");
   const provenanceSessions = new Set(
-    model.hunks.flatMap((hunk) => (hunk.provenance ? [hunk.provenance.sessionId] : []))
+    model.hunks.flatMap((hunk) => (hunk.provenance ? [`${hunk.provenance.source}:${hunk.provenance.sessionId}`] : []))
+  );
+  const provenanceSources = new Set(
+    model.hunks.flatMap((hunk) => (hunk.provenance ? [provenanceSourceLabel(hunk.provenance.source)] : []))
   );
   const topPrompt = model.hunks.find((hunk) => hunk.provenance?.userPromptExcerpt)?.provenance?.userPromptExcerpt;
 
@@ -45,7 +49,9 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
       : skimGroups.map((group) => `${group.title} ${group.totalAdded + group.totalRemoved} lines`).join(" | "),
     "",
     "## Provenance",
-    `${(stats.provenanceCoverage * 100).toFixed(0)}% of attention hunks matched Claude Code sessions (${provenanceSessions.size} sessions).${
+    `${(stats.provenanceCoverage * 100).toFixed(0)}% of attention hunks matched provenance sessions (${provenanceSessions.size} sessions${
+      provenanceSources.size > 0 ? ` from ${[...provenanceSources].join(", ")}` : ""
+    }).${
       topPrompt ? ` Top prompt: "${topPrompt}"` : ""
     }`,
     ...(stats.coverageOnChangedLines === undefined

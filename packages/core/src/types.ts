@@ -33,10 +33,10 @@ export interface DiffLine {
 }
 
 export interface ProvenanceRef {
-  source: "claude-code";
+  source: string;
   sessionId: string;
   transcriptPath: string;
-  matchedVia: "hook-log" | "transcript-scan";
+  matchedVia: "hook-log" | "transcript-scan" | "generic-jsonl";
   confidence: number;
   modelFamily?: "anthropic" | "openai" | "unknown";
   userPromptExcerpt?: string;
@@ -217,10 +217,10 @@ export const coverageSummarySchema: z.ZodType<CoverageSummary> = z.object({
 });
 
 const provenanceSchema: z.ZodType<ProvenanceRef> = z.object({
-  source: z.literal("claude-code"),
+  source: z.string(),
   sessionId: z.string(),
   transcriptPath: z.string(),
-  matchedVia: z.union([z.literal("hook-log"), z.literal("transcript-scan")]),
+  matchedVia: z.union([z.literal("hook-log"), z.literal("transcript-scan"), z.literal("generic-jsonl")]),
   confidence: z.number().min(0).max(1),
   modelFamily: z.union([z.literal("anthropic"), z.literal("openai"), z.literal("unknown")]).optional(),
   userPromptExcerpt: z.string().max(200).optional(),

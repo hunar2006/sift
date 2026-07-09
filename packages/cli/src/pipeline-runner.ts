@@ -1,21 +1,20 @@
 import {
   analyzeDiff,
   generatedPathsFromGitAttributes,
+  GenericJsonlProvider,
   formatRuleFileProblem,
   ingestDiff,
   ingestPrDiff,
   loadCoverage,
   loadRules,
+  matchProvenanceRecords,
   parseUnifiedDiff,
   type IngestedDiff,
+  type ProvenanceProvider,
+  type ProvenanceRecord,
   type ReviewModel
 } from "@sift-review/core";
-import {
-  attachProvenance,
-  loadHookLog,
-  loadTranscriptRecords,
-  type ProvenanceRecord
-} from "@sift-review/claude-adapter";
+import { ClaudeProvenanceProvider } from "@sift-review/claude-adapter";
 import { annotateWithAi, type AiMode } from "./ai.js";
 
 export interface RunPipelineOptions {
@@ -59,18 +58,35 @@ export async function buildModelFromIngested(
     }
   }
   let model = analyzeDiff({ ...ingested, generatedPaths, rules: loadedRules.rules, coverage: coverage.coverage });
-  const records = await loadProvenance(ingested.repoRoot);
-  if (records.length > 0) {
-    model = { ...model, hunks: attachProvenance(model.hunks, records) };
+  const provenanceSources = await loadProvenance(ingested.repoRoot);
+  for (const source of provenanceSources) {
+    if (source.records.length > 0) {
+      const matches = matchProvenanceRecords(model.hunks, source.records, (match) => source.provider.enrich(match));
+      model = {
+        ...model,
+        hunks: model.hunks.map((hunk) => {
+          if (hunk.provenance) {
+            return hunk;
+          }
+          const provenance = matches.get(hunk.id);
+          return provenance ? { ...hunk, provenance } : hunk;
+        })
+      };
+    }
   }
   if (ai) {
     model = await annotateWithAi(model, ai);
   }
-  return { model, provenanceRecords: records.length, aiRan: Boolean(ai) };
+  return {
+    model,
+    provenanceRecords: provenanceSources.reduce((sum, source) => sum + source.records.length, 0),
+    aiRan: Boolean(ai)
+  };
 }
 
-async function loadProvenance(repoRoot: string): Promise<ProvenanceRecord[]> {
-  const hook = await loadHookLog(repoRoot);
-  const transcript = await loadTranscriptRecords(repoRoot);
-  return [...hook, ...transcript];
+async function loadProvenance(
+  repoRoot: string
+): Promise<Array<{ provider: ProvenanceProvider; records: ProvenanceRecord[] }>> {
+  const providers: ProvenanceProvider[] = [new ClaudeProvenanceProvider(), new GenericJsonlProvider()];
+  return Promise.all(providers.map(async (provider) => ({ provider, records: await provider.listRecords(repoRoot) })));
 }
