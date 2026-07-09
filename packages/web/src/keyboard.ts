@@ -4,10 +4,18 @@ export interface KeyboardState {
   selectedId?: string;
   split: boolean;
   helpOpen: boolean;
+  paletteOpen?: boolean;
+  timelineOpen?: boolean;
+  statsOpen?: boolean;
   filterOpen: boolean;
   allIds: string[];
   hunks: ReviewHunk[];
   pendingG: boolean;
+}
+
+export interface KeyboardModifiers {
+  ctrlKey?: boolean;
+  metaKey?: boolean;
 }
 
 export type KeyboardCommand =
@@ -16,15 +24,36 @@ export type KeyboardCommand =
   | { type: "status"; status: "approved" | "flagged" | "unreviewed" }
   | { type: "toggle-split" }
   | { type: "toggle-help" }
+  | { type: "toggle-palette" }
+  | { type: "toggle-timeline" }
+  | { type: "toggle-stats" }
+  | { type: "toggle-theme" }
+  | { type: "toggle-current-collapse" }
   | { type: "filter" }
   | { type: "refresh" }
   | { type: "cycle-sort" }
   | { type: "collapse-all"; collapsed: boolean }
   | { type: "focus-note" };
 
-export function keyboardCommand(state: KeyboardState, key: string): KeyboardCommand {
+export function keyboardCommand(
+  state: KeyboardState,
+  key: string,
+  modifiers: KeyboardModifiers = {}
+): KeyboardCommand {
+  if ((modifiers.ctrlKey || modifiers.metaKey) && key.toLowerCase() === "k") {
+    return { type: "toggle-palette" };
+  }
+  if (state.paletteOpen) {
+    return key === "Escape" ? { type: "toggle-palette" } : { type: "none" };
+  }
   if (state.helpOpen && key === "Escape") {
     return { type: "toggle-help" };
+  }
+  if (state.timelineOpen && key === "Escape") {
+    return { type: "toggle-timeline" };
+  }
+  if (state.statsOpen && key === "Escape") {
+    return { type: "toggle-stats" };
   }
   if (state.pendingG && key === "g") {
     return { type: "select", id: state.allIds[0], pendingG: false };
@@ -55,6 +84,10 @@ export function keyboardCommand(state: KeyboardState, key: string): KeyboardComm
       return { type: "toggle-split" };
     case "?":
       return { type: "toggle-help" };
+    case "t":
+      return { type: "toggle-timeline" };
+    case "T":
+      return { type: "toggle-theme" };
     case "/":
       return { type: "filter" };
     case "r":
@@ -66,7 +99,14 @@ export function keyboardCommand(state: KeyboardState, key: string): KeyboardComm
     case "]":
       return { type: "collapse-all", collapsed: false };
     case "n":
+      return { type: "select", id: nextAttentionUnreviewed(state, 1) };
+    case "p":
+      return { type: "select", id: nextAttentionUnreviewed(state, -1) };
+    case "i":
       return { type: "focus-note" };
+    case " ":
+    case "Spacebar":
+      return { type: "toggle-current-collapse" };
     default:
       return { type: "none" };
   }
@@ -76,6 +116,22 @@ export function nextUnreviewedAfter(hunks: ReviewHunk[], currentId: string): str
   const index = Math.max(0, hunks.findIndex((hunk) => hunk.id === currentId));
   const ordered = [...hunks.slice(index + 1), ...hunks.slice(0, index + 1)];
   return ordered.find((hunk) => hunk.status === "unreviewed")?.id ?? hunks[index]?.id;
+}
+
+export function nextAttentionUnreviewed(state: KeyboardState, delta: 1 | -1): string | undefined {
+  const hunks = state.hunks;
+  if (hunks.length === 0) {
+    return undefined;
+  }
+  const currentIndex = Math.max(0, hunks.findIndex((hunk) => hunk.id === state.selectedId));
+  const forward = [...hunks.slice(currentIndex + 1), ...hunks.slice(0, currentIndex + 1)];
+  const backward = [...hunks.slice(0, currentIndex).reverse(), ...hunks.slice(currentIndex).reverse()];
+  const ordered = delta > 0 ? forward : backward;
+  return ordered.find(isUnreviewedAttentionHunk)?.id ?? state.selectedId;
+}
+
+function isUnreviewedAttentionHunk(hunk: ReviewHunk): boolean {
+  return hunk.status === "unreviewed" && (hunk.band === "high" || hunk.band === "medium");
 }
 
 function relativeId(state: KeyboardState, delta: number): string | undefined {

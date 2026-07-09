@@ -20,7 +20,12 @@ const hunk = (id: string, file: string, status: ReviewHunk["status"] = "unreview
 });
 
 describe("keyboardCommand", () => {
-  const hunks = [hunk("a", "a.ts"), hunk("b", "a.ts"), hunk("c", "b.ts")];
+  const hunks = [
+    hunk("a", "a.ts", "approved"),
+    { ...hunk("b", "a.ts"), band: "medium" as const, risk: 45 },
+    { ...hunk("c", "b.ts"), band: "high" as const, risk: 80 },
+    hunk("d", "c.ts")
+  ];
   const state = {
     selectedId: "a",
     split: false,
@@ -36,6 +41,11 @@ describe("keyboardCommand", () => {
     expect(keyboardCommand(state, "J")).toEqual({ type: "select", id: "c" });
   });
 
+  it("uses n/p for unreviewed attention hunks", () => {
+    expect(keyboardCommand(state, "n")).toEqual({ type: "select", id: "b" });
+    expect(keyboardCommand({ ...state, selectedId: "b" }, "p")).toEqual({ type: "select", id: "c" });
+  });
+
   it("emits review commands", () => {
     expect(keyboardCommand(state, "a")).toEqual({ type: "status", status: "approved" });
     expect(keyboardCommand(state, "x")).toEqual({ type: "status", status: "flagged" });
@@ -44,6 +54,15 @@ describe("keyboardCommand", () => {
 
   it("cycles sort mode from the keyboard", () => {
     expect(keyboardCommand(state, "s")).toEqual({ type: "cycle-sort" });
+  });
+
+  it("opens the palette and toggles current hunk collapse", () => {
+    expect(keyboardCommand(state, "k", { ctrlKey: true })).toEqual({ type: "toggle-palette" });
+    expect(keyboardCommand(state, " ", {})).toEqual({ type: "toggle-current-collapse" });
+  });
+
+  it("moves note focus to i", () => {
+    expect(keyboardCommand(state, "i")).toEqual({ type: "focus-note" });
   });
 
   it("advances to next unreviewed after status", () => {

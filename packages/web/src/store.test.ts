@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sortReviewHunks } from "./store.js";
+import { sortReviewHunks, useReviewStore } from "./store.js";
 import type { ReviewHunk, ReviewModel } from "./types.js";
 
 const hunk = (overrides: Partial<ReviewHunk> & Pick<ReviewHunk, "id" | "file" | "risk">): ReviewHunk => ({
@@ -52,5 +52,33 @@ describe("sortReviewHunks", () => {
     expect(sortReviewHunks(hunks, model, "risk").map((item) => item.id)).toEqual(["use", "def"]);
     expect(sortReviewHunks(hunks, model, "reading").map((item) => item.id)).toEqual(["def", "use"]);
     expect(sortReviewHunks(hunks, model, "path").map((item) => item.id)).toEqual(["use", "def"]);
+  });
+
+  it("stores cockpit toggles used by keyboard and palette actions", () => {
+    useReviewStore.setState({
+      paletteOpen: false,
+      timelineOpen: false,
+      statsOpen: false,
+      sortMode: "risk",
+      hunkCollapsed: {},
+      nitsOpen: false,
+      theme: "dark"
+    });
+
+    useReviewStore.getState().setPaletteOpen(true);
+    useReviewStore.getState().setTimelineOpen(true);
+    useReviewStore.getState().setStatsOpen(true);
+    useReviewStore.getState().cycleSortMode();
+    useReviewStore.getState().toggleHunkCollapsed("h1");
+    useReviewStore.getState().toggleNits();
+    useReviewStore.getState().toggleTheme();
+
+    expect(useReviewStore.getState().paletteOpen).toBe(true);
+    expect(useReviewStore.getState().timelineOpen).toBe(true);
+    expect(useReviewStore.getState().statsOpen).toBe(true);
+    expect(useReviewStore.getState().sortMode).toBe("reading");
+    expect(useReviewStore.getState().hunkCollapsed.h1).toBe(true);
+    expect(useReviewStore.getState().nitsOpen).toBe(true);
+    expect(useReviewStore.getState().theme).toBe("light");
   });
 });

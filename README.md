@@ -45,11 +45,32 @@ pnpm demo
 | `sift --staged` | Analyze staged changes. |
 | `sift pr <number-or-url>` | Analyze a GitHub PR diff through the `gh` CLI. |
 | `sift report [--md\|--json] [-o file]` | Emit a markdown or JSON review report and append a stats snapshot. |
+| `sift print [--json]` | Print a compact terminal triage summary without starting the server. |
 | `sift stats [--json]` | Print current debt, reviewed percentage, flags, and provenance coverage. |
 | `sift check [--max-debt pct]` | Exit non-zero if debt is too high or any hunk is flagged. |
+| `sift demo [--dir path]` | Generate the demo repo and launch Sift against it. |
+| `sift rules lint` | Validate global and repo rules files. |
+| `sift rules list` | Print the effective merged ruleset. |
+| `sift mcp` | Serve read-only review context over stdio MCP tools. |
 | `sift hooks install [--project]` | Install the Claude Code PostToolUse capture hook. |
 | `sift hooks status [--project]` | Show whether the hook is installed. |
 | `sift hooks uninstall [--project]` | Remove only Sift's hook entry. |
+
+## Cockpit Keys
+
+| Key | Action |
+|---|---|
+| `Ctrl/Cmd+K` | Open the command palette. |
+| `j` / `k` | Next / previous visible hunk. |
+| `n` / `p` | Next / previous unreviewed attention hunk. |
+| `J` / `K` | Next / previous file. |
+| `a`, `x`, `u` | Approve, flag, or mark unreviewed. |
+| `i` | Focus the note field. |
+| `space` | Collapse or expand the current hunk body. |
+| `s` | Cycle risk, reading, and path sort modes. |
+| `t` | Open the provenance timeline. |
+| `T` | Toggle light/dark theme. |
+| `?` | Open help. |
 
 ## Claude Code Hooks
 

@@ -21,6 +21,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Read-only stdio MCP server via `sift mcp`, exposing summary, flagged/unreviewed lists, hunk detail, and stats tools with `docs/MCP.md`.
 - Terminal-first `sift print` output with compact text and JSON modes.
 - `sift demo`, backed by the same reusable demo-repo generator as `pnpm demo`.
+- Web cockpit command palette, provenance timeline panel, stats panel, minimap rail, first-run help strip, light theme, coverage badges, and inline reason chips.
 
 ### Changed
 
@@ -34,6 +35,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Bare `--ai` now resolves as cross-model review; when provenance does not identify a generator family, Sift falls back to configured keys and prints the selected provider.
 - User-facing provenance match wording now says `line match` instead of exposing the internal confidence field.
 - CLI builds now bundle workspace packages with tsup and copy package-local web and grammar assets for dry-run packaging checks.
+- Web keymap remapped note focus from `n` to `i`; `n`/`p` now move between unreviewed attention hunks, `space` collapses the current hunk, `Ctrl/Cmd+K` opens the palette, and `t` opens the timeline.
+- Risk color language now reserves a distinct filled critical tier for hunks scoring 80 or higher; ordinary high-risk hunks use outlined red-orange treatment.
 
 ### Fixed
 
