@@ -64,7 +64,9 @@ const DEFINITIONS: GroupDefinition[] = [
     title: "Formatting & whitespace",
     kind: "skim",
     order: 110,
-    accepts: (hunk) => hunk.category === "mechanical" && hunk.categoryReason === "WHITESPACE_ONLY"
+    accepts: (hunk) =>
+      hunk.category === "mechanical" &&
+      ["WHITESPACE_ONLY", "ast-format-only", "COMMENT_ONLY"].includes(hunk.categoryReason)
   },
   {
     id: "import-reorders",
@@ -116,13 +118,13 @@ const DEFINITIONS: GroupDefinition[] = [
 export function assignGroups(hunks: Hunk[]): { hunks: Hunk[]; groups: HunkGroup[] } {
   const hunkBuckets = new Map<string, Hunk[]>();
   const withGroups = hunks.map((hunk) => {
-    const group = groupForHunk(hunk);
+    const group = dynamicGroupForHunk(hunk) ?? groupForHunk(hunk);
     const grouped = { ...hunk, groupId: group.id };
     hunkBuckets.set(group.id, [...(hunkBuckets.get(group.id) ?? []), grouped]);
     return grouped;
   });
 
-  const groups = DEFINITIONS.flatMap<HunkGroup>((definition) => {
+  const staticGroups = DEFINITIONS.flatMap<HunkGroup>((definition) => {
     const members = hunkBuckets.get(definition.id) ?? [];
     if (members.length === 0) {
       return [];
@@ -137,6 +139,22 @@ export function assignGroups(hunks: Hunk[]): { hunks: Hunk[]; groups: HunkGroup[
       totalRemoved: members.reduce((sum, hunk) => sum + hunk.removedLines, 0)
     };
   });
+  const dynamicGroups = [...hunkBuckets.entries()].flatMap<HunkGroup>(([id, members]) => {
+    if (!id.startsWith("rename-pattern-")) {
+      return [];
+    }
+    const title = renamePatternTitle(members[0]?.categoryReason ?? "");
+    return {
+      id,
+      title,
+      kind: "skim",
+      order: 125,
+      hunkIds: members.map((hunk) => hunk.id),
+      totalAdded: members.reduce((sum, hunk) => sum + hunk.addedLines, 0),
+      totalRemoved: members.reduce((sum, hunk) => sum + hunk.removedLines, 0)
+    };
+  });
+  const groups = [...staticGroups, ...dynamicGroups].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
   return { hunks: withGroups, groups };
 }
 
@@ -170,4 +188,27 @@ function isSkimEligible(hunk: Hunk): boolean {
 
 function isSkimBundled(hunk: Hunk): boolean {
   return isSkimEligible(hunk);
+}
+
+function dynamicGroupForHunk(hunk: Hunk): GroupDefinition | null {
+  if (!hunk.categoryReason.startsWith("RENAME_PATTERN:")) {
+    return null;
+  }
+  const slug = hunk.categoryReason
+    .slice("RENAME_PATTERN:".length)
+    .replace(/[^A-Za-z0-9_-]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return {
+    id: `rename-pattern-${slug}`,
+    title: renamePatternTitle(hunk.categoryReason),
+    kind: "skim",
+    order: 125,
+    accepts: () => true
+  };
+}
+
+function renamePatternTitle(reason: string): string {
+  const mapping = reason.slice("RENAME_PATTERN:".length);
+  const [from = "old", to = "new"] = mapping.split("->");
+  return `Rename: ${from} -> ${to}`;
 }

@@ -14,6 +14,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Signal engine v2 detectors for high-entropy secrets, concurrency hazards, typosquat-suspect dependencies, agent-guidance edits, large untested logic additions, and coverage-driven risk reducers/untested-change findings.
 - YAML user rules with global/repo precedence, custom `USER_*` signals, built-in signal adjustments, `sift rules lint`, `sift rules list`, and `docs/RULES.md`.
 - Parse-only coverage ingest for LCOV and Cobertura artifacts, `.sift/config.json` coverage discovery, `--coverage <path>` CLI overrides, per-hunk coverage summaries, stats/report coverage lines, and stale-artifact handling.
+- Structural token-stream layer for format-only mechanical detection, definition/reference extraction, and cross-file rename-pattern skim groups.
 
 ### Changed
 
@@ -22,6 +23,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Removed the v0.1 `LARGE_NOVEL` signal in favor of scoped `NOVEL_UNTESTED` logic.
 - Invalid rules files are reported and skipped during analysis; `sift rules lint` exits non-zero for invalid existing files.
 - Coverage artifacts are read from disk only; Sift still does not run repository tests, scripts, or configs.
+- Comment-only and token-format-only mechanical hunks now stay in skim formatting groups.
 
 ### Fixed
 

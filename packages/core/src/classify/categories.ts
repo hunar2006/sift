@@ -1,6 +1,7 @@
 import type { HunkCategory, ParsedHunk, RiskReason } from "../types.js";
 import { basename, extension, normalizeRepoRelative } from "../path-utils.js";
 import { languageForPath } from "./languages.js";
+import { isTokenFormatOnly } from "../structure/index.js";
 
 const LOCKFILES = new Set([
   "package-lock.json",
@@ -214,6 +215,9 @@ function mechanicalRule(hunk: ParsedHunk, reasons: RiskReason[]): string | null 
   }
   if (isWhitespaceOnly(hunk)) {
     return "WHITESPACE_ONLY";
+  }
+  if (isTokenFormatOnly(hunk)) {
+    return "ast-format-only";
   }
   if (isCommentOnly(hunk)) {
     return "COMMENT_ONLY";

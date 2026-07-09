@@ -52,6 +52,8 @@ export class HeuristicClassifier implements Classifier {
       band: scored.band,
       reasons,
       coverage: hunk.coverage,
+      defines: hunk.defines,
+      references: hunk.references,
       groupId: "",
       provenance
     };

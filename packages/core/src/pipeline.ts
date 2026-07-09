@@ -8,10 +8,13 @@ import { parseUnifiedDiff } from "./parse.js";
 import { assignGroups } from "./group.js";
 import { orderReview } from "./order.js";
 import { attachCoverageToHunks } from "./coverage.js";
+import { applyRenamePatternGroups, enrichParsedHunksWithStructure } from "./structure/index.js";
 
 export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
   const parsed = parseUnifiedDiff(options.patch);
-  const parsedHunks = attachCoverageToHunks(synthesizeQueueHunks(parsed.files, parsed.hunks), options.coverage);
+  const parsedHunks = enrichParsedHunksWithStructure(
+    attachCoverageToHunks(synthesizeQueueHunks(parsed.files, parsed.hunks), options.coverage)
+  );
   const identified = assignHunkIds(parsedHunks);
   const classifier = new HeuristicClassifier();
   const generatedPaths = options.generatedPaths ?? new Set<string>();
@@ -20,7 +23,8 @@ export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
   const hunks = identified.map((hunk) =>
     classifier.classify(hunk, generatedPaths, undefined, { testScopes, hasCoverageData, rules: options.rules })
   );
-  const { hunks: groupedHunks, groups } = assignGroups(hunks);
+  const structuralHunks = applyRenamePatternGroups(hunks);
+  const { hunks: groupedHunks, groups } = assignGroups(structuralHunks);
   const ordered = orderReview(groupedHunks, groups);
   const hunkIdsByFile = new Map<string, string[]>();
   for (const hunk of ordered.hunks) {

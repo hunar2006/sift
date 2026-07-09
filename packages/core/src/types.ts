@@ -59,6 +59,9 @@ export interface Hunk {
   band: RiskBand;
   reasons: RiskReason[];
   coverage?: CoverageSummary;
+  defines?: string[];
+  references?: string[];
+  readingRank?: number;
   groupId: string;
   oldStart?: number;
   newStart?: number;
@@ -149,6 +152,8 @@ export interface ParsedHunk {
   removedLines: number;
   parserReasons: RiskReason[];
   coverage?: CoverageSummary;
+  defines?: string[];
+  references?: string[];
   isRenameOnly?: boolean;
   isModeChange?: boolean;
   isBinary?: boolean;
@@ -244,6 +249,9 @@ export const hunkSchema: z.ZodType<Hunk> = z.object({
   band: z.union([z.literal("high"), z.literal("medium"), z.literal("low"), z.literal("skim")]),
   reasons: z.array(riskReasonSchema),
   coverage: coverageSummarySchema.optional(),
+  defines: z.array(z.string()).optional(),
+  references: z.array(z.string()).optional(),
+  readingRank: z.number().optional(),
   groupId: z.string(),
   oldStart: z.number().optional(),
   newStart: z.number().optional(),

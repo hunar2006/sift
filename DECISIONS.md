@@ -19,3 +19,5 @@
 - Rules are loaded inside the CLI pipeline and applied before the second classification pass, so user suppressions and custom hot signals can affect mechanical demotion deterministically.
 - Coverage ingest uses hand-rolled LCOV parsing and the allowed `fast-xml-parser` dependency for Cobertura. It only reads artifact text and changed-file mtimes; it never invokes tests or repo scripts.
 - Coverage discovery honors `--coverage`, then `.sift/config.json`, then the specified autodetect paths. Invalid `.sift/config.json` is reported as a warning and ignored so analysis remains fail-open.
+- Added the allowed `web-tree-sitter` and `tree-sitter-wasms` dependencies for the structural layer. The current core pass uses deterministic token-stream fallback when parser/grammar assets are unavailable; CLI package wasm asset copying remains part of publish-readiness.
+- Cross-file rename-pattern groups are synthesized only when one identifier mapping appears in at least three files and five sites, and only for hunks without signals weighted 15 or higher.
