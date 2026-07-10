@@ -20,6 +20,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - `pnpm perf` now exercises a 400-file, roughly 25,000-line working-tree diff three times, enforcing the full-pipeline median and review-JSON serialization budgets locally and on Ubuntu CI.
 - Error messages now explain the concrete recovery path for coverage, ports, demo directories, and editor discovery; `docs/TROUBLESHOOTING.md` provides command-first fixes for common local setup issues.
 - `pnpm pack-check` now packs the private CLI, installs it into a clean temporary project, verifies package-local web/grammar assets, and runs the installed `sift --version` and `sift print --json` commands. Ubuntu and Windows CI run this proof.
+- README and MCP documentation now cover live mode, the flag-to-agent fix loop, fresh hunk behavior, editor configuration, PowerShell guidance, screenshots, verification commands, and troubleshooting.
 
 ### Changed
 

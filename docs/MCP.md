@@ -19,8 +19,8 @@ Tools:
 Intended loop:
 
 1. A human reviews locally in Sift and flags hunks with notes.
-2. An agent is asked to fix everything flagged in Sift.
-3. The agent reads flags and notes through MCP tools.
-4. The agent edits the repository through its normal tools, not through Sift.
+2. The reviewer runs `sift brief | clip` (or shares the MCP tools) with the agent.
+3. The agent reads flags and notes through MCP tools and edits the repository through its normal tools, not through Sift.
+4. With `sift --watch` open, changed hunks return as fresh and unreviewed while untouched approvals remain intact.
 
 Security model: MCP inputs are only ids and enums. There are no path, glob, shell, write, approve, flag, or state-mutation tools.

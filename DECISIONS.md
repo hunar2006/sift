@@ -102,3 +102,8 @@ This craft pass was performed **without a browser** this session (the app was no
 
 - The CLI package remains private. Naming remains centralized through the existing product/binary constants plus `package.json`, so an eventual npm name decision remains localized.
 - `pack-check` builds first, then uses `npm pack --pack-destination` and a clean temporary `npm install --ignore-scripts`. It asserts every runtime web/grammar asset, runs the installed bin rather than the workspace bin, and performs its terminal review inside a freshly generated demo repository.
+
+## 2026-07-10 - v0.4 closing documentation
+
+- The README presents the verified dark workbench first, keeps the complete five-capture gallery, and documents the actual fix loop rather than promising agent autonomy. Windows guidance names the Claude settings path and keeps PowerShell commands copyable.
+- Final deviations: the optional GIF/video stretch was cut and documented. No functional cut-line item was removed: watch/SSE, Windows CI, deferred visual work, still screenshots, performance harness, and pack-install proof all remain.

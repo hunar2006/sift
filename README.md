@@ -1,16 +1,29 @@
 # Sift
 
-**Stop reading slop. Verify what matters.**
+**Stop reading slop. Verify what matters—while the diff is still moving.**
 
-Sift is a local-first review cockpit for large AI-generated diffs. Run it inside a git repository and it turns the diff into an ordered queue: critical logic first, skim-safe mechanical bundles at the end, visible evidence on every risky hunk, and review status preserved in `.sift/`.
+Sift is a local-first review cockpit for large AI-generated diffs. It turns a repository diff into an ordered queue: critical logic first, skim-safe mechanical bundles last, visible evidence on every risky hunk, and durable local review state. In live mode, the queue updates alongside an agent's work without deciding anything for you.
+
+![Sift workbench](docs/screenshots/workbench-dark.png)
 
 ## Why
 
-AI agents can produce more code than a human can calmly review in one pass. Sift focuses on the human review bottleneck: deterministic triage, structural grouping, coverage evidence, provenance, and durable local state. Optional AI annotations can summarize, but they never change score, category, order, or review status.
+AI agents can produce more code than a human can calmly review in one pass. Sift focuses on the human bottleneck: deterministic triage, structure, coverage evidence, provenance, and durable local decisions. Optional AI annotations can summarize, but never change score, category, order, grouping, or status.
 
 ## Quickstart
 
+macOS/Linux:
+
 ```bash
+pnpm i
+pnpm build
+pnpm sift
+```
+
+Windows PowerShell:
+
+```powershell
+Set-Location C:\path\to\sift
 pnpm i
 pnpm build
 pnpm sift
@@ -22,132 +35,138 @@ Until packages are published, run the built binary directly:
 node packages/cli/dist/index.js
 ```
 
-Try the demo:
-
-```bash
-pnpm demo
-# or, after build
-node packages/cli/dist/index.js demo
-```
+Try the demo with `pnpm demo`, or run `node packages/cli/dist/index.js demo` after building.
 
 ## Screenshots
 
-<!-- TODO: add captures once rendered live -->
-- `docs/img/workbench.png` — the review workbench (ledger queue, digest inspector).
-- `docs/img/focus.png` — focus mode ("the bench") single-card flow with the decision stamp.
-- `docs/img/completion.png` — the completion screen.
+| Workbench | Focus mode |
+|---|---|
+| ![Dark workbench](docs/screenshots/workbench-dark.png) | ![Focus mode](docs/screenshots/focus.png) |
 
-## What It Does
+| Light workbench | Completion | Timeline |
+|---|---|---|
+| ![Light workbench](docs/screenshots/workbench-light.png) | ![Completion](docs/screenshots/completion.png) | ![Timeline](docs/screenshots/timeline.png) |
 
-- Digest: every hunk gets a deterministic, factual one-line headline plus up to three detail bullets — what the change does, before you read a line of diff.
-- Triage: classifies hunks as logic, tests, config, deps, docs, mechanical, generated, or binary.
-- Risk: scores hunks with deterministic, inspectable reasons and user-tunable rules.
-- Structure: detects format-only changes, rename-pattern groups, definitions, references, and reading-order hints.
-- Coverage: parses LCOV and Cobertura artifacts that you generated yourself.
-- Provenance: reads Claude Code hook logs and open JSONL records from other agent tools.
-- State: tracks approved, flagged, and unreviewed hunks locally.
+Regenerate the complete set with `pnpm shots`.
+
+## Live mode and the fix loop
+
+Start a local review companion for the working tree, or for Git's index:
+
+```bash
+sift --watch
+# or
+sift --staged --watch
+```
+
+Sift watches changes, re-runs the same review after a short debounce, and streams hunk deltas into the open browser. Existing decisions never change. A modified hunk gets a new ID and returns unreviewed, marked **fresh**; untouched approvals remain approved. The `New (n)` header button filters fresh hunks, and opening or deciding one clears its fresh marker.
+
+```text
+flag in Sift → sift brief | clip (or MCP) → agent fixes → fresh hunks return in watch mode
+```
+
+Use `sift brief` for flagged hunks, or `sift brief --unreviewed-high` for unreviewed high-risk work. It includes the reviewer note, primary reasons, and a patch capped at 120 lines per hunk.
+
+## What it does
+
+- **Digest:** factual, deterministic headlines and details for every hunk.
+- **Triage:** logic, tests, config, dependencies, docs, mechanical, generated, and binary categories.
+- **Risk:** inspectable deterministic reasons plus optional user rules.
+- **Structure:** formatting detection, rename-pattern groups, definitions, references, and reading-order hints.
+- **Coverage:** LCOV and Cobertura artifacts that you generated yourself.
+- **Provenance:** Claude Code hook logs and compatible open JSONL records.
+- **State:** approved, flagged, and unreviewed decisions stored locally under `.sift/`.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
-| `sift [range]` | Analyze the worktree or a ref/range, start the loopback UI, and print the URL. |
+| `sift [range]` | Analyze the worktree or a ref/range and start the loopback UI. |
 | `sift --staged` | Analyze staged changes. |
-| `sift pr <number-or-url>` | Analyze a GitHub PR diff through the `gh` CLI. |
-| `sift report [--md\|--json] [-o file]` | Emit a markdown or JSON review report and append a stats snapshot. |
-| `sift print [--json]` | Print a compact terminal triage summary without starting the server. |
-| `sift stats [--json]` | Print current review debt, reviewed percentage, flags, and line-match coverage. |
-| `sift check [--max-debt pct]` | Personal pre-push aid. Do not use review debt as a team performance metric. |
-| `sift demo [--dir path]` | Generate the demo repo and launch Sift against it. |
-| `sift rules lint` | Validate global and repo rules files. |
-| `sift rules list` | Print the effective merged ruleset. |
+| `sift --watch` | Keep the default worktree review live; it also works with `--staged`, not a ref range or PR. |
+| `sift pr <number-or-url>` | Analyze a GitHub PR diff through `gh`. |
+| `sift brief [--flagged\|--unreviewed-high] [-o file]` | Produce an agent-ready review handoff. |
+| `sift report [--md\|--json] [-o file]` | Emit a report and append a stats snapshot. |
+| `sift print [--json]` | Print compact terminal triage without starting the server. |
+| `sift stats [--json]` | Print review debt, progress, flags, and line-match coverage. |
+| `sift check [--max-debt pct]` | Personal pre-push aid; not a team performance metric. |
+| `sift demo [--dir path]` | Generate the demo repository and launch Sift. |
+| `sift rules lint` / `sift rules list` | Validate and display the effective ruleset. |
 | `sift mcp` | Serve read-only review context over stdio MCP tools. |
 | `sift hooks install [--project]` | Install the Claude Code PostToolUse capture hook. |
-| `sift hooks status [--project]` | Show whether the hook is installed. |
-| `sift hooks uninstall [--project]` | Remove only Sift's hook entry. |
+| `pnpm shots` / `pnpm perf` / `pnpm pack-check` | Reproduce visual evidence, check the pipeline budget, and verify an installed tarball. |
 
-## Cockpit Keys
+## Cockpit keys
 
 | Key | Action |
 |---|---|
 | `Ctrl/Cmd+K` | Open the command palette. |
-| `j` / `k` | Next / previous visible hunk. |
+| `j` / `k`, `J` / `K` | Move by hunk, or by file. |
 | `n` / `p` | Next / previous unreviewed attention hunk. |
-| `J` / `K` | Next / previous file. |
-| `a` | Approve the current hunk. |
-| `x` | Flag: opens a quick picker — `1`–`4` pick a canned reason, `i` writes a free note, `Esc` cancels. |
-| `u` | Mark the current hunk unreviewed. |
-| `z` | Undo the last decision (depth 20; group approvals undo as one). |
-| `f` | Enter/exit focus mode — a single-card flow over attention hunks. |
-| `i` | Focus the note field. |
-| `space` | Collapse or expand the current hunk body. |
-| `s` | Cycle risk, reading, and path sort modes. |
-| `t` | Open the provenance timeline. |
-| `T` | Toggle light/dark theme. |
-| `?` | Open help. |
+| `a`, `x`, `u`, `z` | Approve, flag, unreview, or undo the last decision. |
+| `f` | Enter/exit focus mode. |
+| `e` | Open the current hunk at its first changed line in the configured editor. |
+| `i`, `space`, `s` | Focus note, collapse hunk, or cycle sort order. |
+| `t`, `T`, `?` | Open timeline, toggle theme, or open help. |
 
-In focus mode the action row is `[a] Approve` `[x] Flag` `[j] Skip` `[z] Undo`; `Esc` returns to the workbench. When every attention hunk is decided, a completion screen offers **Copy report** and **Back to queue**.
+In focus mode the action row is `[a] Approve` `[x] Flag` `[j] Skip` `[z] Undo` `[e] Open in editor`; `Esc` returns to the workbench. The **New (n)** header button filters fresh hunks.
 
-## Change Digests & The Summary Stack
+## Change digests and the summary stack
 
-Every hunk carries a factual digest computed deterministically in core. Above the diff, understanding arrives in a labeled stack:
+Every hunk carries a factual digest computed deterministically in core. Understanding arrives in a labeled stack:
 
-- **auto** — the deterministic digest (headline + details). Always present.
-- **agent** — when provenance matches, the Intent block shows what was *Asked* and the *Agent*'s reasoning excerpt.
-- **AI** — with `--ai`, an optional second headline line labeled `AI · <provider>`.
+- **auto**: deterministic digest (headline and details), always present.
+- **agent**: when provenance matches, the Intent block shows what was asked and the agent reasoning excerpt.
+- **AI**: with `--ai`, an optional second headline line labeled `AI · <provider>`.
 
-Sift **describes, never judges.** No digest, intent line, or AI output recommends a verdict or reassures you; the strings `looks good`, `safe to approve`, and `LGTM` are forbidden and scanned for in tests. Sift informs the decision; you make it.
+Sift **describes, never judges**. It informs the decision; you make it.
 
-### Flag reasons
+### Flag reasons and editor jump
 
-The quick-flag picker's canned reasons default to `Needs tests`, `Security concern`, `Doesn't match intent`, `Unnecessary change`. Override them per repo in `.sift/config.json`:
+Quick-flag reasons default to `Needs tests`, `Security concern`, `Doesn't match intent`, and `Unnecessary change`. Override them in `.sift/config.json`:
 
 ```json
 { "flagReasons": ["Needs tests", "Perf risk", "Out of scope"] }
 ```
 
-Up to six reasons are used; blanks are ignored and invalid config falls back to the defaults.
+Set a known editor ID or a safe argument template in that same file:
 
-## Rules
+```json
+{ "editor": "code" }
+```
 
-Rules let you tune Sift without forking it. Sift loads `~/.sift/rules.yml`, then `<repo>/.sift/rules.yml`, with repo rules winning. Custom rules create `USER_*` reasons, and adjustments can suppress or reweight built-in reasons.
+```json
+{ "editor": "subl %f:%l" }
+```
 
-See [docs/RULES.md](docs/RULES.md).
+Sift resolves the selected hunk server-side and launches only the configured editor (or detected `code`/`cursor`) through `execFile` with an argument array. It never opens a shell or executes anything from the reviewed repository.
 
-## Coverage Evidence
+## Rules, coverage, provenance, and MCP
 
-Sift never executes repository tests, scripts, or configs. It only parses artifacts you already produced, currently LCOV and Cobertura XML. Configure paths in `.sift/config.json`, use autodetected `coverage/lcov.info`, or pass `--coverage <path>` to `sift`, `report`, `check`, `print`, or `mcp`.
+Rules load from `~/.sift/rules.yml` and then `<repo>/.sift/rules.yml`, with repo rules winning. See [docs/RULES.md](docs/RULES.md).
 
-Fresh coverage can add a green risk reducer for well-covered changed logic. Stale artifacts still show badges, but do not reduce risk.
+Sift never executes repository tests, scripts, or configs. It only parses LCOV and Cobertura artifacts you already produced; pass `--coverage <path>` when autodetection is not right.
 
-## Provenance
+`sift hooks install` merges a Claude Code PostToolUse hook into settings and writes compact provenance metadata to `~/.sift/provenance.jsonl`. On Windows, the default settings file is `%USERPROFILE%\.claude\settings.json`; use `sift hooks install --project` for repo-local settings. See [docs/PROVENANCE.md](docs/PROVENANCE.md).
 
-`sift hooks install` merges a Claude Code PostToolUse hook into settings. The hook appends compact hashes plus session metadata to `~/.sift/provenance.jsonl`.
-
-Other agent tools can write the same open JSONL format. This is the sanctioned path for Cursor, Copilot, Codex, and other CLIs until first-party adapters exist. See [docs/PROVENANCE.md](docs/PROVENANCE.md).
-
-## MCP
-
-`sift mcp` runs the pipeline once and serves read-only stdio tools for agents. It exposes summaries, flagged hunks, unreviewed hunks, hunk details, and stats. It has no write tools and accepts only ids/enums as inputs.
-
-See [docs/MCP.md](docs/MCP.md).
+`sift mcp` runs one review and exposes read-only stdio tools for agents. It has no write tools and accepts only IDs/enums as inputs. See [docs/MCP.md](docs/MCP.md).
 
 ## Optional AI
 
-`--ai`, `--ai=cross`, `--ai=same`, `--ai=both`, `--ai=anthropic`, or `--ai=openai` adds annotation-only summaries for high and medium risk hunks. Secret-like hunks, including high-entropy secrets, are excluded from provider payloads. AI output never changes score, category, order, grouping, or status.
+`--ai`, `--ai=cross`, `--ai=same`, `--ai=both`, `--ai=anthropic`, or `--ai=openai` adds annotation-only summaries for high and medium risk hunks. Secret-like hunks are excluded from provider payloads. AI output never changes score, category, order, grouping, or status.
 
-`--ai` also produces one whole-diff **Review Brief** (`story` + `readingHint`) from the group and top attention-hunk digests, rendered as a dismissible "Briefing" bar under the header and served at `GET /api/brief`. Briefs are cached at `.sift/ai-cache/<sha256(diffSpec+headSha+provider+model)>.json` and reused silently on re-run; pass `--no-ai-cache` to regenerate. The AI prompt is forbidden from stating or implying a change is safe, correct, or ready to approve.
+## Security and privacy
 
-## Security And Privacy
-
-- Runtime is offline-first by default.
-- No telemetry or analytics.
+- Offline-first by default; no telemetry or analytics.
 - Sift never runs reviewed repository code.
-- Git access is read-only except the `pr` command's explicit use of `gh`.
+- Git access is read-only except the explicit `pr` command's use of `gh`.
 - The web server binds `127.0.0.1` only.
-- Grammar wasm files and the web UI are bundled from disk; nothing is fetched at runtime.
-- State lives under `.sift/`, which self-ignores with `.sift/.gitignore`.
-- Network is used only for localhost UI/MCP operation and explicit `--ai` provider calls.
+- Web and grammar assets are bundled from disk; nothing is fetched at runtime.
+- Network is limited to localhost and explicit `--ai` provider calls.
+
+## Help
+
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for command-first fixes for Git, `gh`, coverage, ports, watch mode, editors, Windows PATH, and bundled assets.
 
 ## License
 
