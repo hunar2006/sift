@@ -30,8 +30,16 @@ pnpm demo
 node packages/cli/dist/index.js demo
 ```
 
+## Screenshots
+
+<!-- TODO: add captures once rendered live -->
+- `docs/img/workbench.png` — the review workbench (ledger queue, digest inspector).
+- `docs/img/focus.png` — focus mode ("the bench") single-card flow with the decision stamp.
+- `docs/img/completion.png` — the completion screen.
+
 ## What It Does
 
+- Digest: every hunk gets a deterministic, factual one-line headline plus up to three detail bullets — what the change does, before you read a line of diff.
 - Triage: classifies hunks as logic, tests, config, deps, docs, mechanical, generated, or binary.
 - Risk: scores hunks with deterministic, inspectable reasons and user-tunable rules.
 - Structure: detects format-only changes, rename-pattern groups, definitions, references, and reading-order hints.
@@ -66,13 +74,39 @@ node packages/cli/dist/index.js demo
 | `j` / `k` | Next / previous visible hunk. |
 | `n` / `p` | Next / previous unreviewed attention hunk. |
 | `J` / `K` | Next / previous file. |
-| `a`, `x`, `u` | Approve, flag, or mark unreviewed. |
+| `a` | Approve the current hunk. |
+| `x` | Flag: opens a quick picker — `1`–`4` pick a canned reason, `i` writes a free note, `Esc` cancels. |
+| `u` | Mark the current hunk unreviewed. |
+| `z` | Undo the last decision (depth 20; group approvals undo as one). |
+| `f` | Enter/exit focus mode — a single-card flow over attention hunks. |
 | `i` | Focus the note field. |
 | `space` | Collapse or expand the current hunk body. |
 | `s` | Cycle risk, reading, and path sort modes. |
 | `t` | Open the provenance timeline. |
 | `T` | Toggle light/dark theme. |
 | `?` | Open help. |
+
+In focus mode the action row is `[a] Approve` `[x] Flag` `[j] Skip` `[z] Undo`; `Esc` returns to the workbench. When every attention hunk is decided, a completion screen offers **Copy report** and **Back to queue**.
+
+## Change Digests & The Summary Stack
+
+Every hunk carries a factual digest computed deterministically in core. Above the diff, understanding arrives in a labeled stack:
+
+- **auto** — the deterministic digest (headline + details). Always present.
+- **agent** — when provenance matches, the Intent block shows what was *Asked* and the *Agent*'s reasoning excerpt.
+- **AI** — with `--ai`, an optional second headline line labeled `AI · <provider>`.
+
+Sift **describes, never judges.** No digest, intent line, or AI output recommends a verdict or reassures you; the strings `looks good`, `safe to approve`, and `LGTM` are forbidden and scanned for in tests. Sift informs the decision; you make it.
+
+### Flag reasons
+
+The quick-flag picker's canned reasons default to `Needs tests`, `Security concern`, `Doesn't match intent`, `Unnecessary change`. Override them per repo in `.sift/config.json`:
+
+```json
+{ "flagReasons": ["Needs tests", "Perf risk", "Out of scope"] }
+```
+
+Up to six reasons are used; blanks are ignored and invalid config falls back to the defaults.
 
 ## Rules
 
@@ -101,6 +135,8 @@ See [docs/MCP.md](docs/MCP.md).
 ## Optional AI
 
 `--ai`, `--ai=cross`, `--ai=same`, `--ai=both`, `--ai=anthropic`, or `--ai=openai` adds annotation-only summaries for high and medium risk hunks. Secret-like hunks, including high-entropy secrets, are excluded from provider payloads. AI output never changes score, category, order, grouping, or status.
+
+`--ai` also produces one whole-diff **Review Brief** (`story` + `readingHint`) from the group and top attention-hunk digests, rendered as a dismissible "Briefing" bar under the header and served at `GET /api/brief`. Briefs are cached at `.sift/ai-cache/<sha256(diffSpec+headSha+provider+model)>.json` and reused silently on re-run; pass `--no-ai-cache` to regenerate. The AI prompt is forbidden from stating or implying a change is safe, correct, or ready to approve.
 
 ## Security And Privacy
 

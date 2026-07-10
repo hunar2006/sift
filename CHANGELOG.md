@@ -27,6 +27,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 - CLI analysis now loads bounded NEW-side sources from the worktree, index, or local range target before synchronous core analysis, while unavailable or invalid files degrade silently to the existing tokenizer.
 - Pinned `web-tree-sitter` to the 0.20.8 ABI used by the allowed `tree-sitter-wasms` grammar package.
+- README documents the change digest, summary stack ("describes, never judges"), updated keymap (`f`, `x→1–4`, `i`, `z`), `flagReasons` config, the Review Brief, `--no-ai-cache`, and screenshot placeholders. The queue is now two-line ledger rows with a band-colored risk spine.
 
 ## [0.2.0] - Unreleased
 
