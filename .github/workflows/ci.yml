@@ -33,3 +33,24 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: node scripts/smoke.mjs
+
+  shots:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm exec playwright install chromium --with-deps
+      - run: pnpm shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sift-screenshots
+          path: docs/screenshots
