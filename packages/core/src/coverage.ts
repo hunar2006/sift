@@ -38,7 +38,7 @@ export async function loadCoverage(
     const stat = await fs.stat(candidate).catch(() => null);
     if (!stat) {
       if (overridePath) {
-        warnings.push(`Coverage artifact not found: ${candidate}`);
+        warnings.push(`Coverage artifact not found at ${candidate}; check --coverage and try again.`);
       }
       continue;
     }
@@ -56,8 +56,8 @@ export async function loadCoverage(
         },
         warnings
       };
-    } catch (error) {
-      warnings.push(`Coverage artifact could not be parsed: ${candidate}: ${errorMessage(error)}`);
+    } catch {
+      warnings.push(`Coverage artifact at ${candidate} could not be parsed; regenerate a valid LCOV or Cobertura file and try again.`);
       if (overridePath) {
         break;
       }
@@ -178,8 +178,8 @@ async function readSiftConfig(repoRoot: string, warnings: string[]): Promise<Sif
   try {
     const parsed = JSON.parse(text) as SiftConfig;
     return Array.isArray(parsed.coverage) ? parsed : {};
-  } catch (error) {
-    warnings.push(`Ignoring invalid Sift config: ${file}: ${errorMessage(error)}`);
+  } catch {
+    warnings.push(`Ignoring invalid Sift config at ${file}; fix the JSON or remove the file and try again.`);
     return {};
   }
 }
@@ -256,8 +256,4 @@ function asArray<T>(value: T | T[] | undefined): T[] {
     return [];
   }
   return Array.isArray(value) ? value : [value];
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

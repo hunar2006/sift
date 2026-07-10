@@ -69,6 +69,7 @@ program
       },
       Number.parseInt(options.port, 10)
     );
+    printPortFallback(options.port, server.port);
     const summary = `${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention · ${result.model.groups.length} groups · sift v${SIFT_VERSION}`;
     console.log(`${server.url}\n${summary}`);
     if (options.open) {
@@ -116,6 +117,7 @@ program
       { ...result, refresh: () => runPipeline({ cwd: process.cwd(), pr, ai, noAiCache, coverage: options.coverage }) },
       Number.parseInt(options.port, 10)
     );
+    printPortFallback(options.port, server.port);
     console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention · ${result.model.groups.length} groups · sift v${SIFT_VERSION}`);
     if (options.open) {
       await open(server.url);
@@ -273,13 +275,19 @@ program
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
   .action(async (options: DemoCommandOptions) => {
-    const demo = await createDemoRepo(options.dir ? { repoDir: options.dir } : undefined);
+    let demo: Awaited<ReturnType<typeof createDemoRepo>>;
+    try {
+      demo = await createDemoRepo(options.dir ? { repoDir: options.dir } : undefined);
+    } catch {
+      throw new Error("Cannot create the demo in that directory. Choose a writable path and try again.");
+    }
     process.env.SIFT_HOME = demo.siftHome;
     process.env.SIFT_CLAUDE_DIR = demo.claudeDir;
     console.log(demo.expectedSummary);
     console.log(`Demo repo: ${demo.repoRoot}`);
     const result = await runPipeline({ cwd: demo.repoRoot });
     const server = await startServer({ ...result, refresh: () => runPipeline({ cwd: demo.repoRoot }) }, Number.parseInt(options.port, 10));
+    printPortFallback(options.port, server.port);
     console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention - sift v${SIFT_VERSION}`);
     if (options.open) {
       await open(server.url);
@@ -428,4 +436,10 @@ function waitForShutdown(close: () => Promise<void>): Promise<void> {
     process.once("SIGINT", shutdown);
     process.once("SIGTERM", shutdown);
   });
+}
+
+function printPortFallback(requested: string, actual: number): void {
+  if (actual !== Number.parseInt(requested, 10)) {
+    console.log(`Port ${requested} was in use; started on ${actual}.`);
+  }
 }

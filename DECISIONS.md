@@ -92,3 +92,8 @@ This craft pass was performed **without a browser** this session (the app was no
 
 - The fixture intentionally uses 400 files and a roughly 25,000-line working-tree diff: 60% TypeScript/Python/Go logic paths, tests, migrations, generated output, lockfile-like data, docs/config, one file rename, and a ten-file `formatDate -> renderDate` cross-file rename pattern. It runs the real ingest-to-model pipeline three times with AI disabled.
 - The performance gate is a 5,000 ms median locally, scaled only through `PERF_MULT` (Ubuntu CI uses `2`). JSON serialization is separately capped at 1,500 ms. The local initial result was min 894.7 ms, median 902.5 ms, with a 2,295,459-byte review payload serialized in at most 7.7 ms; no optimization was warranted.
+
+## 2026-07-10 - v0.4 error and recovery audit
+
+- User-facing failure paths use one direct sentence plus an actionable recovery: Git root, `gh`, coverage, watch scope, editor discovery, AI keys, demo write access, and port fallback are all explicit. Raw stacks remain gated behind `SIFT_DEBUG=1` at the CLI boundary.
+- Review state is protected by a timestamped backup on corruption. Freshness sidecar corruption remains silent by design because the file is disposable; the troubleshooting guide distinguishes the two rather than overstating its importance.

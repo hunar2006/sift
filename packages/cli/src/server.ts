@@ -231,12 +231,13 @@ export function createSiftApp(context: ServerContext | SiftServerState): Hono {
 export async function startServer(
   context: ServerContext,
   preferredPort: number
-): Promise<{ url: string; close(): Promise<void>; update(next: Omit<ServerContext, "refresh">, event: ModelUpdatedEvent): void }> {
+): Promise<{ url: string; port: number; close(): Promise<void>; update(next: Omit<ServerContext, "refresh">, event: ModelUpdatedEvent): void }> {
   const port = await firstFreePort(preferredPort);
   const state = new SiftServerState(context);
   const app = createSiftApp(state);
   const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port });
   return {
+    port,
     url: `http://127.0.0.1:${port}`,
     close: () =>
       new Promise((resolve, reject) => {
