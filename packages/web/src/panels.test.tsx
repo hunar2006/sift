@@ -22,7 +22,7 @@ function hunk(overrides: Partial<ReviewHunk>): ReviewHunk {
     digest: { headline: "Adds `rotate()`", details: [], source: "auto" },
     status: "unreviewed",
     ...overrides
-  } as ReviewHunk;
+  };
 }
 
 describe("QuickFlagPicker", () => {

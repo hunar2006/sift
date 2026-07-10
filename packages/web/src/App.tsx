@@ -76,7 +76,14 @@ export function App() {
   const [flagPickerFor, setFlagPickerFor] = useState<string | null>(null);
   const [groupPreview, setGroupPreview] = useState<{ groupId: string; blockedIds?: string[] } | null>(null);
   const [completionDismissed, setCompletionDismissed] = useState(false);
+  const [stamp, setStamp] = useState<"verified" | "flagged" | null>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+
+  function showStamp(kind: "verified" | "flagged"): void {
+    setStamp(kind);
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    window.setTimeout(() => setStamp(null), reduced ? 200 : 340);
+  }
 
   useEffect(() => {
     void loadAll(setData, setToast);
@@ -246,6 +253,11 @@ export function App() {
     if (options.record !== false && status !== previous) {
       pushUndoEntry([{ hunkId: hunk.id, prevStatus: previous, prevNote: hunk.note }]);
       setToast(`${statusVerb(status)} ${repoBasename(hunk.file)} — Z to undo`);
+      if (focusMode && status === "approved") {
+        showStamp("verified");
+      } else if (focusMode && status === "flagged") {
+        showStamp("flagged");
+      }
     }
     setStatus(hunk.id, status, note ?? hunk.note);
     if (status === "approved" || status === "flagged") {
@@ -363,9 +375,10 @@ export function App() {
     <main className="shell">
       <header className="topbar">
         <div className="brandline">
+          <Logomark />
           <strong>sift</strong>
-          <span>{repoName(meta.repoRoot)}</span>
-          <span>{meta.diffSpec}</span>
+          <span className="mono-dim">{repoName(meta.repoRoot)}</span>
+          <span className="mono-dim">{meta.diffSpec}</span>
         </div>
         <div className="headline">
           <span className="progress">{reviewedPct.toFixed(0)}%</span>
@@ -440,6 +453,8 @@ export function App() {
                       >
                         <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
                         <span className="path">{hunk.file}</span>
+                        {hunk.status === "approved" && <span className="mini-stamp verified">✓</span>}
+                        {hunk.status === "flagged" && <span className="mini-stamp flagged">⚑</span>}
                         <span className="risk">{hunk.risk}</span>
                       </button>
                     ))}
@@ -544,6 +559,11 @@ export function App() {
               .catch(() => setToast("Full file is unavailable."))
           }
         />
+      )}
+      {stamp && (
+        <div className="stamp-overlay" aria-hidden="true">
+          <Stamp kind={stamp} />
+        </div>
       )}
       {reviewComplete && !completionDismissed && (
         <CompletionScreen
@@ -688,6 +708,36 @@ function DiffViewer({
       )}
       <MiniMap hunks={hunks} selectedId={selectedId} onSelect={onSelect} />
     </section>
+  );
+}
+
+export function Logomark({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      className="logomark"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4.5" y="4.5" width="15" height="15" rx="4" transform="rotate(-8 12 12)" />
+      <circle cx="8" cy="8.5" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12.5" r="1.15" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="16.5" r="1.15" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function Stamp({ kind }: { kind: "verified" | "flagged" }) {
+  return (
+    <span className={`stamp stamp-${kind}`} role="img" aria-label={kind === "verified" ? "Verified" : "Flagged"}>
+      {kind === "verified" ? "VERIFIED" : "FLAGGED"}
+    </span>
   );
 }
 

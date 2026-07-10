@@ -1,70 +1,97 @@
+/*
+ * Assay Office visual system (v0.3).
+ * Canonical tokens per the art direction; legacy aliases (--bg, --surface,
+ * --text, --muted, --border, risk families) map onto them so existing
+ * components restyle without a full rename. Hex values here are the source of
+ * truth for the contrast test (contrast.test.ts parses this file).
+ */
 :root {
   color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px;
-  letter-spacing: 0;
-  --bg: #09090b;
-  --surface: #0f0f12;
-  --surface-raised: #18181b;
-  --surface-selected: #172329;
-  --border: #27272a;
-  --border-strong: #3f3f46;
-  --text: #e4e4e7;
-  --muted: #a1a1aa;
-  --subtle: #71717a;
-  --focus: #67e8f9;
-  --critical-bg: #b91c1c;
-  --critical-text: #ffffff;
-  --critical-border: #fca5a5;
-  --high-bg: rgba(127, 29, 29, 0.22);
-  --high-text: #fecaca;
-  --high-border: #f97316;
-  --medium-bg: rgba(146, 64, 14, 0.2);
-  --medium-text: #fde68a;
-  --medium-border: #d97706;
-  --low-bg: rgba(71, 85, 105, 0.22);
-  --low-text: #cbd5e1;
-  --low-border: #64748b;
-  --skim-bg: rgba(63, 63, 70, 0.28);
-  --skim-text: #d4d4d8;
-  --skim-border: #71717a;
-  --green-bg: rgba(22, 101, 52, 0.28);
-  --green-text: #bbf7d0;
-  --green-border: #16a34a;
+  --sans: "Instrument Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-family: var(--sans);
+  font-size: 14px;
+  letter-spacing: -0.005em;
+
+  /* Assay Office — dark (default) */
+  --ink-0: #0b0e12;
+  --ink-1: #12161c;
+  --ink-2: #1a202a;
+  --line: #232b37;
+  --text-hi: #e9edf4;
+  --text-lo: #8b95a7;
+  --verdict: #35b8a4;
+  --critical: #e5484d;
+  --high: #f76b15;
+  --medium: #e7a13d;
+  --low: #7a879b;
+  --skim: #5a6372;
+
+  /* Legacy aliases */
+  --bg: var(--ink-0);
+  --surface: var(--ink-1);
+  --surface-raised: var(--ink-2);
+  --surface-selected: rgba(53, 184, 164, 0.12);
+  --panel: var(--ink-1);
+  --border: var(--line);
+  --border-strong: #2e3947;
+  --text: var(--text-hi);
+  --muted: var(--text-lo);
+  --subtle: #6a7488;
+  --focus: var(--verdict);
+  --critical-bg: var(--critical);
+  --critical-text: #0b0e12;
+  --critical-border: var(--critical);
+  --high-bg: rgba(247, 107, 21, 0.14);
+  --high-text: #f9a877;
+  --high-border: var(--high);
+  --medium-bg: rgba(231, 161, 61, 0.14);
+  --medium-text: #e7a13d;
+  --medium-border: var(--medium);
+  --low-bg: rgba(122, 135, 155, 0.16);
+  --low-text: #aeb7c6;
+  --low-border: var(--low);
+  --skim-bg: rgba(90, 99, 114, 0.2);
+  --skim-text: #aeb7c6;
+  --skim-border: var(--skim);
+  --green-bg: rgba(53, 184, 164, 0.16);
+  --green-text: #6fd3c3;
+  --green-border: var(--verdict);
   background: var(--bg);
   color: var(--text);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f8fafc;
-  --surface: #ffffff;
-  --surface-raised: #f1f5f9;
-  --surface-selected: #e0f2fe;
-  --border: #d4d4d8;
-  --border-strong: #a1a1aa;
-  --text: #18181b;
-  --muted: #52525b;
-  --subtle: #71717a;
-  --focus: #0369a1;
-  --critical-bg: #b91c1c;
+  /* Assay Office — light (accent hues darkened for AA) */
+  --ink-0: #f7f8fa;
+  --ink-1: #ffffff;
+  --ink-2: #ffffff;
+  --line: #e3e7ee;
+  --text-hi: #171c26;
+  --text-lo: #5c6675;
+  --verdict: #12897a;
+  --critical: #c0353a;
+  --high: #b8500f;
+  --medium: #9a6a1a;
+  --low: #5c6675;
+  --skim: #6a7382;
+
+  --border-strong: #c7ccd6;
+  --surface-selected: rgba(18, 137, 122, 0.1);
+  --subtle: #6a7382;
   --critical-text: #ffffff;
-  --critical-border: #7f1d1d;
-  --high-bg: #fff7ed;
-  --high-text: #7c2d12;
-  --high-border: #c2410c;
-  --medium-bg: #fffbeb;
-  --medium-text: #713f12;
-  --medium-border: #b45309;
-  --low-bg: #f1f5f9;
-  --low-text: #334155;
-  --low-border: #64748b;
-  --skim-bg: #f4f4f5;
-  --skim-text: #3f3f46;
-  --skim-border: #71717a;
-  --green-bg: #dcfce7;
-  --green-text: #14532d;
-  --green-border: #15803d;
+  --high-bg: #fff3ea;
+  --high-text: #8f3d0b;
+  --medium-bg: #fbf3e2;
+  --medium-text: #7a5314;
+  --low-bg: #eef1f5;
+  --low-text: #434b58;
+  --skim-bg: #eef1f5;
+  --skim-text: #434b58;
+  --green-bg: #daf1ec;
+  --green-text: #0d6d60;
+  --green-border: var(--verdict);
 }
 
 * {
@@ -992,6 +1019,89 @@ textarea:focus-visible {
   .completion {
     animation: none;
   }
+}
+
+/* Signature — the decision stamp */
+.logomark {
+  color: var(--verdict);
+  flex: 0 0 auto;
+}
+
+.mono-dim {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stamp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.stamp {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border: 3px solid currentColor;
+  border-radius: 8px;
+  transform: rotate(-6deg);
+}
+
+.stamp-verified {
+  color: var(--verdict);
+}
+
+.stamp-flagged {
+  color: var(--high);
+}
+
+.stamp-overlay .stamp {
+  animation: stamp-settle 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes stamp-settle {
+  from {
+    transform: rotate(-6deg) scale(0.8);
+    opacity: 0.4;
+  }
+  to {
+    transform: rotate(-6deg) scale(1);
+    opacity: 1;
+  }
+}
+
+.mini-stamp {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.mini-stamp.verified {
+  color: var(--verdict);
+}
+
+.mini-stamp.flagged {
+  color: var(--high);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp-overlay .stamp {
+    animation: none;
+  }
+}
+
+code,
+.risk,
+.mono {
+  font-family: var(--mono);
 }
 
 .toast {
