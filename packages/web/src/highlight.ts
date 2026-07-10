@@ -1,14 +1,17 @@
 import type { DiffLine } from "@sift-review/core";
+import { assayDark, assayLight, type AssayThemeName } from "./assay-themes.js";
 
 interface ShikiHighlighter {
   codeToHtml(code: string, options: { lang: string; theme: string }): string;
 }
 
 interface ShikiModule {
-  createHighlighter(options: { themes: string[]; langs: string[] }): Promise<ShikiHighlighter>;
+  createHighlighter(options: {
+    themes: Array<typeof assayDark | typeof assayLight>;
+    langs: string[];
+  }): Promise<ShikiHighlighter>;
 }
 
-const THEME = "github-dark";
 const cache = new Map<string, Promise<string[] | null>>();
 const highlighters = new Map<string, Promise<ShikiHighlighter | null>>();
 
@@ -38,27 +41,32 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   ini: "ini"
 };
 
-export function highlightDiffLines(hunkId: string, language: string, lines: DiffLine[]): Promise<string[] | null> {
+export function highlightDiffLines(
+  hunkId: string,
+  language: string,
+  lines: DiffLine[],
+  theme: AssayThemeName = "assay-dark"
+): Promise<string[] | null> {
   const lang = LANGUAGE_ALIASES[language] ?? "text";
   if (lang === "text") {
     return Promise.resolve(null);
   }
-  const key = `${hunkId}:${lang}:${lines.map((line) => line.text).join("\n")}`;
+  const key = `${hunkId}:${lang}:${theme}:${lines.map((line) => line.text).join("\n")}`;
   const existing = cache.get(key);
   if (existing) {
     return existing;
   }
-  const promise = highlightLines(lang, lines).catch(() => null);
+  const promise = highlightLines(lang, lines, theme).catch(() => null);
   cache.set(key, promise);
   return promise;
 }
 
-async function highlightLines(lang: string, lines: DiffLine[]): Promise<string[] | null> {
+async function highlightLines(lang: string, lines: DiffLine[], theme: AssayThemeName): Promise<string[] | null> {
   const highlighter = await highlighterFor(lang);
   if (!highlighter) {
     return null;
   }
-  return lines.map((line) => innerCodeHtml(highlighter.codeToHtml(line.text || " ", { lang, theme: THEME })));
+  return lines.map((line) => innerCodeHtml(highlighter.codeToHtml(line.text || " ", { lang, theme })));
 }
 
 function highlighterFor(lang: string): Promise<ShikiHighlighter | null> {
@@ -67,7 +75,12 @@ function highlighterFor(lang: string): Promise<ShikiHighlighter | null> {
     return existing;
   }
   const promise = import("shiki")
-    .then((module) => (module as unknown as ShikiModule).createHighlighter({ themes: [THEME], langs: [lang] }))
+    .then((module) =>
+      (module as unknown as ShikiModule).createHighlighter({
+        themes: [assayDark, assayLight],
+        langs: [lang]
+      })
+    )
     .catch(() => null);
   highlighters.set(lang, promise);
   return promise;

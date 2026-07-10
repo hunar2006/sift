@@ -83,8 +83,17 @@ export function App() {
   const [completionDismissed, setCompletionDismissed] = useState(false);
   const [stamp, setStamp] = useState<"verified" | "flagged" | null>(null);
   const [paneFade, setPaneFade] = useState(false);
+  const [shortcutsHint, setShortcutsHint] = useState(() => !hasSeenShortcutsHint());
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const paneFadeTriggered = useRef(false);
+
+  function dismissShortcutsHint(): void {
+    if (!shortcutsHint) {
+      return;
+    }
+    setShortcutsHint(false);
+    markShortcutsHintSeen();
+  }
 
   function showStamp(kind: "verified" | "flagged"): void {
     setStamp(kind);
@@ -201,9 +210,15 @@ export function App() {
         setSplit(!split);
       }
       if (command.type === "toggle-help") {
+        if (!helpOpen) {
+          dismissShortcutsHint();
+        }
         setHelp(!helpOpen);
       }
       if (command.type === "toggle-palette") {
+        if (!paletteOpen) {
+          dismissShortcutsHint();
+        }
         setPaletteOpen(!paletteOpen);
       }
       if (command.type === "toggle-timeline") {
@@ -383,8 +398,10 @@ export function App() {
       setToast("Could not copy the report.");
     }
   }
-  const coverageLine =
-    stats.coverageOnChangedLines === undefined ? undefined : `coverage ${stats.coverageOnChangedLines.toFixed(0)}%`;
+  const coverageSecondary =
+    stats.coverageOnChangedLines === undefined
+      ? undefined
+      : ` · coverage ${stats.coverageOnChangedLines.toFixed(0)}%`;
   const actions = buildCommandActions({
     model,
     stats,
@@ -407,7 +424,10 @@ export function App() {
     toggleNits,
     openTimeline: () => setTimelineOpen(true),
     openStats: () => setStatsOpen(true),
-    openHelp: () => setHelp(true),
+    openHelp: () => {
+      dismissShortcutsHint();
+      setHelp(true);
+    },
     setToast
   });
 
@@ -416,35 +436,48 @@ export function App() {
       <header className="topbar">
         <div className="brandline">
           <Logomark />
-          <strong>sift</strong>
-          <span className="mono-dim">{repoName(meta.repoRoot)}</span>
-          <span className="mono-dim">
-            {meta.watchActive && <span className="live-dot" aria-label="Watch mode active" />}
-            {meta.diffSpec}
-          </span>
+          <span className="repo-name">{repoName(meta.repoRoot)}</span>
+          <span className="eyebrow-chip">{meta.diffSpec}</span>
         </div>
         <div className="headline hud">
-          <div className="hud-progress" aria-label={`${reviewedPct.toFixed(0)}% reviewed`}>
-            {Array.from({ length: 10 }, (_, index) => (
-              <span key={index} className={reviewedPct > index * 10 ? "filled" : ""} />
-            ))}
+          <div className="hud-stats">
+            <span className="hud-primary">
+              {stats.reviewedReviewableLines.toLocaleString()} / {model.totals.reviewableLines.toLocaleString()} reviewed
+            </span>
+            <span className="hud-secondary">
+              {model.totals.changedLines.toLocaleString()} lines changed
+              {coverageSecondary}
+            </span>
           </div>
-          <span className="hud-count">{reviewedPct.toFixed(0)}%</span>
-          <span className="hud-count">
-            {stats.reviewedReviewableLines.toLocaleString()}/{model.totals.reviewableLines.toLocaleString()} reviewed
-          </span>
-          <span className="hud-count">
-            {model.totals.changedLines.toLocaleString()} changed / {model.totals.attentionLines.toLocaleString()} attn
-          </span>
-          {coverageLine && <span className="hud-count">{coverageLine}</span>}
           {Object.keys(freshIds).length > 0 && (
             <button className={freshOnly ? "fresh-filter active" : "fresh-filter"} onClick={toggleFreshOnly}>
               New ({Object.keys(freshIds).length})
             </button>
           )}
-          <button onClick={() => setPaletteOpen(true)}>Palette</button>
-          <button onClick={() => setTimelineOpen(true)}>Timeline</button>
-          <button onClick={() => void refresh()}>Refresh</button>
+          <div className="hud-actions">
+            <button
+              className="ghost"
+              onClick={() => {
+                dismissShortcutsHint();
+                setPaletteOpen(true);
+              }}
+            >
+              <span className="keycap">{modKeycap()}</span> Palette
+            </button>
+            <button className="ghost" onClick={() => setTimelineOpen(true)}>
+              Timeline
+            </button>
+            <button className="ghost icon-btn" aria-label="Refresh" title="Refresh" onClick={() => void refresh()}>
+              ↻
+            </button>
+          </div>
+        </div>
+        <div
+          className="hud-progress-fill"
+          style={{ width: `${Math.min(100, Math.max(0, reviewedPct))}%` }}
+          aria-label={`${reviewedPct.toFixed(0)}% reviewed`}
+        >
+          {meta.watchActive && <span className="live-dot" aria-label="Watch mode active" />}
         </div>
       </header>
 
@@ -461,8 +494,8 @@ export function App() {
               onFocus={() => setFilterFocused(true)}
               onBlur={() => setFilterFocused(false)}
             />
-            <button className="sort-mode" onClick={() => cycleSortMode()}>
-              Sort: {sortLabel(sortMode)}
+            <button className="sort-mode ghost" onClick={() => cycleSortMode()}>
+              Sort · {sortLabel(sortMode)} ▾
             </button>
           </div>
           {model.groups.map((group) => {
@@ -477,10 +510,11 @@ export function App() {
             return (
               <div key={group.id} className={`queue-group ${group.kind}`}>
                 <button className="group-row" onClick={() => setCollapsed(group.id, !isCollapsed)}>
-                  <span>{isCollapsed ? "+" : "-"}</span>
-                  <span>{group.title}</span>
-                  <span>
-                    {reviewed}/{group.hunkIds.length}
+                  <span className="group-chevron" aria-hidden="true">
+                    {isCollapsed ? "▸" : "▾"}
+                  </span>
+                  <span className="group-title">
+                    {group.title} · {reviewed}/{group.hunkIds.length}
                   </span>
                 </button>
                 {group.kind === "skim" && (
@@ -501,26 +535,31 @@ export function App() {
                 {!isCollapsed &&
                   groupHunks
                     .filter((hunk) => !filter || hunk.file.toLowerCase().includes(filter.toLowerCase()))
-                    .map((hunk) => (
-                      <button
-                        key={hunk.id}
-                        className={`hunk-row ${visualBand(hunk)} ${selected?.id === hunk.id ? "selected" : ""}`}
-                        onClick={() => setSelected(hunk.id)}
-                      >
-                        <span className={`risk-spine ${visualBand(hunk)}`} aria-hidden="true" />
-                        <span className="hunk-row-body">
-                          <span className="hunk-row-top">
-                            <span className="path">{hunk.file}</span>
-                            {freshIds[hunk.id] && <span className="fresh-dot" aria-label="Fresh hunk" />}
-                            {hunk.status === "approved" && <span className="mini-stamp verified">✓</span>}
-                            {hunk.status === "flagged" && <span className="mini-stamp flagged">⚑</span>}
-                            <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
-                            <span className="risk">{hunk.risk}</span>
+                    .map((hunk) => {
+                      const band = visualBand(hunk);
+                      return (
+                        <button
+                          key={hunk.id}
+                          className={`hunk-row ${band} ${selected?.id === hunk.id ? "selected" : ""}`}
+                          onClick={() => setSelected(hunk.id)}
+                        >
+                          <span className={`risk-spine ${band}`} aria-hidden="true" />
+                          <span className="hunk-row-body">
+                            <span className="hunk-row-top">
+                              <span className="path">{hunk.file}</span>
+                              {freshIds[hunk.id] && <span className="fresh-dot" aria-label="Fresh hunk" />}
+                              {hunk.status === "approved" && <span className="mini-stamp verified">✓</span>}
+                              {hunk.status === "flagged" && <span className="mini-stamp flagged">⚑</span>}
+                            </span>
+                            <span className="hunk-row-digest">{hunk.digest.headline}</span>
                           </span>
-                          <span className="hunk-row-digest">{hunk.digest.headline}</span>
-                        </span>
-                      </button>
-                    ))}
+                          <span className="hunk-row-score">
+                            {band === "critical" && <span className="crit-tag">CRIT</span>}
+                            <span className={`risk ${band}`}>{hunk.risk}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
               </div>
             );
           })}
@@ -532,6 +571,7 @@ export function App() {
           selectedId={selected?.id}
           split={split}
           collapsed={Boolean(selected && hunkCollapsed[selected.id])}
+          theme={theme}
           onSelect={setSelected}
           onToggleSplit={() => setSplit(!split)}
           onToggleCollapsed={() => selected && toggleHunkCollapsed(selected.id)}
@@ -557,9 +597,7 @@ export function App() {
         />
       </section>
 
-      <footer className="footer">
-        j/k hunk | n/p unreviewed | f focus | a approve | x flag | z undo | i note | space collapse | Ctrl/Cmd+K palette
-      </footer>
+      {shortcutsHint && <div className="shortcuts-hint">? shortcuts</div>}
       {toast && (
         <button className="toast" onClick={() => setToast(undefined)}>
           {toast}
@@ -689,7 +727,8 @@ function DiffViewer({
   onSelect,
   onToggleSplit,
   onToggleCollapsed,
-  onOpenFile
+  onOpenFile,
+  theme = "dark"
 }: {
   hunk?: ReviewHunk;
   hunks: ReviewHunk[];
@@ -700,15 +739,26 @@ function DiffViewer({
   onToggleSplit(): void;
   onToggleCollapsed(): void;
   onOpenFile(hunk: ReviewHunk): void;
+  theme?: "dark" | "light";
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [highlightedLines, setHighlightedLines] = useState<string[] | null>(null);
+  const [widePath, setWidePath] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 1280px)").matches : true
+  );
   const rowVirtualizer = useVirtualizer({
     count: collapsed ? 0 : hunk?.lines.length ?? 0,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 24,
     overscan: 12
   });
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1280px)");
+    const onChange = () => setWidePath(media.matches);
+    onChange();
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
   useEffect(() => {
     let cancelled = false;
     setHighlightedLines(null);
@@ -717,7 +767,8 @@ function DiffViewer({
         cancelled = true;
       };
     }
-    void highlightDiffLines(hunk.id, hunk.language, hunk.lines).then((html) => {
+    const assayTheme = theme === "light" ? "assay-light" : "assay-dark";
+    void highlightDiffLines(hunk.id, hunk.language, hunk.lines, assayTheme).then((html) => {
       if (!cancelled) {
         setHighlightedLines(html);
       }
@@ -725,24 +776,33 @@ function DiffViewer({
     return () => {
       cancelled = true;
     };
-  }, [collapsed, hunk]);
+  }, [collapsed, hunk, theme]);
   if (!hunk) {
     return <section className="diff">No hunk selected</section>;
   }
   const reasonLines = new Set(hunk.reasons.flatMap((reason) => (reason.line ? [reason.line] : [])));
+  const displayPath = widePath ? hunk.file : middleEllipsis(hunk.file, 36);
   return (
-    <section className={`diff ${split ? "split" : "unified"} ${visualBand(hunk)}`}>
+    <section className={`diff ${split ? "split" : "unified"}`}>
       <div className="diff-header">
         <div className="diff-title">
-          <strong>{hunk.file}</strong>
-          <span>{hunk.header}</span>
+          <strong className={`diff-path ${displayPath !== hunk.file ? "is-truncated" : ""}`} title={hunk.file}>
+            {displayPath}
+          </strong>
+          <span className="diff-header-meta">{hunk.header}</span>
           <ReasonChips hunk={hunk} />
           <CoverageBadge hunk={hunk} />
         </div>
         <div className="diff-actions">
-          <button onClick={onToggleCollapsed}>{collapsed ? "Expand" : "Collapse"}</button>
-          <button onClick={onToggleSplit}>{split ? "Unified" : "Split"}</button>
-          <button onClick={() => onOpenFile(hunk)}>Open full file</button>
+          <button className="ghost" onClick={onToggleCollapsed}>
+            {collapsed ? "Expand" : "Collapse"}
+          </button>
+          <button className="ghost" onClick={onToggleSplit}>
+            {split ? "Unified" : "Split"}
+          </button>
+          <button className="ghost" onClick={() => onOpenFile(hunk)}>
+            Open full file
+          </button>
         </div>
       </div>
       {collapsed ? (
@@ -903,12 +963,13 @@ function FocusMode({
   onOpenFile(hunk: ReviewHunk): void;
 }) {
   const primaryReasons = hunk.reasons.filter((reason) => reason.tier !== "nit");
+  const band = visualBand(hunk);
   return (
     <div className="focus-backdrop" role="dialog" aria-label="Focus mode">
       <article className="focus-card">
         <header className="focus-head">
           <span className="focus-crumb">{hunk.file}</span>
-          <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
+          <span className={`focus-band ${band}`}>{bandLabel(band)}</span>
           <span className="focus-counter">
             {index + 1} of {total}
           </span>
@@ -921,9 +982,14 @@ function FocusMode({
         {primaryReasons.length > 0 && (
           <div className="focus-reasons">
             {primaryReasons.map((reason) => (
-              <span key={`${reason.code}-${reason.line ?? ""}`} className="reason-chip">
-                {reason.code}
-              </span>
+              <div key={`${reason.code}-${reason.line ?? ""}`} className="focus-reason">
+                <span className="reason-label">
+                  {reason.weight < 0 ? `− ${reason.label}` : reason.label}
+                </span>
+                <span className="reason-meta">
+                  {reason.code} · {formatWeight(reason.weight)}
+                </span>
+              </div>
             ))}
           </div>
         )}
@@ -948,13 +1014,13 @@ function FocusMode({
           <button className="danger" onClick={onFlag}>
             <span className="keycap">x</span> Flag
           </button>
-          <button onClick={onSkip}>
+          <button className="ghost" onClick={onSkip}>
             <span className="keycap">j</span> Skip
           </button>
-          <button onClick={onUndo}>
+          <button className="ghost" onClick={onUndo}>
             <span className="keycap">z</span> Undo
           </button>
-          <button onClick={() => onOpenEditor(hunk)}>
+          <button className="ghost" onClick={() => onOpenEditor(hunk)}>
             <span className="keycap">e</span> Open in editor
           </button>
         </div>
@@ -1041,11 +1107,14 @@ function Inspector({
     aiAnnotations.length > 1 && new Set(aiAnnotations.map((annotation) => Boolean(annotation.concern))).size > 1;
   const primaryReasons = hunk.reasons.filter((reason) => reason.tier !== "nit");
   const nitReasons = hunk.reasons.filter((reason) => reason.tier === "nit");
+  const band = visualBand(hunk);
   return (
     <aside className="inspector">
-      <div className="scoreline">
-        <strong>Risk {hunk.risk}</strong>
-        <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
+      <div className="risk-lockup-row">
+        <div className="risk-lockup">
+          <span className={`risk-score ${band}`}>{hunk.risk}</span>
+          <span className={`risk-band-name ${band}`}>{bandLabel(band)}</span>
+        </div>
         {fresh && <span className="fresh-chip">fresh</span>}
       </div>
       <DigestBlock hunk={hunk} />
@@ -1079,12 +1148,19 @@ function Inspector({
         {hunk.provenance ? (
           <div className="provenance">
             <p>
-              {sourceLabel(hunk.provenance.source)} session {hunk.provenance.sessionId.slice(0, 8)} | line match{" "}
-              {(hunk.provenance.confidence * 100).toFixed(0)}%
+              {sourceLabel(hunk.provenance.source)} session {hunk.provenance.sessionId.slice(0, 8)}
             </p>
-            <button onClick={() => void navigator.clipboard.writeText(hunk.provenance?.transcriptPath ?? "")}>
-              Copy transcript path
-            </button>
+            <div className="provenance-actions">
+              <button
+                className="ghost"
+                onClick={() => void navigator.clipboard.writeText(hunk.provenance?.transcriptPath ?? "")}
+              >
+                <span className="copy-icon" aria-hidden="true">
+                  ⎘
+                </span>
+                Copy transcript path
+              </button>
+            </div>
           </div>
         ) : (
           <p>No provenance found. Run `sift hooks install` or emit open JSONL records.</p>
@@ -1113,10 +1189,18 @@ function Inspector({
       <section>
         <h2>Review</h2>
         <div className="review-actions">
-          <button onClick={() => onStatus("approved", note)}>Approve</button>
-          <button onClick={() => onStatus("flagged", note)}>Flag</button>
-          <button onClick={() => onStatus("unreviewed", note)}>Undo</button>
-          <button onClick={() => onOpenEditor(hunk)}>Open in editor</button>
+          <button className="primary" onClick={() => onStatus("approved", note)}>
+            Approve
+          </button>
+          <button className="danger" onClick={() => onStatus("flagged", note)}>
+            Flag
+          </button>
+          <button className="ghost" onClick={() => onStatus("unreviewed", note)}>
+            Undo
+          </button>
+          <button className="ghost" onClick={() => onOpenEditor(hunk)}>
+            Open in editor
+          </button>
         </div>
         <textarea
           ref={noteRef}
@@ -1219,14 +1303,21 @@ function TimelinePanel({
         <button onClick={onClose}>Close</button>
       </div>
       {loading && <p>Loading timeline</p>}
-      {!loading && sessions && sessions.length === 0 && (
-        <div className="empty-state">
-          <strong>No matched sessions yet</strong>
-          <p>See docs/PROVENANCE.md for the open JSONL format, or run `sift hooks install` for Claude Code.</p>
+      {!loading && (!sessions || sessions.length === 0) && (
+        <div className="timeline-empty">
+          <Logomark size={40} />
+          <p>No agent sessions matched this diff.</p>
+          <p className="empty-hint">
+            <code className="inline-code-chip">sift hooks install</code>
+            {" · "}
+            <a href="docs/PROVENANCE.md#sift-provenance">Learn how</a>
+          </p>
         </div>
       )}
       {!loading &&
-        sessions?.map((session) => (
+        sessions &&
+        sessions.length > 0 &&
+        sessions.map((session) => (
           <section className="timeline-session" key={`${session.source}-${session.sessionId}`}>
             <div className="session-head">
               <span className="source-badge">{sourceLabel(session.source)}</span>
@@ -1313,12 +1404,11 @@ function MiniMap({
     <div className="minimap" aria-label="Diff minimap">
       {hunks.map((hunk, index) => {
         const top = hunks.length === 1 ? 50 : (index / (hunks.length - 1)) * 100;
-        const height = Math.min(24, Math.max(6, Math.log2(hunk.addedLines + hunk.removedLines + 1) * 3));
         return (
           <button
             key={hunk.id}
             className={`minimap-marker ${visualBand(hunk)} ${selectedId === hunk.id ? "current" : ""}`}
-            style={{ top: `${top}%`, height: `${height}px` }}
+            style={{ top: `${top}%` }}
             title={`${hunk.file} risk ${hunk.risk}`}
             onClick={() => onSelect(hunk.id)}
           />
@@ -1367,20 +1457,16 @@ function ReasonChips({ hunk }: { hunk: ReviewHunk }) {
   const primary = hunk.reasons
     .filter((reason) => reason.tier !== "nit")
     .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight));
-  const shown = primary.slice(0, 2);
-  const hidden = primary.length - shown.length;
-  if (shown.length === 0) {
+  const top = primary[0];
+  const hidden = primary.length - 1;
+  if (!top) {
     return null;
   }
+  const band = visualBand(hunk);
   return (
     <span className="reason-chips">
-      {shown.map((reason) => (
-        <span key={`${reason.code}-${reason.line ?? ""}`} className={`reason-chip ${reason.weight < 0 ? "reducer" : ""}`}>
-          {reason.weight < 0 ? "-" : "+"}
-          {Math.abs(reason.weight)} {reason.code}
-        </span>
-      ))}
-      {hidden > 0 && <span className="reason-more">+{hidden} more</span>}
+      <span className={`reason-chip ${band} ${top.weight < 0 ? "reducer" : ""}`}>{top.label}</span>
+      {hidden > 0 && <span className="reason-more">+{hidden}</span>}
     </span>
   );
 }
@@ -1389,9 +1475,11 @@ function ReasonDetail({ reason }: { reason: ReviewHunk["reasons"][number] }) {
   return (
     <details className={`reason-detail ${reason.weight < 0 ? "reducer" : ""}`}>
       <summary>
-        {reason.code} {formatWeight(reason.weight)}
+        <span className="reason-label">{reason.weight < 0 ? `− ${reason.label}` : reason.label}</span>
+        <span className="reason-meta">
+          {reason.code} · {formatWeight(reason.weight)}
+        </span>
       </summary>
-      <p>{reason.label}</p>
       {reason.evidence && <code>{reason.evidence}</code>}
     </details>
   );
@@ -1575,12 +1663,24 @@ function visualBand(hunk: ReviewHunk): "critical" | ReviewHunk["band"] {
   return hunk.risk >= 80 ? "critical" : hunk.band;
 }
 
-function visualLabel(hunk: ReviewHunk): string {
-  return visualBand(hunk);
+function bandLabel(band: "critical" | ReviewHunk["band"]): string {
+  return band === "critical" ? "Critical" : band === "high" ? "High" : band === "medium" ? "Medium" : band === "low" ? "Low" : "Skim";
 }
 
 function formatWeight(weight: number): string {
   return weight > 0 ? `+${weight}` : String(weight);
+}
+
+function middleEllipsis(value: string, max: number): string {
+  if (value.length <= max) {
+    return value;
+  }
+  const keep = Math.max(4, Math.floor((max - 1) / 2));
+  return `${value.slice(0, keep)}…${value.slice(-keep)}`;
+}
+
+function modKeycap(): string {
+  return typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(navigator.platform) ? "⌘K" : "Ctrl+K";
 }
 
 function sourceLabel(source: string): string {
@@ -1676,5 +1776,21 @@ function markPaneFadeSeen(): void {
     sessionStorage.setItem("sift.paneFadeSeen", "1");
   } catch {
     // The effect is purely presentational when browser storage is unavailable.
+  }
+}
+
+function hasSeenShortcutsHint(): boolean {
+  try {
+    return localStorage.getItem("sift.shortcutsHintSeen") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markShortcutsHintSeen(): void {
+  try {
+    localStorage.setItem("sift.shortcutsHintSeen", "1");
+  } catch {
+    // Hint dismissal is best-effort.
   }
 }

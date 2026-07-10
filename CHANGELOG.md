@@ -4,6 +4,18 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.4.1] - Unreleased
+
+### Changed
+
+- Visual refinement only ("Finish"): quiet chrome, loud diff, red that means it. No behavior, keymap, API, CLI, or pipeline changes.
+- Type: Bricolage Grotesque (UI) + IBM Plex Mono (code/data), bundled locally; Instrument Sans and JetBrains Mono removed.
+- Risk-quieting: queue rows lose band pills (spine + score + critical-only `CRIT` tag); hunk headers show one plain-language reason chip; minimap is ticks; inspector uses a typographic risk lockup; FLAGGED stamp is the only other filled-red rectangle.
+- De-bordering: ghost buttons, borderless inputs with verdict focus ring, depth via background steps and soft shadows; footer keymap bar replaced by a dismissible `? shortcuts` hint.
+- HUD: two-level reviewed/changed lockup and a 2px continuous progress bar on the header edge (replaces dashed segments).
+- Custom low-chroma `assay-dark` / `assay-light` Shiki themes; restrained add/remove washes with gutter bars.
+- Timeline empty state with sieve glyph, `sift hooks install` chip, and Learn how link; `pnpm shots` adds `queue.png` and `inspector.png` close-ups.
+
 ## [0.4.0] - Unreleased
 
 ### Added

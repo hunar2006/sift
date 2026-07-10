@@ -9,8 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@fontsource-variable/instrument-sans": "^5.2.8",
-    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/bricolage-grotesque": "^5.2.10",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
     "@sift-review/core": "workspace:*",
     "@tanstack/react-virtual": "^3.13.2",
     "react": "^18.3.1",

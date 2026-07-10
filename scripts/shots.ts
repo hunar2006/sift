@@ -37,13 +37,46 @@ try {
     if (await helpClose.count()) {
       await helpClose.click();
     }
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
+    // Allow lazy Shiki themes to paint before capture.
+    await page.waitForFunction(() => document.querySelectorAll(".diff-body code span").length > 0, null, {
+      timeout: 5000
+    }).catch(() => undefined);
     await page.screenshot({ path: path.join(shotsDir, "workbench-dark.png") });
 
+    const queueBox = await page.locator(".queue").boundingBox();
+    if (queueBox) {
+      await page.screenshot({
+        path: path.join(shotsDir, "queue.png"),
+        clip: {
+          x: queueBox.x,
+          y: queueBox.y,
+          width: Math.min(480, queueBox.width),
+          height: Math.min(720, queueBox.height)
+        }
+      });
+    }
+
+    const inspectorBox = await page.locator(".inspector").boundingBox();
+    if (inspectorBox) {
+      await page.screenshot({
+        path: path.join(shotsDir, "inspector.png"),
+        clip: {
+          x: inspectorBox.x,
+          y: inspectorBox.y,
+          width: inspectorBox.width,
+          height: Math.min(720, inspectorBox.height)
+        }
+      });
+    }
+
     await page.keyboard.press("T");
+    await page.locator('html[data-theme="light"]').waitFor();
+    await page.waitForTimeout(200);
     await page.screenshot({ path: path.join(shotsDir, "workbench-light.png") });
 
     await page.keyboard.press("T");
+    await page.locator('html[data-theme="dark"]').waitFor();
     await page.keyboard.press("f");
     await page.locator(".focus-card").waitFor({ state: "visible" });
     await page.screenshot({ path: path.join(shotsDir, "focus.png") });
@@ -53,6 +86,7 @@ try {
     const timelineButton = page.getByRole("button", { name: "Timeline", exact: true });
     await timelineButton.click();
     await page.locator(".timeline-panel").waitFor({ state: "visible" });
+    await page.locator(".timeline-empty, .timeline-session").waitFor({ state: "visible" });
     await page.screenshot({ path: path.join(shotsDir, "timeline.png") });
     await page.locator(".timeline-panel").getByRole("button", { name: "Close", exact: true }).click();
 

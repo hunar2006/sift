@@ -47,6 +47,10 @@ Try the demo with `pnpm demo`, or run `node packages/cli/dist/index.js demo` aft
 |---|---|---|
 | ![Light workbench](docs/screenshots/workbench-light.png) | ![Completion](docs/screenshots/completion.png) | ![Timeline](docs/screenshots/timeline.png) |
 
+| Queue close-up | Inspector close-up |
+|---|---|
+| ![Queue](docs/screenshots/queue.png) | ![Inspector](docs/screenshots/inspector.png) |
+
 Regenerate the complete set with `pnpm shots`.
 
 ## Live mode and the fix loop

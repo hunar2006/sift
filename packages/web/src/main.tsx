@@ -1,5 +1,7 @@
-import "@fontsource-variable/instrument-sans";
-import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/bricolage-grotesque";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.js";
 

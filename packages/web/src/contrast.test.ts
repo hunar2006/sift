@@ -52,11 +52,24 @@ const LARGE_PAIRS: Array<[string, string]> = [
   ["--verdict", "--ink-0"],
   ["--verdict", "--ink-1"],
   ["--critical", "--ink-0"],
+  ["--critical", "--ink-1"],
+  ["--high", "--ink-1"],
+  ["--medium", "--ink-1"],
+  ["--low", "--ink-1"],
+  ["--green-text", "--ink-1"],
   ["--high-text", "--ink-1"],
   ["--medium-text", "--ink-1"],
   ["--low-text", "--ink-1"],
-  ["--green-text", "--ink-1"],
   ["--skim-text", "--ink-1"]
+];
+
+/** Band-colored chip text on 12% tinted chip backgrounds (large text ≥ 3:1). */
+const CHIP_PAIRS: Array<[string, string]> = [
+  ["--critical", "--critical-chip-bg"],
+  ["--high-text", "--high-chip-bg"],
+  ["--medium-text", "--medium-chip-bg"],
+  ["--low-text", "--low-chip-bg"],
+  ["--green-text", "--verdict-chip-bg"]
 ];
 
 function check(theme: Record<string, string>, fg: string, bg: string): number {
@@ -76,6 +89,10 @@ describe.each([
   });
 
   it.each(LARGE_PAIRS)("large/accent text %s on %s ≥ 3:1", (fg, bg) => {
+    expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(CHIP_PAIRS)("chip text %s on %s ≥ 3:1", (fg, bg) => {
     expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(3);
   });
 });

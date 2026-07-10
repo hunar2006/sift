@@ -107,3 +107,28 @@ This craft pass was performed **without a browser** this session (the app was no
 
 - The README presents the verified dark workbench first, keeps the complete five-capture gallery, and documents the actual fix loop rather than promising agent autonomy. Windows guidance names the Claude settings path and keeps PowerShell commands copyable.
 - Final deviations: the optional GIF/video stretch was cut and documented. No functional cut-line item was removed: watch/SSE, Windows CI, deferred visual work, still screenshots, performance harness, and pack-install proof all remain.
+
+## 2026-07-11 - v0.4.1 Finish (visual refinement)
+
+- Scope is UI-only: `packages/web/**`, tokens, fonts, assay Shiki themes, `scripts/shots.ts`, screenshots, README images, CHANGELOG, DECISIONS. No keymap/API/CLI/core behavior changes. Labels already existed on `RiskReason`; UI now prefers `label` over `code`.
+- Fonts: removed `@fontsource-variable/instrument-sans` and `@fontsource-variable/jetbrains-mono`; added `@fontsource-variable/bricolage-grotesque` (variable wght available) and `@fontsource/ibm-plex-mono` weights 400/500/600. Network-font audit of built CSS shows only `/assets/*.woff2` local urls — no Google Fonts / CDN requests.
+- Motion stayed CSS-only (stamp, pane stagger, palette scale-fade, progress width, hover 120ms); `motion` package not added.
+
+### Craft pass v3 — shot-inspect-fix loops
+
+**Loop 1** (`pnpm shots` → inspect workbench-dark/light, queue, inspector, timeline, focus, completion):
+
+- Red rarity: queue pills gone; only `CRIT` tags + score/spine + one hunk chip + lockup. Stray full-height red divider removed (was `.diff.critical` inset box-shadow). Still felt loud on the selected-row spine alone — acceptable per spine spec.
+- Generic dashboard risk: HUD lockup + continuous bar + ghost header actions read more product-specific than the old segment soup.
+- Typography hierarchy: Bricolage titles vs Plex scores/meta working; reason rows show label primary / `CODE · +w` suffix.
+- Diff vs chrome: add wash at ~7% + 2px gutter; assay theme keywords `#96A6CE` (verified via Shiki) — no risk/verdict hue collision.
+- Timeline empty was blank (sessions `null` after load race) — **fixed** empty state for `!sessions || length===0`; shots now wait for `.timeline-empty`.
+- Both themes AA: contrast test updated (body 4.5:1, large/chip pairs 3:1) — 46 checks green.
+
+**Loop 2** (reshoot after timeline + highlight wait + light `data-theme` wait):
+
+- Timeline empty state present (sieve at 30%, copy, `sift hooks install`, Learn how).
+- Syntax paint confirmed in captures (cool slate keywords, olive strings, restrained green wash).
+- Light theme pixel-sampled (`#f4f6f9` / white panels) — description noise earlier was wrong; theme toggle works.
+- Red still rare; chrome quieter than diff; reduced-motion rules cover stamp/stagger/palette/live-dot/progress.
+- Checklist: D1–D8 each visible in committed screenshots; no network fonts; suite green with updated contrast test.
