@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { analyzeDiff, runGit, TREE_SITTER_MAX_BYTES, type FileChange, type IngestedDiff } from "@sift-review/core";
 import { loadNewFileSources, resolveGrammarDirectory } from "./pipeline-runner.js";
-import { createSiftApp } from "./server.js";
+import { createSiftApp, SiftServerState } from "./server.js";
 
 const tempRoots: string[] = [];
 
@@ -71,6 +71,36 @@ describe("tree-sitter pipeline preparation", () => {
     const response = await app.request("/api/meta");
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ astCoverage: 0 });
+  });
+
+  it("streams model updates as Server-Sent Events", async () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "WORKTREE",
+      patch: "",
+      git: { headSha: "abc", branch: "main" }
+    });
+    const state = new SiftServerState({
+      model,
+      provenanceRecords: 0,
+      aiRan: false,
+      brief: null,
+      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false, brief: null })
+    });
+    const app = createSiftApp(state);
+    const response = await app.request("/api/events");
+    expect(response.headers.get("Content-Type")).toContain("text/event-stream");
+
+    const reader = response.body?.getReader();
+    expect(reader).toBeDefined();
+    state.update(
+      { model, provenanceRecords: 0, aiRan: false, brief: null },
+      { addedIds: ["new"], removedIds: ["old"], totals: model.totals, generatedAt: model.meta.generatedAt }
+    );
+    const chunk = await reader?.read();
+    expect(new TextDecoder().decode(chunk?.value)).toContain('event: model-updated');
+    expect(new TextDecoder().decode(chunk?.value)).toContain('"addedIds":["new"]');
+    await reader?.cancel();
   });
 
   it("serves a markdown report without snapshotting review state", async () => {

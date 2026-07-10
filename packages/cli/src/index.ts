@@ -24,6 +24,7 @@ import { hooksStatus, installHooks, runHookCapture, uninstallHooks } from "@sift
 import { BINARY_NAME, PRODUCT_NAME, SIFT_VERSION } from "@sift-review/core";
 import { runPipeline, type RunPipelineOptions } from "./pipeline-runner.js";
 import { startServer } from "./server.js";
+import { startLiveWatcher, type LiveWatcher } from "./watch.js";
 import type { AiMode } from "./ai.js";
 import { runMcpServer } from "./mcp.js";
 import { printPayload, renderPrintReport } from "./print.js";
@@ -45,18 +46,24 @@ program
   .option("--ai [provider]", "opt-in AI annotations: anthropic, openai, same, cross, or both")
   .option("--no-ai-cache", "bypass the cached AI Review Brief and regenerate it")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
+  .option("--watch", "watch working-tree changes and stream review updates")
   .action(async (range: string | undefined, options: ReviewCommandOptions) => {
+    assertWatchUsage(options.watch, range);
     const ai = parseAiOption(options.ai);
     const noAiCache = options.aiCache === false;
-    const result = await runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai, noAiCache, coverage: options.coverage });
-    if (result.model.hunks.length === 0) {
+    const pipelineOptions = { cwd: process.cwd(), staged: options.staged, range, ai, noAiCache, coverage: options.coverage };
+    let result = await runPipeline(pipelineOptions);
+    if (result.model.hunks.length === 0 && !options.watch) {
       console.log("Nothing to review.");
       return;
     }
     const server = await startServer(
       {
         ...result,
-        refresh: () => runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai, noAiCache, coverage: options.coverage })
+        refresh: async () => {
+          result = await runPipeline(pipelineOptions);
+          return result;
+        }
       },
       Number.parseInt(options.port, 10)
     );
@@ -65,7 +72,24 @@ program
     if (options.open) {
       await open(server.url);
     }
-    await waitForShutdown(() => server.close());
+    let watcher: LiveWatcher | undefined;
+    if (options.watch) {
+      watcher = await startLiveWatcher({
+        repoRoot: result.model.meta.repoRoot,
+        reanalyze: () => runPipeline(pipelineOptions),
+        current: () => result,
+        apply: (next, update) => {
+          result = next;
+          server.update(next, update);
+        },
+        onWarning: (message) => console.warn(message)
+      });
+      console.log(`watching ${result.model.meta.repoRoot} \u2014 Ctrl-C to stop`);
+    }
+    await waitForShutdown(async () => {
+      await watcher?.close();
+      await server.close();
+    });
   });
 
 program
@@ -76,7 +100,9 @@ program
   .option("--ai [provider]", "opt-in AI annotations: anthropic, openai, same, cross, or both")
   .option("--no-ai-cache", "bypass the cached AI Review Brief and regenerate it")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
+  .option("--watch", "watch working-tree changes and stream review updates")
   .action(async (pr: string, options: ReviewCommandOptions) => {
+    assertWatchUsage(options.watch, undefined, true);
     const ai = parseAiOption(options.ai);
     const noAiCache = options.aiCache === false;
     const result = await runPipeline({ cwd: process.cwd(), pr, ai, noAiCache, coverage: options.coverage });
@@ -245,7 +271,7 @@ program
   });
 
 program.parseAsync(process.argv).catch((error: unknown) => {
-  if (error instanceof GitError) {
+  if (error instanceof GitError || error instanceof WatchUsageError) {
     console.error(error.message);
     process.exit(2);
   }
@@ -261,6 +287,7 @@ interface ReviewCommandOptions {
   ai?: true | string;
   aiCache?: boolean;
   coverage?: string;
+  watch?: boolean;
 }
 
 interface ReportOptions {
@@ -290,6 +317,14 @@ interface DemoCommandOptions {
   dir?: string;
   port: string;
   open: boolean;
+}
+
+class WatchUsageError extends Error {}
+
+function assertWatchUsage(watch: boolean | undefined, range: string | undefined, isPr = false): void {
+  if (watch && (range || isPr)) {
+    throw new WatchUsageError("--watch is only supported for the default working-tree or --staged review.");
+  }
 }
 
 function parseAiOption(value: true | string | undefined): RunPipelineOptions["ai"] {

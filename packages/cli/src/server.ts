@@ -32,10 +32,42 @@ export interface ServerContext {
   refresh(): Promise<{ model: ReviewModel; provenanceRecords: number; aiRan: boolean; brief: ReviewBrief | null }>;
 }
 
-export function createSiftApp(context: ServerContext): Hono {
+export interface ModelUpdatedEvent {
+  addedIds: string[];
+  removedIds: string[];
+  totals: ReviewModel["totals"];
+  generatedAt: string;
+}
+
+export class SiftServerState {
+  current: ServerContext;
+  private readonly listeners = new Set<(event: ModelUpdatedEvent) => void>();
+
+  constructor(context: ServerContext) {
+    this.current = context;
+  }
+
+  async refresh(): Promise<void> {
+    const refresh = this.current.refresh;
+    this.current = { ...(await refresh()), refresh };
+  }
+
+  update(next: Omit<ServerContext, "refresh">, event: ModelUpdatedEvent): void {
+    this.current = { ...next, refresh: this.current.refresh };
+    for (const listener of this.listeners) {
+      listener(event);
+    }
+  }
+
+  subscribe(listener: (event: ModelUpdatedEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+}
+
+export function createSiftApp(context: ServerContext | SiftServerState): Hono {
   const app = new Hono();
-  const refreshFn = () => context.refresh();
-  let current = context;
+  const state = context instanceof SiftServerState ? context : new SiftServerState(context);
 
   app.use("/api/*", async (c, next) => {
     c.header("Cache-Control", "no-store");
@@ -43,8 +75,42 @@ export function createSiftApp(context: ServerContext): Hono {
   });
 
   app.get("/api/review", async (c) => {
-    const { state } = await readReviewState(current.model.meta.repoRoot);
-    return c.json(mergeReviewState(current.model, state));
+    const { state: reviewState } = await readReviewState(state.current.model.meta.repoRoot);
+    return c.json(mergeReviewState(state.current.model, reviewState));
+  });
+
+  app.get("/api/events", (c) => {
+    const encoder = new TextEncoder();
+    let unsubscribe: () => void = () => undefined;
+    let heartbeat: NodeJS.Timeout | undefined;
+    const dispose = (controller: ReadableStreamDefaultController<Uint8Array>) => {
+      unsubscribe();
+      if (heartbeat) {
+        clearInterval(heartbeat);
+        heartbeat = undefined;
+      }
+      controller.close();
+    };
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        unsubscribe = state.subscribe((event) => {
+          controller.enqueue(encoder.encode(`event: model-updated\ndata: ${JSON.stringify(event)}\n\n`));
+        });
+        heartbeat = setInterval(() => controller.enqueue(encoder.encode(": heartbeat\n\n")), 15_000);
+        c.req.raw.signal.addEventListener("abort", () => dispose(controller), { once: true });
+      },
+      cancel() {
+        unsubscribe();
+        if (heartbeat) {
+          clearInterval(heartbeat);
+        }
+      }
+    });
+    return c.body(stream, 200, {
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Content-Type": "text/event-stream"
+    });
   });
 
   app.get("/api/file", async (c) => {
@@ -55,8 +121,8 @@ export function createSiftApp(context: ServerContext): Hono {
     }
     const text =
       side === "old"
-        ? await readGitFile(current.model.meta.repoRoot, "HEAD", filePath)
-        : await readWorktreeFile(current.model.meta.repoRoot, filePath);
+        ? await readGitFile(state.current.model.meta.repoRoot, "HEAD", filePath)
+        : await readWorktreeFile(state.current.model.meta.repoRoot, filePath);
     if (text === null) {
       return c.json({ error: "File is binary, missing, or oversized." }, 404);
     }
@@ -68,18 +134,18 @@ export function createSiftApp(context: ServerContext): Hono {
     if (!parsed.success) {
       return c.json({ error: "Invalid status body." }, 400);
     }
-    const state = await updateHunkStatus(
-      current.model.meta.repoRoot,
+    const reviewState = await updateHunkStatus(
+      state.current.model.meta.repoRoot,
       c.req.param("id"),
       parsed.data.status,
       parsed.data.note
     );
-    return c.json(state);
+    return c.json(reviewState);
   });
 
   app.post("/api/groups/:id/approve", async (c) => {
     try {
-      const result = await approveGroup(current.model.meta.repoRoot, current.model, c.req.param("id"));
+      const result = await approveGroup(state.current.model.meta.repoRoot, state.current.model, c.req.param("id"));
       return c.json({ approved: result.length });
     } catch (error) {
       if (error instanceof BulkApproveBlockedError) {
@@ -90,29 +156,29 @@ export function createSiftApp(context: ServerContext): Hono {
   });
 
   app.post("/api/refresh", async (c) => {
-    current = { ...(await refreshFn()), refresh: refreshFn };
-    const { state } = await readReviewState(current.model.meta.repoRoot);
-    return c.json(mergeReviewState(current.model, state));
+    await state.refresh();
+    const { state: reviewState } = await readReviewState(state.current.model.meta.repoRoot);
+    return c.json(mergeReviewState(state.current.model, reviewState));
   });
 
   app.get("/api/stats", async (c) => {
-    const { state } = await readReviewState(current.model.meta.repoRoot);
-    return c.json(computeStats(current.model, state));
+    const { state: reviewState } = await readReviewState(state.current.model.meta.repoRoot);
+    return c.json(computeStats(state.current.model, reviewState));
   });
 
-  app.get("/api/timeline", (c) => c.json(buildProvenanceTimeline(current.model)));
+  app.get("/api/timeline", (c) => c.json(buildProvenanceTimeline(state.current.model)));
 
   app.get("/api/brief", (c) => {
-    if (!current.brief) {
+    if (!state.current.brief) {
       return c.json({ error: "No briefing available. Re-run with --ai." }, 404);
     }
-    return c.json(current.brief);
+    return c.json(state.current.brief);
   });
 
   app.get("/api/report", async (c) => {
-    const { state } = await readReviewState(current.model.meta.repoRoot);
-    const stats = computeStats(current.model, state);
-    const markdown = renderMarkdownReport(current.model, state, stats);
+    const { state: reviewState } = await readReviewState(state.current.model.meta.repoRoot);
+    const stats = computeStats(state.current.model, reviewState);
+    const markdown = renderMarkdownReport(state.current.model, reviewState, stats);
     if ((c.req.query("format") ?? "md") === "md") {
       return c.text(markdown, 200, { "Content-Type": "text/markdown; charset=utf-8" });
     }
@@ -121,15 +187,15 @@ export function createSiftApp(context: ServerContext): Hono {
 
   app.get("/api/meta", async (c) =>
     c.json({
-      version: current.model.meta.siftVersion,
-      repoRoot: current.model.meta.repoRoot,
-      diffSpec: current.model.meta.diffSpec,
-      astCoverage: current.model.meta.astCoverage,
-      counts: current.model.totals,
-      provenanceSourcesFound: current.provenanceRecords > 0,
-      aiRan: current.aiRan,
-      briefAvailable: current.brief !== null,
-      flagReasons: await loadFlagReasons(current.model.meta.repoRoot)
+      version: state.current.model.meta.siftVersion,
+      repoRoot: state.current.model.meta.repoRoot,
+      diffSpec: state.current.model.meta.diffSpec,
+      astCoverage: state.current.model.meta.astCoverage,
+      counts: state.current.model.totals,
+      provenanceSourcesFound: state.current.provenanceRecords > 0,
+      aiRan: state.current.aiRan,
+      briefAvailable: state.current.brief !== null,
+      flagReasons: await loadFlagReasons(state.current.model.meta.repoRoot)
     })
   );
 
@@ -139,16 +205,21 @@ export function createSiftApp(context: ServerContext): Hono {
   return app;
 }
 
-export async function startServer(context: ServerContext, preferredPort: number): Promise<{ url: string; close(): Promise<void> }> {
+export async function startServer(
+  context: ServerContext,
+  preferredPort: number
+): Promise<{ url: string; close(): Promise<void>; update(next: Omit<ServerContext, "refresh">, event: ModelUpdatedEvent): void }> {
   const port = await firstFreePort(preferredPort);
-  const app = createSiftApp(context);
+  const state = new SiftServerState(context);
+  const app = createSiftApp(state);
   const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port });
   return {
     url: `http://127.0.0.1:${port}`,
     close: () =>
       new Promise((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
-      })
+      }),
+    update: (next, event) => state.update(next, event)
   };
 }
 

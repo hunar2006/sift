@@ -10,10 +10,12 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 - Live & Launch-Ready upgrade work started from a clean v0.3 baseline.
 - Windows is now part of the CI matrix (Node 20), alongside Ubuntu 20/22 and macOS 20.
+- `sift --watch` and `sift --staged --watch` now keep the review server live: Chokidar watches the worktree plus Git index/HEAD, debounces changes, serializes re-analysis, and publishes hunk deltas through `GET /api/events` Server-Sent Events.
 
 ### Changed
 
 - Git discovery of untracked and linguist-generated paths now uses NUL-delimited output, preserving Windows, Unicode, and whitespace-bearing paths.
+- A running local server now owns a mutable review model, so manual refreshes and successful watch updates share the same response shape while failed watch ticks leave the last good model available.
 
 ## [0.3.0] - Unreleased
 
