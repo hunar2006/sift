@@ -31,6 +31,7 @@ import {
 import { ingestDiff } from "./ingest.js";
 import { isConfigPath, isDocsPath, isTestPath } from "./classify/categories.js";
 import { normalizeRepoRelative } from "./path-utils.js";
+import { attachFirstSeenAt, pruneSeen, readSeen, seenPath } from "./seen.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -111,6 +112,39 @@ describe("Windows path normalization", () => {
     expect(isTestPath("src\\tests\\auth.test.ts")).toBe(true);
     expect(isConfigPath(".github\\workflows\\ci.yml")).toBe(true);
     expect(isDocsPath("docs\\windows.md")).toBe(true);
+  });
+});
+
+describe("first-seen hunk state", () => {
+  it("persists first-seen timestamps across reloads and bounds the sidecar", async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "sift-seen-"));
+    const model = analyzeDiff({
+      repoRoot,
+      diffSpec: "WORKTREE",
+      git: { headSha: "abc", branch: "main" },
+      patch: `diff --git a/src/fresh.ts b/src/fresh.ts
+--- a/src/fresh.ts
++++ b/src/fresh.ts
+@@ -0,0 +1 @@
++export const fresh = true;
+`
+    });
+    const first = await attachFirstSeenAt(model);
+    const firstSeenAt = first.hunks[0]?.firstSeenAt;
+    expect(firstSeenAt).toMatch(/^\d{4}-\d{2}-\d{2}T/u);
+    expect(await readSeen(repoRoot)).toMatchObject({ [first.hunks[0]?.id ?? "missing"]: firstSeenAt });
+    expect(seenPath(repoRoot)).toContain(path.join(".sift", "seen.json"));
+
+    const reloaded = await attachFirstSeenAt(model);
+    expect(reloaded.hunks[0]?.firstSeenAt).toBe(firstSeenAt);
+
+    const many = Object.fromEntries(
+      Array.from({ length: 5_001 }, (_, index) => [`h${index}`, new Date(1_700_000_000_000 + index).toISOString()])
+    );
+    const pruned = pruneSeen(many);
+    expect(Object.keys(pruned)).toHaveLength(5_000);
+    expect(pruned.h5000).toBeDefined();
+    expect(pruned.h0).toBeUndefined();
   });
 });
 

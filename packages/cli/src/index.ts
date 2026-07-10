@@ -28,6 +28,7 @@ import { startLiveWatcher, type LiveWatcher } from "./watch.js";
 import type { AiMode } from "./ai.js";
 import { runMcpServer } from "./mcp.js";
 import { printPayload, renderPrintReport } from "./print.js";
+import { renderReviewBrief, type ReviewBriefMode } from "./review-brief.js";
 
 const program = new Command();
 
@@ -145,6 +146,34 @@ program
       console.log(output);
     }
     await appendStats(result.model.meta.repoRoot, stats);
+  });
+
+program
+  .command("brief")
+  .option("--flagged", "include flagged hunks (the default)")
+  .option("--unreviewed-high", "include unreviewed high-risk hunks instead")
+  .option("-o, --output <file>", "write the brief to file")
+  .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
+  .action(async (options: BriefCommandOptions) => {
+    if (options.flagged && options.unreviewedHigh) {
+      throw new Error("Choose either --flagged or --unreviewed-high.");
+    }
+    const result = await runPipeline({ cwd: process.cwd(), coverage: options.coverage });
+    const { state, warning } = await readReviewState(result.model.meta.repoRoot);
+    if (warning) {
+      console.error(warning);
+    }
+    const mode: ReviewBriefMode = options.unreviewedHigh ? "unreviewed-high" : "flagged";
+    const brief = renderReviewBrief(mergeReviewState(result.model, state), mode);
+    if (!brief) {
+      console.log("Nothing flagged.");
+      return;
+    }
+    if (options.output) {
+      await fs.writeFile(options.output, brief, "utf8");
+      return;
+    }
+    console.log(brief);
   });
 
 program
@@ -294,6 +323,13 @@ interface ReviewCommandOptions {
 interface ReportOptions {
   md?: boolean;
   json?: boolean;
+  output?: string;
+  coverage?: string;
+}
+
+interface BriefCommandOptions {
+  flagged?: boolean;
+  unreviewedHigh?: boolean;
   output?: string;
   coverage?: string;
 }

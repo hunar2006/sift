@@ -12,6 +12,7 @@ import {
   loadCoverage,
   loadRules,
   matchProvenanceRecords,
+  attachFirstSeenAt,
   initializeTreeSitter,
   normalizeRepoRelative,
   parseUnifiedDiff,
@@ -104,7 +105,7 @@ export async function buildModelFromIngested(
     brief = await generateBrief(model, ai, { useCache: extra.noAiCache !== true });
   }
   return {
-    model,
+    model: await attachFirstSeenAt(model),
     provenanceRecords: provenanceSources.reduce((sum, source) => sum + source.records.length, 0),
     aiRan: Boolean(ai),
     brief

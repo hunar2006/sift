@@ -102,6 +102,7 @@ export interface Hunk {
   isModeChange?: boolean;
   isBinary?: boolean;
   newMode?: string;
+  firstSeenAt?: string;
   digest: HunkDigest;
 }
 
@@ -325,6 +326,7 @@ export const hunkSchema: z.ZodType<Hunk> = z.object({
   isModeChange: z.boolean().optional(),
   isBinary: z.boolean().optional(),
   newMode: z.string().optional(),
+  firstSeenAt: z.string().datetime().optional(),
   digest: hunkDigestSchema
 });
 

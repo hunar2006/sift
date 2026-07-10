@@ -7,6 +7,8 @@ const SORT_STORAGE_KEY = "sift.sortMode";
 const SPLIT_STORAGE_KEY = "sift.split";
 const THEME_STORAGE_KEY = "sift.theme";
 const HELP_DISMISSED_STORAGE_KEY = "sift.firstRunHelpDismissed";
+const FRESH_SESSION_STARTED_KEY = "sift.freshSessionStartedAt";
+const FRESH_VISITED_KEY = "sift.freshVisited";
 const SORT_MODES: ReviewSortMode[] = ["risk", "reading", "path"];
 const THEME_MODES = ["dark", "light"] as const;
 
@@ -89,6 +91,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
       model,
       stats,
       meta,
+      freshIds: hydrateFreshIds(model, state.freshIds),
       selectedId: state.selectedId && model.hunks.some((hunk) => hunk.id === state.selectedId)
         ? state.selectedId
         : model.hunks[0]?.id
@@ -112,7 +115,12 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
       };
     }),
   setSelected: (id) =>
-    set((state) => ({ selectedId: id, freshIds: id ? omitFresh(state.freshIds, id) : state.freshIds })),
+    set((state) => {
+      if (id && state.freshIds[id]) {
+        markFreshVisited(id);
+      }
+      return { selectedId: id, freshIds: id ? omitFresh(state.freshIds, id) : state.freshIds };
+    }),
   setStatus: (id, status, note) =>
     set((state) => ({
       model: state.model
@@ -216,6 +224,56 @@ function omitFresh(freshIds: Record<string, true>, id: string): Record<string, t
   const remaining = { ...freshIds };
   delete remaining[id];
   return remaining;
+}
+
+function hydrateFreshIds(model: ReviewModel, existing: Record<string, true>): Record<string, true> {
+  const startedAt = readFreshSessionStartedAt();
+  const visited = readFreshVisitedIds();
+  return Object.fromEntries(
+    model.hunks
+      .filter((hunk) => existing[hunk.id] || (isFirstSeenThisSession(hunk.firstSeenAt, startedAt) && !visited.has(hunk.id)))
+      .map((hunk) => [hunk.id, true] as const)
+  );
+}
+
+function isFirstSeenThisSession(firstSeenAt: string | undefined, startedAt: string): boolean {
+  return Boolean(firstSeenAt && firstSeenAt >= startedAt);
+}
+
+function readFreshSessionStartedAt(): string {
+  try {
+    if (typeof sessionStorage === "undefined") {
+      return new Date().toISOString();
+    }
+    const existing = sessionStorage.getItem(FRESH_SESSION_STARTED_KEY);
+    if (existing && !Number.isNaN(Date.parse(existing))) {
+      return existing;
+    }
+    const startedAt = new Date().toISOString();
+    sessionStorage.setItem(FRESH_SESSION_STARTED_KEY, startedAt);
+    return startedAt;
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
+function readFreshVisitedIds(): Set<string> {
+  try {
+    const parsed: unknown = JSON.parse(sessionStorage.getItem(FRESH_VISITED_KEY) ?? "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markFreshVisited(id: string): void {
+  try {
+    const visited = readFreshVisitedIds();
+    visited.add(id);
+    sessionStorage.setItem(FRESH_VISITED_KEY, JSON.stringify([...visited]));
+  } catch {
+    // Freshness is an optional interface hint; memory-only behavior remains useful.
+  }
 }
 
 export function sortReviewHunks(
