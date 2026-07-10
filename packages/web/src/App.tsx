@@ -60,7 +60,9 @@ export function App() {
     collapseAll,
     toggleHunkCollapsed,
     toggleNits,
-    setToast
+    setToast,
+    pushUndoEntry,
+    popUndoEntry
   } = useReviewStore();
   const [pendingG, setPendingG] = useState(false);
   const [filterFocused, setFilterFocused] = useState(false);
@@ -171,6 +173,9 @@ export function App() {
       if (command.type === "focus-note") {
         noteRef.current?.focus();
       }
+      if (command.type === "undo") {
+        void performUndo();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -209,8 +214,17 @@ export function App() {
     }
   }
 
-  async function updateStatus(hunk: ReviewHunk, status: ReviewHunk["status"], note?: string): Promise<void> {
+  async function updateStatus(
+    hunk: ReviewHunk,
+    status: ReviewHunk["status"],
+    note?: string,
+    options: { record?: boolean } = {}
+  ): Promise<void> {
     const previous = hunk.status;
+    if (options.record !== false && status !== previous) {
+      pushUndoEntry([{ hunkId: hunk.id, prevStatus: previous, prevNote: hunk.note }]);
+      setToast(`${statusVerb(status)} ${repoBasename(hunk.file)} — Z to undo`);
+    }
     setStatus(hunk.id, status, note ?? hunk.note);
     if (status === "approved" || status === "flagged") {
       setSelected(nextUnreviewedAfter(visible, hunk.id));
@@ -222,6 +236,37 @@ export function App() {
       setStatus(hunk.id, previous, hunk.note);
       setToast("Status update failed. Retry when the server is reachable.");
     }
+  }
+
+  async function performUndo(): Promise<void> {
+    const result = popUndoEntry();
+    if (result.message) {
+      setToast(result.message);
+      return;
+    }
+    const hunksById = new Map((model?.hunks ?? []).map((hunk) => [hunk.id, hunk]));
+    for (const change of result.restore) {
+      const hunk = hunksById.get(change.hunkId);
+      if (hunk) {
+        await updateStatus(hunk, change.prevStatus, change.prevNote, { record: false });
+      }
+    }
+    setToast(result.restore.length > 1 ? `Undid ${result.restore.length} decisions` : "Undid last decision");
+  }
+
+  function approveGroupAndRecord(groupId: string): void {
+    const changed = (model?.hunks ?? []).filter(
+      (hunk) => hunk.groupId === groupId && hunk.status !== "approved"
+    );
+    void approveGroup(groupId)
+      .then(() => {
+        if (changed.length > 0) {
+          pushUndoEntry(changed.map((hunk) => ({ hunkId: hunk.id, prevStatus: hunk.status, prevNote: hunk.note })));
+          setToast(`Approved ${changed.length} ${changed.length === 1 ? "hunk" : "hunks"} — Z to undo`);
+        }
+        return refresh();
+      })
+      .catch(() => setToast("Group contains hunks requiring individual approval."));
   }
 
   if (!model || !stats || !meta) {
@@ -254,9 +299,7 @@ export function App() {
       if (!selected) {
         return;
       }
-      void approveGroup(selected.groupId)
-        .then(() => refresh())
-        .catch(() => setToast("Group contains hunks requiring individual approval."));
+      approveGroupAndRecord(selected.groupId);
     },
     setSplit,
     cycleSortMode,
@@ -333,11 +376,7 @@ export function App() {
                   <button
                     className="approve-group"
                     title="Bulk approval is rejected if any hunk has a hot risk signal"
-                    onClick={() =>
-                      void approveGroup(group.id)
-                        .then(() => refresh())
-                        .catch(() => setToast("Group contains hunks requiring individual approval."))
-                    }
+                    onClick={() => approveGroupAndRecord(group.id)}
                   >
                     Approve group
                   </button>
@@ -1228,6 +1267,15 @@ function formatWeight(weight: number): string {
 
 function sourceLabel(source: string): string {
   return source === "claude-code" ? "Claude Code" : source;
+}
+
+function statusVerb(status: ReviewHunk["status"]): string {
+  return status === "approved" ? "Approved" : status === "flagged" ? "Flagged" : "Unreviewed";
+}
+
+function repoBasename(file: string): string {
+  const parts = file.split("/");
+  return parts[parts.length - 1] || file;
 }
 
 function timeRange(session: ProvenanceTimelineSession): string {

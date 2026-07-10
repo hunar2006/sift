@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ApiMeta, ReviewModel, ReviewHunk } from "./types.js";
 import type { ReviewSortMode, StatsSnapshot } from "@sift-review/core";
+import { popUndo, pushUndo, type UndoEntry, type UndoResult } from "./undo.js";
 
 const SORT_STORAGE_KEY = "sift.sortMode";
 const SPLIT_STORAGE_KEY = "sift.split";
@@ -29,6 +30,9 @@ interface ReviewStore {
   hunkCollapsed: Record<string, boolean>;
   nitsOpen: boolean;
   toast?: string;
+  undoStack: UndoEntry[];
+  pushUndoEntry(entry: UndoEntry): void;
+  popUndoEntry(): UndoResult;
   setData(model: ReviewModel, stats: StatsSnapshot, meta: ApiMeta): void;
   setSelected(id?: string): void;
   setStatus(id: string, status: ReviewHunk["status"], note?: string): void;
@@ -65,6 +69,15 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   collapsed: {},
   hunkCollapsed: {},
   nitsOpen: false,
+  undoStack: [],
+  pushUndoEntry: (entry) => set((state) => ({ undoStack: pushUndo(state.undoStack, entry) })),
+  popUndoEntry: () => {
+    const state = get();
+    const existing = new Set((state.model?.hunks ?? []).map((hunk) => hunk.id));
+    const result = popUndo(state.undoStack, existing);
+    set({ undoStack: result.stack });
+    return result;
+  },
   setData: (model, stats, meta) =>
     set((state) => ({
       model,

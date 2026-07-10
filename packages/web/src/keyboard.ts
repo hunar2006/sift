@@ -33,7 +33,8 @@ export type KeyboardCommand =
   | { type: "refresh" }
   | { type: "cycle-sort" }
   | { type: "collapse-all"; collapsed: boolean }
-  | { type: "focus-note" };
+  | { type: "focus-note" }
+  | { type: "undo" };
 
 export function keyboardCommand(
   state: KeyboardState,
@@ -104,6 +105,8 @@ export function keyboardCommand(
       return { type: "select", id: nextAttentionUnreviewed(state, -1) };
     case "i":
       return { type: "focus-note" };
+    case "z":
+      return { type: "undo" };
     case " ":
     case "Spacebar":
       return { type: "toggle-current-collapse" };
