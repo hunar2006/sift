@@ -32,6 +32,8 @@ import { renderReviewBrief, type ReviewBriefMode } from "./review-brief.js";
 
 const program = new Command();
 
+class WatchUsageError extends Error {}
+
 program
   .name(BINARY_NAME)
   .description(`${PRODUCT_NAME}: local-first review cockpit for AI-generated diffs`)
@@ -363,8 +365,6 @@ interface DemoCommandOptions {
   port: string;
   open: boolean;
 }
-
-class WatchUsageError extends Error {}
 
 function assertWatchUsage(watch: boolean | undefined, range: string | undefined, isPr = false): void {
   if (watch && (range || isPr)) {
