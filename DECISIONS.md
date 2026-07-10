@@ -97,3 +97,8 @@ This craft pass was performed **without a browser** this session (the app was no
 
 - User-facing failure paths use one direct sentence plus an actionable recovery: Git root, `gh`, coverage, watch scope, editor discovery, AI keys, demo write access, and port fallback are all explicit. Raw stacks remain gated behind `SIFT_DEBUG=1` at the CLI boundary.
 - Review state is protected by a timestamped backup on corruption. Freshness sidecar corruption remains silent by design because the file is disposable; the troubleshooting guide distinguishes the two rather than overstating its importance.
+
+## 2026-07-10 - v0.4 package installation proof
+
+- The CLI package remains private. Naming remains centralized through the existing product/binary constants plus `package.json`, so an eventual npm name decision remains localized.
+- `pack-check` builds first, then uses `npm pack --pack-destination` and a clean temporary `npm install --ignore-scripts`. It asserts every runtime web/grammar asset, runs the installed bin rather than the workspace bin, and performs its terminal review inside a freshly generated demo repository.

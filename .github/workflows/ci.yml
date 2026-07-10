@@ -37,6 +37,8 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.node == 20
         env:
           PERF_MULT: 2
+      - run: pnpm pack-check
+        if: (matrix.os == 'ubuntu-latest' && matrix.node == 20) || matrix.os == 'windows-latest'
 
   shots:
     runs-on: ubuntu-latest
