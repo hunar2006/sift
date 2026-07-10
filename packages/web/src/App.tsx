@@ -451,11 +451,17 @@ export function App() {
                         className={`hunk-row ${visualBand(hunk)} ${selected?.id === hunk.id ? "selected" : ""}`}
                         onClick={() => setSelected(hunk.id)}
                       >
-                        <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
-                        <span className="path">{hunk.file}</span>
-                        {hunk.status === "approved" && <span className="mini-stamp verified">✓</span>}
-                        {hunk.status === "flagged" && <span className="mini-stamp flagged">⚑</span>}
-                        <span className="risk">{hunk.risk}</span>
+                        <span className={`risk-spine ${visualBand(hunk)}`} aria-hidden="true" />
+                        <span className="hunk-row-body">
+                          <span className="hunk-row-top">
+                            <span className="path">{hunk.file}</span>
+                            {hunk.status === "approved" && <span className="mini-stamp verified">✓</span>}
+                            {hunk.status === "flagged" && <span className="mini-stamp flagged">⚑</span>}
+                            <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
+                            <span className="risk">{hunk.risk}</span>
+                          </span>
+                          <span className="hunk-row-digest">{hunk.digest.headline}</span>
+                        </span>
                       </button>
                     ))}
               </div>

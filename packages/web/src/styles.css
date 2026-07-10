@@ -1104,6 +1104,84 @@ code,
   font-family: var(--mono);
 }
 
+/* Queue ledger — two-line rows with a risk spine */
+.hunk-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+}
+
+.risk-spine {
+  flex: 0 0 2px;
+  align-self: stretch;
+  background: var(--low-border);
+}
+
+.risk-spine.critical {
+  background: var(--critical);
+}
+
+.risk-spine.high {
+  background: var(--high);
+}
+
+.risk-spine.medium {
+  background: var(--medium);
+}
+
+.risk-spine.low {
+  background: var(--low);
+}
+
+.risk-spine.skim {
+  background: var(--skim);
+}
+
+.hunk-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.hunk-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hunk-row-top .path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.hunk-row-top .risk {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hunk-row-digest {
+  color: var(--text-lo);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .toast {
   position: fixed;
   right: 16px;
