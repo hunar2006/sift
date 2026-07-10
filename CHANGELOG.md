@@ -20,6 +20,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Quick-flag picker (`x`): numbered canned reasons (from `.sift/config.json` `flagReasons`, cap 6, defaults otherwise) plus `i` for a free note; works in the workbench and focus mode.
 - Group approval now opens a preview modal (group digest, per-hunk headlines and line counts, total, confirm/cancel) with the 409 hot-signal block rendered inline.
 - Completion screen shown when every attention hunk is decided: headline, stat row, flagged list with digests, and Copy report (via `GET /api/report?format=md`) / Back to queue. `/api/meta` now reports `flagReasons` and `briefAvailable`.
+- The demo now exercises every digest headline template: migration and CI-workflow files pre-exist so their edits render as `Migration:`/`Edits CI workflow` rather than new files, and a removed-function hunk fires the `Removes` template. Smoke asserts these rows plus added-symbol, rename-group, and lockfile headlines are present.
 - Assay Office visual system: dark/light token sets as CSS variables (`--ink-*`, `--line`, `--text-hi/lo`, `--verdict`, and risk hues) with legacy aliases; locally-bundled Instrument Sans + JetBrains Mono via Fontsource (no network fonts); a sieve logomark used in the header and as the favicon; the `VERIFIED`/`FLAGGED` decision stamp with a 140ms settle and a reduced-motion fallback, plus static workbench mini-stamps; and a contrast test asserting AA for token pairs in both themes.
 
 ### Changed

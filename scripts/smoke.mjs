@@ -80,6 +80,20 @@ function assertDemoSignals(model) {
       throw new Error(`Smoke failed: digest for ${hunk.file} contains a verdict word.`);
     }
   }
+  const headlines = model.hunks.map((hunk) => hunk.digest.headline);
+  const requiredHeadlines = [
+    [/^Migration:/u, "migration"],
+    [/^Edits CI workflow/u, "CI workflow"],
+    [/^Removes `/u, "removed symbol"],
+    [/^Adds `/u, "added symbol"],
+    [/^Renames `.+` → `.+`/u, "rename group"],
+    [/^Lockfile churn/u, "lockfile"]
+  ];
+  for (const [pattern, label] of requiredHeadlines) {
+    if (!headlines.some((headline) => pattern.test(headline))) {
+      throw new Error(`Smoke failed: demo digests missing the ${label} template row.`);
+    }
+  }
 }
 
 async function assertPrint() {

@@ -62,6 +62,17 @@ export async function createDemoRepo(options: DemoRepoOptions = {}): Promise<Dem
     "tests/session.test.ts",
     "import { describe, expect, it } from 'vitest';\n\nit('creates a session', () => {\n  expect(true).toBe(true);\n});\n"
   );
+  await write(repo, "migrations/002_drop_legacy.sql", "-- baseline migration\nSELECT 1;\n");
+  await write(
+    repo,
+    ".github/workflows/ci.yml",
+    "name: ci\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: pnpm build\n"
+  );
+  await write(
+    repo,
+    "src/legacy/cleanup.ts",
+    "export function purgeLegacySessions(): number {\n  return 0;\n}\n\nexport function keepAuditTrail(): boolean {\n  return true;\n}\n"
+  );
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-m", "demo baseline"]);
 
@@ -122,6 +133,7 @@ async function applyAgentChange(repo: string): Promise<void> {
     "import { describe, expect, it } from 'vitest';\n\nit('rotates refresh tokens', () => {\n  expect('token').toContain('tok');\n});\n"
   );
   await write(repo, "migrations/002_drop_legacy.sql", "DROP TABLE legacy_sessions;\nDELETE FROM audit_events;\n");
+  await write(repo, "src/legacy/cleanup.ts", "export function keepAuditTrail(): boolean {\n  return true;\n}\n");
   await write(
     repo,
     ".github/workflows/ci.yml",
