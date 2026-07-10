@@ -558,6 +558,106 @@ textarea:focus-visible {
   margin-top: 10px;
 }
 
+.digest-block {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.digest-headline {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.digest-headline code,
+.digest-details code,
+.intent-text code {
+  display: inline;
+  color: var(--medium-text);
+  overflow-wrap: anywhere;
+}
+
+.digest-details {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  list-style: disc;
+  color: var(--muted);
+}
+
+.digest-details li {
+  margin: 2px 0;
+  line-height: 1.4;
+}
+
+.intent-block {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel, transparent);
+}
+
+.intent-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.intent-match {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.intent-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.intent-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.intent-text {
+  flex: 1 1 200px;
+  color: var(--text);
+}
+
+.intent-reasoning:not(.expanded) {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.intent-expand {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  font-size: 11px;
+  background: none;
+  border: none;
+  color: var(--green-text);
+  cursor: pointer;
+}
+
+.source-chip {
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--muted);
+}
+
 .toast {
   position: fixed;
   right: 16px;

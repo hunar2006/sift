@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 import type { StatsSnapshot } from "@sift-review/core";
 import {
   approveGroup,
@@ -538,6 +538,60 @@ function DiffViewer({
   );
 }
 
+function renderInlineCode(text: string): ReactNode {
+  const parts = text.split("`");
+  return parts.map((part, index) =>
+    index % 2 === 1 ? <code key={index}>{part}</code> : <span key={index}>{part}</span>
+  );
+}
+
+export function DigestBlock({ hunk }: { hunk: ReviewHunk }) {
+  return (
+    <section className="digest-block" aria-label="Change digest">
+      <p className="digest-headline">{renderInlineCode(hunk.digest.headline)}</p>
+      {hunk.digest.details.length > 0 && (
+        <ul className="digest-details">
+          {hunk.digest.details.map((detail, index) => (
+            <li key={index}>{renderInlineCode(detail)}</li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export function IntentBlock({ provenance }: { provenance: NonNullable<ReviewHunk["provenance"]> }) {
+  const [expanded, setExpanded] = useState(false);
+  const reasoning = provenance.reasoningExcerpt;
+  return (
+    <section className="intent-block" aria-label="Intent">
+      <div className="intent-source">
+        <span className="chip source-chip">{sourceLabel(provenance.source)}</span>
+        <span className="intent-match">line match {(provenance.confidence * 100).toFixed(0)}%</span>
+      </div>
+      {provenance.userPromptExcerpt && (
+        <p className="intent-line">
+          <span className="intent-label">Asked</span>
+          <span className="intent-text">&ldquo;{provenance.userPromptExcerpt}&rdquo;</span>
+        </p>
+      )}
+      {reasoning && (
+        <p className="intent-line">
+          <span className="intent-label">Agent</span>
+          <span className={`intent-text intent-reasoning${expanded ? " expanded" : ""}`}>
+            &ldquo;{reasoning}&rdquo;
+          </span>
+          {reasoning.length > 120 && (
+            <button className="intent-expand" onClick={() => setExpanded((value) => !value)}>
+              {expanded ? "less" : "more"}
+            </button>
+          )}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function Inspector({
   hunk,
   noteRef,
@@ -570,6 +624,8 @@ function Inspector({
         <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
         <CoverageBadge hunk={hunk} />
       </div>
+      <DigestBlock hunk={hunk} />
+      {hunk.provenance && <IntentBlock provenance={hunk.provenance} />}
       <section>
         <h2>Reasons</h2>
         {hunk.reasons.length === 0 ? (
@@ -604,8 +660,6 @@ function Inspector({
               {sourceLabel(hunk.provenance.source)} session {hunk.provenance.sessionId.slice(0, 8)} | line match{" "}
               {(hunk.provenance.confidence * 100).toFixed(0)}%
             </p>
-            {hunk.provenance.userPromptExcerpt && <p>{hunk.provenance.userPromptExcerpt}</p>}
-            {hunk.provenance.reasoningExcerpt && <p>{hunk.provenance.reasoningExcerpt}</p>}
             <button onClick={() => void navigator.clipboard.writeText(hunk.provenance?.transcriptPath ?? "")}>
               Copy transcript path
             </button>
