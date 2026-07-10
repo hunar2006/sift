@@ -8,22 +8,37 @@ import { parseUnifiedDiff } from "./parse.js";
 import { assignGroups } from "./group.js";
 import { assignReadingRanks, orderReview } from "./order.js";
 import { attachCoverageToHunks } from "./coverage.js";
-import { applyRenamePatternGroups, enrichParsedHunksWithStructure } from "./structure/index.js";
+import { applyRenamePatternGroups, analyzeParsedHunksStructure } from "./structure/index.js";
+import { normalizeRepoRelative } from "./path-utils.js";
 
 export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
   const parsed = parseUnifiedDiff(options.patch);
-  const parsedHunks = enrichParsedHunksWithStructure(
-    attachCoverageToHunks(synthesizeQueueHunks(parsed.files, parsed.hunks), options.coverage)
+  const generatedPaths = options.generatedPaths ?? new Set<string>();
+  const coveredHunks = attachCoverageToHunks(synthesizeQueueHunks(parsed.files, parsed.hunks), options.coverage);
+  const skipAstFiles = new Set(
+    coveredHunks.flatMap((hunk) => {
+      const category = classifyHunk(hunk, [], generatedPaths).category;
+      return category === "generated" || category === "deps" || category === "binary"
+        ? [normalizeRepoRelative(hunk.file)]
+        : [];
+    })
   );
+  const structure = analyzeParsedHunksStructure(coveredHunks, {
+    newFileSources: options.newFileSources,
+    skipAstFiles
+  });
+  const parsedHunks = structure.hunks;
   const identified = assignHunkIds(parsedHunks);
   const classifier = new HeuristicClassifier();
-  const generatedPaths = options.generatedPaths ?? new Set<string>();
   const testScopes = testScopesFor(identified, generatedPaths);
   const hasCoverageData = identified.some((hunk) => Boolean(hunk.coverage));
   const hunks = identified.map((hunk) =>
     classifier.classify(hunk, generatedPaths, undefined, { testScopes, hasCoverageData, rules: options.rules })
   );
-  const structuralHunks = applyRenamePatternGroups(hunks);
+  const renameCandidatesByHunkId = new Map(
+    identified.flatMap((hunk) => (hunk.renameCandidates === undefined ? [] : [[hunk.id ?? "", hunk.renameCandidates] as const]))
+  );
+  const structuralHunks = applyRenamePatternGroups(hunks, renameCandidatesByHunkId);
   const { hunks: groupedHunks, groups } = assignGroups(structuralHunks);
   const rankedHunks = assignReadingRanks(groupedHunks, groups);
   const ordered = orderReview(rankedHunks, groups);
@@ -41,7 +56,8 @@ export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
       repoRoot: options.repoRoot,
       diffSpec: options.diffSpec,
       generatedAt: new Date().toISOString(),
-      git: options.git
+      git: options.git,
+      astCoverage: structure.astCoverage
     },
     files,
     hunks: ordered.hunks,

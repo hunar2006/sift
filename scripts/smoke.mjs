@@ -38,6 +38,9 @@ await assertCliPack();
 console.log(`smoke ok: ${parsed.model.hunks.length} hunks, ${parsed.model.groups.length} groups`);
 
 function assertDemoSignals(model) {
+  if (typeof model.meta?.astCoverage !== "number" || model.meta.astCoverage <= 0) {
+    throw new Error("Smoke failed: expected real tree-sitter coverage on the demo.");
+  }
   const codes = new Set(model.hunks.flatMap((hunk) => hunk.reasons.map((reason) => reason.code)));
   for (const code of [
     "CONCURRENCY_HAZARD",
@@ -135,7 +138,15 @@ async function assertCliPack() {
   });
   const packed = JSON.parse(packStdout);
   const files = new Set(packed[0]?.files?.map((file) => file.path) ?? []);
-  for (const expected of ["dist/index.js", "dist/web/index.html", "dist/grammars/tree-sitter-typescript.wasm"]) {
+  for (const expected of [
+    "dist/index.js",
+    "dist/web/index.html",
+    "dist/grammars/tree-sitter-typescript.wasm",
+    "dist/grammars/tree-sitter-tsx.wasm",
+    "dist/grammars/tree-sitter-javascript.wasm",
+    "dist/grammars/tree-sitter-python.wasm",
+    "dist/grammars/tree-sitter-go.wasm"
+  ]) {
     if (!files.has(expected)) {
       throw new Error(`Smoke failed: npm pack missing ${expected}.`);
     }

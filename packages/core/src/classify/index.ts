@@ -53,9 +53,15 @@ export class HeuristicClassifier implements Classifier {
       reasons,
       coverage: hunk.coverage,
       defines: hunk.defines,
+      removedDefines: hunk.removedDefines,
       references: hunk.references,
+      enclosingSymbol: hunk.enclosingSymbol,
       groupId: "",
-      provenance
+      provenance,
+      isRenameOnly: hunk.isRenameOnly,
+      isModeChange: hunk.isModeChange,
+      isBinary: hunk.isBinary,
+      newMode: hunk.newMode
     };
   }
 }

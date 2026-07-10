@@ -267,6 +267,9 @@ function isCommentOnly(hunk: ParsedHunk): boolean {
 }
 
 function isImportReorderOnly(hunk: ParsedHunk): boolean {
+  if (hunk.astImportReorderOnly !== undefined) {
+    return hunk.astImportReorderOnly;
+  }
   const changed = hunk.lines.filter((line) => line.kind !== "context");
   if (changed.length === 0) {
     return false;

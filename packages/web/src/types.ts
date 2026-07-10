@@ -9,6 +9,7 @@ export interface ApiMeta {
   version: string;
   repoRoot: string;
   diffSpec: string;
+  astCoverage: number;
   counts: ReviewModelWithState["totals"];
   provenanceSourcesFound: boolean;
   aiRan: boolean;

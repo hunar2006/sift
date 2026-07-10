@@ -53,6 +53,11 @@ export interface AiAnnotation {
   drift: string | null;
 }
 
+export interface RenameCandidate {
+  from: string;
+  to: string;
+}
+
 export interface Hunk {
   id: string;
   file: string;
@@ -69,7 +74,9 @@ export interface Hunk {
   reasons: RiskReason[];
   coverage?: CoverageSummary;
   defines?: string[];
+  removedDefines?: string[];
   references?: string[];
+  enclosingSymbol?: string;
   readingRank?: number;
   groupId: string;
   oldStart?: number;
@@ -78,6 +85,10 @@ export interface Hunk {
   aiAnnotations?: AiAnnotation[];
   aiSummary?: string;
   aiConcern?: string;
+  isRenameOnly?: boolean;
+  isModeChange?: boolean;
+  isBinary?: boolean;
+  newMode?: string;
 }
 
 export interface HunkGroup {
@@ -104,6 +115,7 @@ export interface ReviewModel {
     diffSpec: string;
     generatedAt: string;
     git: { headSha: string; branch: string | null };
+    astCoverage: number;
   };
   files: FileChange[];
   hunks: Hunk[];
@@ -163,7 +175,12 @@ export interface ParsedHunk {
   parserReasons: RiskReason[];
   coverage?: CoverageSummary;
   defines?: string[];
+  removedDefines?: string[];
   references?: string[];
+  enclosingSymbol?: string;
+  astFormatOnly?: boolean;
+  astImportReorderOnly?: boolean;
+  renameCandidates?: RenameCandidate[];
   isRenameOnly?: boolean;
   isModeChange?: boolean;
   isBinary?: boolean;
@@ -196,6 +213,7 @@ export interface AnalyzeOptions {
   generatedPaths?: Set<string>;
   rules?: EffectiveRules;
   coverage?: CoverageData;
+  newFileSources?: ReadonlyMap<string, string>;
 }
 
 export type HunkWithState = Hunk & StoredHunkState;
@@ -269,7 +287,9 @@ export const hunkSchema: z.ZodType<Hunk> = z.object({
   reasons: z.array(riskReasonSchema),
   coverage: coverageSummarySchema.optional(),
   defines: z.array(z.string()).optional(),
+  removedDefines: z.array(z.string()).optional(),
   references: z.array(z.string()).optional(),
+  enclosingSymbol: z.string().optional(),
   readingRank: z.number().optional(),
   groupId: z.string(),
   oldStart: z.number().optional(),
@@ -277,7 +297,11 @@ export const hunkSchema: z.ZodType<Hunk> = z.object({
   provenance: provenanceSchema.optional(),
   aiAnnotations: z.array(aiAnnotationSchema).optional(),
   aiSummary: z.string().optional(),
-  aiConcern: z.string().optional()
+  aiConcern: z.string().optional(),
+  isRenameOnly: z.boolean().optional(),
+  isModeChange: z.boolean().optional(),
+  isBinary: z.boolean().optional(),
+  newMode: z.string().optional()
 });
 
 export const storedHunkStateSchema: z.ZodType<StoredHunkState> = z.object({

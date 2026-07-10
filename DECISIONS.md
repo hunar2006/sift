@@ -9,6 +9,11 @@
 
 ## 2026-07-10
 
+- Pinned `web-tree-sitter` to 0.20.8 for the real structural parser. The existing 0.26.10 runtime failed while loading `tree-sitter-wasms` 0.1.13 grammars in `getDylinkMetadata`/`loadWebAssemblyModule`; those grammars were built with tree-sitter CLI 0.20.8. The matching 0.20.8 runtime successfully loaded and parsed TypeScript, TSX, JavaScript, Python, and Go fixtures. This is a compatibility fix, not a tree-sitter cut attempt.
+- Kept the public `analyzeDiff` path synchronous. The async CLI pipeline initializes tree-sitter and loads bounded NEW-side file sources first, then passes an optional source map into core; direct core callers continue to receive deterministic tokenizer fallback unless they explicitly initialize the runtime and provide sources.
+- `astCoverage` is the fraction of supported, non-guarded changed files that parsed successfully with tree-sitter. Generated, binary, dependency, over-512-KB, and over-20k-line files are excluded from the denominator; supported files with unavailable sources or parse failures remain in the denominator and silently use the tokenizer.
+- NEW-side sources come from the worktree for `WORKTREE`, the index for `STAGED`, and the right-hand revision for local ranges. PR patch analysis cannot reliably access full NEW-side files from the existing ingest contract, so it degrades per file to the tokenizer without adding another network call.
+
 - v0.2 baseline was green before upgrade work: `pnpm i`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` all passed. Core coverage was 80.8% lines.
 - Upgrade plan follows the v0.2 phase order: carry-over highlighting/fixtures, signal engine v2, rules, coverage, structural layer, ordering, AI/provenance, MCP/print/demo publish-readiness, cockpit overhaul, demo v2/docs/smoke.
 - Cut-line protocol is active. If needed, cuts will happen only in the specified order: ink TUI stretch, reading-order sort mode, cross-file rename-pattern groups, minimap, Cobertura support.

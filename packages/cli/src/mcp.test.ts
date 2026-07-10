@@ -92,7 +92,8 @@ function modelFor(repoRoot: string): ReviewModel {
       repoRoot,
       diffSpec: "WORKTREE",
       generatedAt: "2026-01-01T00:00:00.000Z",
-      git: { headSha: "abc", branch: "main" }
+      git: { headSha: "abc", branch: "main" },
+      astCoverage: 0
     },
     files: [],
     hunks,

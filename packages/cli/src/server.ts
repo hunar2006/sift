@@ -103,6 +103,7 @@ export function createSiftApp(context: ServerContext): Hono {
       version: current.model.meta.siftVersion,
       repoRoot: current.model.meta.repoRoot,
       diffSpec: current.model.meta.diffSpec,
+      astCoverage: current.model.meta.astCoverage,
       counts: current.model.totals,
       provenanceSourcesFound: current.provenanceRecords > 0,
       aiRan: current.aiRan

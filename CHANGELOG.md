@@ -4,6 +4,17 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.3.0] - Unreleased
+
+### Added
+
+- Real WASM tree-sitter analysis for TypeScript, TSX, JavaScript, Python, and Go, including AST-derived definitions, removed definitions, references, enclosing symbols, format/import facts, rename sites, tokenizer fallback, parser guards, a 2.5-second per-file budget, and `astCoverage` metadata.
+
+### Changed
+
+- CLI analysis now loads bounded NEW-side sources from the worktree, index, or local range target before synchronous core analysis, while unavailable or invalid files degrade silently to the existing tokenizer.
+- Pinned `web-tree-sitter` to the 0.20.8 ABI used by the allowed `tree-sitter-wasms` grammar package.
+
 ## [0.2.0] - Unreleased
 
 ### Added

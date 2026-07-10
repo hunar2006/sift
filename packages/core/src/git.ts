@@ -133,7 +133,12 @@ export async function readWorktreeFile(repoRoot: string, relativePath: string, m
   return fs.readFile(fullPath, "utf8");
 }
 
-export async function readGitFile(repoRoot: string, rev: string, relativePath: string): Promise<string | null> {
+export async function readGitFile(
+  repoRoot: string,
+  rev: string,
+  relativePath: string,
+  maxBytes = 2 * 1024 * 1024
+): Promise<string | null> {
   const output = await runGit(["show", `${rev}:${relativePath}`], repoRoot, true);
-  return output.length > 2 * 1024 * 1024 ? null : output;
+  return Buffer.byteLength(output, "utf8") > maxBytes ? null : output;
 }
