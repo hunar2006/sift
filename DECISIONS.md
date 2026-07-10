@@ -87,3 +87,8 @@ This craft pass was performed **without a browser** this session (the app was no
 - **Stamp legibility:** a live focus-mode approval was rendered over code. The `VERIFIED` stamp remains high-contrast and readable over the dark diff while preserving its single-moment emphasis. No change required.
 - **Inspector and focus:** digest, intent, reasons, coverage, provenance, AI, and note now follow the prescribed reading order in the inspector; the focus card remains readable over the dimmed workbench. The timeline capture is intentionally sparse when the demo's matching timeline has no extra sessions.
 - **Cut:** the optional 15-second GIF/video stretch is cut for this release. The required still captures and reproducible `pnpm shots` path remain; no other v0.4 cut-line item has been cut.
+
+## 2026-07-10 - v0.4 performance harness
+
+- The fixture intentionally uses 400 files and a roughly 25,000-line working-tree diff: 60% TypeScript/Python/Go logic paths, tests, migrations, generated output, lockfile-like data, docs/config, one file rename, and a ten-file `formatDate -> renderDate` cross-file rename pattern. It runs the real ingest-to-model pipeline three times with AI disabled.
+- The performance gate is a 5,000 ms median locally, scaled only through `PERF_MULT` (Ubuntu CI uses `2`). JSON serialization is separately capped at 1,500 ms. The local initial result was min 894.7 ms, median 902.5 ms, with a 2,295,459-byte review payload serialized in at most 7.7 ms; no optimization was warranted.

@@ -17,6 +17,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Press `e` or use **Open in editor** from the inspector/focus card to open the selected hunk at its first changed line. Editor launches are server-resolved and use direct argument arrays only.
 - The deferred v0.3 craft work is now implemented: a segmented, tabular-count HUD; ordered inspector evidence sections; and a reduced-motion-safe, once-per-session pane entrance that does not replay during live model updates.
 - `pnpm shots` now creates and commits five deterministic Playwright captures (dark/light workbench, focus, completion, and timeline) at 1440×900. A non-blocking CI job uploads fresh render evidence.
+- `pnpm perf` now exercises a 400-file, roughly 25,000-line working-tree diff three times, enforcing the full-pipeline median and review-JSON serialization budgets locally and on Ubuntu CI.
 
 ### Changed
 
