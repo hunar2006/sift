@@ -13,6 +13,8 @@ export interface ApiMeta {
   counts: ReviewModelWithState["totals"];
   provenanceSourcesFound: boolean;
   aiRan: boolean;
+  briefAvailable?: boolean;
+  flagReasons?: string[];
 }
 
 export interface AppData {

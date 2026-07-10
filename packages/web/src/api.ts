@@ -42,14 +42,30 @@ export async function setHunkStatus(id: string, status: Status, note?: string): 
   );
 }
 
-export async function approveGroup(groupId: string): Promise<{ approved: number }> {
-  return checked<{ approved: number }>(
-    await fetch(`/api/groups/${encodeURIComponent(groupId)}/approve`, { method: "POST" })
-  );
+export type ApproveGroupResult =
+  | { ok: true; approved: number }
+  | { ok: false; blockedIds: string[] };
+
+export async function approveGroup(groupId: string): Promise<ApproveGroupResult> {
+  const response = await fetch(`/api/groups/${encodeURIComponent(groupId)}/approve`, { method: "POST" });
+  if (response.status === 409) {
+    const body = (await response.json().catch(() => ({}))) as { hunkIds?: string[] };
+    return { ok: false, blockedIds: body.hunkIds ?? [] };
+  }
+  const parsed = await checked<{ approved: number }>(response);
+  return { ok: true, approved: parsed.approved };
 }
 
 export async function refreshReview(): Promise<ReviewModel> {
   return checked<ReviewModel>(await fetch("/api/refresh", { method: "POST" }));
+}
+
+export async function fetchReport(): Promise<string> {
+  const response = await fetch("/api/report?format=md");
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.text();
 }
 
 export async function fetchFile(path: string, side: "old" | "new"): Promise<string> {

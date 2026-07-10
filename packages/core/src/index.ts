@@ -15,6 +15,7 @@ export * from "./report.js";
 export * from "./provenance.js";
 export * from "./rules.js";
 export * from "./coverage.js";
+export * from "./config.js";
 export * from "./structure/index.js";
 export * from "./classify/index.js";
 export * from "./demo.js";

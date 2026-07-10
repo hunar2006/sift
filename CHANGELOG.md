@@ -16,6 +16,10 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - `--ai` now also produces one whole-diff AI Review Brief (`{ story, readingHint }`) from the group digests and top attention-hunk digests with secrets excluded, cached at `.sift/ai-cache/<sha256>.json` and bypassable with `--no-ai-cache`. Served at `GET /api/brief` (404 when absent) and rendered as a dismissible, collapsible, per-diff Briefing bar under the header.
 - AI annotations render as a labeled second headline line (`AI · <provider>`) beneath the deterministic digest without ever replacing it. The annotation system prompt now forbids stating or implying a change is safe, correct, or ready to approve.
 - Client-side undo (`z`, depth 20) for approve/flag/unreview and group-approve (one compound entry), restoring prior status and note via the existing status endpoints. Every decision shows a consistent-verb toast (`Approved session.ts — Z to undo`); a stale entry after refresh drops itself with `Nothing to undo here`. Undo/flag-reason logic is a pure, tested reducer.
+- Focus mode (`f` / palette "Enter focus mode"): a single-card flow over attention hunks with an `n of m` counter, digest + intent + reasons + diff + coverage, and an `[a]/[x]/[j]/[z]` action row; `Esc` returns to the workbench.
+- Quick-flag picker (`x`): numbered canned reasons (from `.sift/config.json` `flagReasons`, cap 6, defaults otherwise) plus `i` for a free note; works in the workbench and focus mode.
+- Group approval now opens a preview modal (group digest, per-hunk headlines and line counts, total, confirm/cancel) with the 409 hot-signal block rendered inline.
+- Completion screen shown when every attention hunk is decided: headline, stat row, flagged list with digests, and Copy report (via `GET /api/report?format=md`) / Back to queue. `/api/meta` now reports `flagReasons` and `briefAvailable`.
 
 ### Changed
 

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import type { ReviewBrief, StatsSnapshot } from "@sift-review/core";
 import {
   approveGroup,
   fetchBrief,
   fetchFile,
   fetchMeta,
+  fetchReport,
   fetchReview,
   fetchStats,
   fetchTimeline,
@@ -14,6 +15,7 @@ import {
   setHunkStatus
 } from "./api.js";
 import { keyboardCommand, nextAttentionUnreviewed, nextUnreviewedAfter } from "./keyboard.js";
+import { CompletionScreen, GroupApprovePreview, QuickFlagPicker, renderInlineCode } from "./panels.js";
 import { sortReviewHunks, useReviewStore, visibleHunks } from "./store.js";
 import type { ApiMeta, ProvenanceTimelineSession, ReviewHunk, ReviewModel } from "./types.js";
 import { highlightDiffLines } from "./highlight.js";
@@ -70,6 +72,10 @@ export function App() {
   const [timeline, setTimeline] = useState<ProvenanceTimelineSession[] | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [brief, setBrief] = useState<ReviewBrief | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
+  const [flagPickerFor, setFlagPickerFor] = useState<string | null>(null);
+  const [groupPreview, setGroupPreview] = useState<{ groupId: string; blockedIds?: string[] } | null>(null);
+  const [completionDismissed, setCompletionDismissed] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -110,6 +116,15 @@ export function App() {
       if (isInput && event.key !== "Escape" && !isPaletteToggle) {
         return;
       }
+      // While a modal owns the keyboard, let it handle its own keys.
+      if (flagPickerFor || groupPreview) {
+        return;
+      }
+      if (focusMode && event.key === "Escape") {
+        event.preventDefault();
+        setFocusMode(false);
+        return;
+      }
       const command = keyboardCommand(
         {
           selectedId: selected?.id,
@@ -134,7 +149,11 @@ export function App() {
         setSelected(command.id);
       }
       if (command.type === "status" && selected) {
-        void updateStatus(selected, command.status);
+        if (command.status === "flagged") {
+          setFlagPickerFor(selected.id);
+        } else {
+          void updateStatus(selected, command.status);
+        }
       }
       if (command.type === "toggle-split") {
         setSplit(!split);
@@ -175,6 +194,9 @@ export function App() {
       }
       if (command.type === "undo") {
         void performUndo();
+      }
+      if (command.type === "toggle-focus") {
+        setFocusMode((value) => !value);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -254,19 +276,25 @@ export function App() {
     setToast(result.restore.length > 1 ? `Undid ${result.restore.length} decisions` : "Undid last decision");
   }
 
-  function approveGroupAndRecord(groupId: string): void {
+  async function confirmGroupApprove(groupId: string): Promise<void> {
     const changed = (model?.hunks ?? []).filter(
       (hunk) => hunk.groupId === groupId && hunk.status !== "approved"
     );
-    void approveGroup(groupId)
-      .then(() => {
-        if (changed.length > 0) {
-          pushUndoEntry(changed.map((hunk) => ({ hunkId: hunk.id, prevStatus: hunk.status, prevNote: hunk.note })));
-          setToast(`Approved ${changed.length} ${changed.length === 1 ? "hunk" : "hunks"} — Z to undo`);
-        }
-        return refresh();
-      })
-      .catch(() => setToast("Group contains hunks requiring individual approval."));
+    try {
+      const result = await approveGroup(groupId);
+      if (!result.ok) {
+        setGroupPreview({ groupId, blockedIds: result.blockedIds });
+        return;
+      }
+      setGroupPreview(null);
+      if (changed.length > 0) {
+        pushUndoEntry(changed.map((hunk) => ({ hunkId: hunk.id, prevStatus: hunk.status, prevNote: hunk.note })));
+        setToast(`Approved ${changed.length} ${changed.length === 1 ? "hunk" : "hunks"} — Z to undo`);
+      }
+      await refresh();
+    } catch {
+      setToast("Group approval failed. Retry when the server is reachable.");
+    }
   }
 
   if (!model || !stats || !meta) {
@@ -284,6 +312,25 @@ export function App() {
 
   const reviewedPct =
     model.totals.reviewableLines === 0 ? 100 : (stats.reviewedReviewableLines / model.totals.reviewableLines) * 100;
+  const attentionGroupIds = new Set(
+    model.groups.filter((group) => group.kind === "attention").map((group) => group.id)
+  );
+  const focusHunks = visible.filter((hunk) => attentionGroupIds.has(hunk.groupId));
+  const undecidedAttention = focusHunks.filter((hunk) => hunk.status === "unreviewed");
+  const reviewComplete = focusHunks.length > 0 && undecidedAttention.length === 0;
+  const focusHunk =
+    focusHunks.find((hunk) => hunk.id === selected?.id) ?? undecidedAttention[0] ?? focusHunks[0];
+  const focusIndex = focusHunk ? focusHunks.findIndex((hunk) => hunk.id === focusHunk.id) : -1;
+
+  async function copyReport(): Promise<void> {
+    try {
+      const markdown = await fetchReport();
+      await navigator.clipboard.writeText(markdown);
+      setToast("Report copied to clipboard");
+    } catch {
+      setToast("Could not copy the report.");
+    }
+  }
   const coverageLine =
     stats.coverageOnChangedLines === undefined ? undefined : `coverage ${stats.coverageOnChangedLines.toFixed(0)}%`;
   const actions = buildCommandActions({
@@ -299,8 +346,9 @@ export function App() {
       if (!selected) {
         return;
       }
-      approveGroupAndRecord(selected.groupId);
+      setGroupPreview({ groupId: selected.groupId });
     },
+    enterFocus: () => setFocusMode(true),
     setSplit,
     cycleSortMode,
     toggleTheme,
@@ -376,7 +424,7 @@ export function App() {
                   <button
                     className="approve-group"
                     title="Bulk approval is rejected if any hunk has a hot risk signal"
-                    onClick={() => approveGroupAndRecord(group.id)}
+                    onClick={() => setGroupPreview({ groupId: group.id })}
                   >
                     Approve group
                   </button>
@@ -426,7 +474,7 @@ export function App() {
       </section>
 
       <footer className="footer">
-        j/k hunk | n/p unreviewed attention | a approve | x flag | i note | space collapse | Ctrl/Cmd+K palette
+        j/k hunk | n/p unreviewed | f focus | a approve | x flag | z undo | i note | space collapse | Ctrl/Cmd+K palette
       </footer>
       {toast && (
         <button className="toast" onClick={() => setToast(undefined)}>
@@ -449,6 +497,65 @@ export function App() {
       {statsOpen && <StatsPanel stats={stats} model={model} onClose={() => setStatsOpen(false)} />}
       {helpOpen && <HelpOverlay tour={helpTour} onClose={() => setHelp(false)} />}
       {fileModal && <FileModal modal={fileModal} onClose={() => setFileModal(null)} />}
+      {flagPickerFor && (
+        <QuickFlagPicker
+          reasons={meta.flagReasons}
+          onPick={(note) => {
+            const target = model.hunks.find((hunk) => hunk.id === flagPickerFor);
+            setFlagPickerFor(null);
+            if (target) {
+              void updateStatus(target, "flagged", note.length > 0 ? note : target.note);
+            }
+          }}
+          onCancel={() => setFlagPickerFor(null)}
+        />
+      )}
+      {groupPreview &&
+        (() => {
+          const group = model.groups.find((candidate) => candidate.id === groupPreview.groupId);
+          if (!group) {
+            return null;
+          }
+          return (
+            <GroupApprovePreview
+              group={group}
+              hunks={model.hunks.filter((hunk) => hunk.groupId === group.id)}
+              blockedIds={groupPreview.blockedIds}
+              onConfirm={() => void confirmGroupApprove(group.id)}
+              onCancel={() => setGroupPreview(null)}
+            />
+          );
+        })()}
+      {focusMode && focusHunk && (
+        <FocusMode
+          hunk={focusHunk}
+          index={focusIndex}
+          total={focusHunks.length}
+          split={split}
+          onApprove={() => void updateStatus(focusHunk, "approved")}
+          onFlag={() => setFlagPickerFor(focusHunk.id)}
+          onSkip={() => setSelected(nextUnreviewedAfter(focusHunks, focusHunk.id))}
+          onUndo={() => void performUndo()}
+          onToggleSplit={() => setSplit(!split)}
+          onExit={() => setFocusMode(false)}
+          onOpenFile={(hunk) =>
+            void fetchFile(hunk.file, "new")
+              .then((text) => setFileModal({ path: hunk.file, text }))
+              .catch(() => setToast("Full file is unavailable."))
+          }
+        />
+      )}
+      {reviewComplete && !completionDismissed && (
+        <CompletionScreen
+          model={model}
+          stats={stats}
+          onCopyReport={() => void copyReport()}
+          onBackToQueue={() => {
+            setCompletionDismissed(true);
+            setFocusMode(false);
+          }}
+        />
+      )}
     </main>
   );
 }
@@ -584,13 +691,6 @@ function DiffViewer({
   );
 }
 
-function renderInlineCode(text: string): ReactNode {
-  const parts = text.split("`");
-  return parts.map((part, index) =>
-    index % 2 === 1 ? <code key={index}>{part}</code> : <span key={index}>{part}</span>
-  );
-}
-
 export function DigestBlock({ hunk }: { hunk: ReviewHunk }) {
   const aiLine = aiHeadlineFor(hunk);
   return (
@@ -648,6 +748,89 @@ export function IntentBlock({ provenance }: { provenance: NonNullable<ReviewHunk
         </p>
       )}
     </section>
+  );
+}
+
+function FocusMode({
+  hunk,
+  index,
+  total,
+  split,
+  onApprove,
+  onFlag,
+  onSkip,
+  onUndo,
+  onToggleSplit,
+  onExit,
+  onOpenFile
+}: {
+  hunk: ReviewHunk;
+  index: number;
+  total: number;
+  split: boolean;
+  onApprove(): void;
+  onFlag(): void;
+  onSkip(): void;
+  onUndo(): void;
+  onToggleSplit(): void;
+  onExit(): void;
+  onOpenFile(hunk: ReviewHunk): void;
+}) {
+  const primaryReasons = hunk.reasons.filter((reason) => reason.tier !== "nit");
+  return (
+    <div className="focus-backdrop" role="dialog" aria-label="Focus mode">
+      <article className="focus-card">
+        <header className="focus-head">
+          <span className="focus-crumb">{hunk.file}</span>
+          <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
+          <span className="focus-counter">
+            {index + 1} of {total}
+          </span>
+          <button className="focus-exit" onClick={onExit} aria-label="Exit focus mode">
+            <span className="keycap">esc</span>
+          </button>
+        </header>
+        <DigestBlock hunk={hunk} />
+        {hunk.provenance && <IntentBlock provenance={hunk.provenance} />}
+        {primaryReasons.length > 0 && (
+          <div className="focus-reasons">
+            {primaryReasons.map((reason) => (
+              <span key={`${reason.code}-${reason.line ?? ""}`} className="reason-chip">
+                {reason.code}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="focus-diff">
+          <DiffViewer
+            hunk={hunk}
+            hunks={[hunk]}
+            selectedId={hunk.id}
+            split={split}
+            collapsed={false}
+            onSelect={() => undefined}
+            onToggleSplit={onToggleSplit}
+            onToggleCollapsed={() => undefined}
+            onOpenFile={onOpenFile}
+          />
+        </div>
+        <CoverageBadge hunk={hunk} />
+        <div className="focus-actions">
+          <button className="primary" onClick={onApprove}>
+            <span className="keycap">a</span> Approve
+          </button>
+          <button className="danger" onClick={onFlag}>
+            <span className="keycap">x</span> Flag
+          </button>
+          <button onClick={onSkip}>
+            <span className="keycap">j</span> Skip
+          </button>
+          <button onClick={onUndo}>
+            <span className="keycap">z</span> Undo
+          </button>
+        </div>
+      </article>
+    </div>
   );
 }
 
@@ -1109,6 +1292,7 @@ function buildCommandActions({
   openTimeline,
   openStats,
   openHelp,
+  enterFocus,
   setToast
 }: {
   model: ReviewModel;
@@ -1120,6 +1304,7 @@ function buildCommandActions({
   selectHunk(id?: string): void;
   updateStatus(status: ReviewHunk["status"]): void;
   approveCurrentGroup(): void;
+  enterFocus(): void;
   setSplit(split: boolean): void;
   cycleSortMode(): void;
   toggleTheme(): void;
@@ -1187,6 +1372,7 @@ function buildCommandActions({
     { id: "flag", title: "Flag current hunk", run: () => updateStatus("flagged") },
     { id: "unreview", title: "Mark current hunk unreviewed", run: () => updateStatus("unreviewed") },
     { id: "approve-group", title: "Approve current group", run: approveCurrentGroup },
+    { id: "focus", title: "Enter focus mode", run: enterFocus },
     { id: "toggle-split", title: split ? "Switch to unified diff" : "Switch to split diff", run: () => setSplit(!split) },
     { id: "cycle-sort", title: "Cycle sort mode", run: cycleSortMode },
     { id: "toggle-theme", title: "Toggle theme", run: toggleTheme },

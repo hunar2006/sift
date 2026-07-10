@@ -10,6 +10,7 @@ import {
   approveGroup,
   buildProvenanceTimeline,
   computeStats,
+  loadFlagReasons,
   mergeReviewState,
   readGitFile,
   readHistory,
@@ -118,7 +119,7 @@ export function createSiftApp(context: ServerContext): Hono {
     return c.json({ markdown });
   });
 
-  app.get("/api/meta", (c) =>
+  app.get("/api/meta", async (c) =>
     c.json({
       version: current.model.meta.siftVersion,
       repoRoot: current.model.meta.repoRoot,
@@ -126,7 +127,9 @@ export function createSiftApp(context: ServerContext): Hono {
       astCoverage: current.model.meta.astCoverage,
       counts: current.model.totals,
       provenanceSourcesFound: current.provenanceRecords > 0,
-      aiRan: current.aiRan
+      aiRan: current.aiRan,
+      briefAvailable: current.brief !== null,
+      flagReasons: await loadFlagReasons(current.model.meta.repoRoot)
     })
   );
 
