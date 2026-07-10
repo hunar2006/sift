@@ -63,11 +63,11 @@ export async function gitDiff(repoRoot: string, args: string[]): Promise<string>
 }
 
 export async function listUntracked(repoRoot: string): Promise<string[]> {
-  const output = await runGit(["ls-files", "--others", "--exclude-standard"], repoRoot);
-  return output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const output = await runGit(
+    ["-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard", "-z"],
+    repoRoot
+  );
+  return output.split("\0").filter(Boolean);
 }
 
 export async function syntheticDiffForUntracked(repoRoot: string, relativePath: string): Promise<string> {
@@ -113,12 +113,17 @@ export async function generatedPathsFromGitAttributes(repoRoot: string, paths: s
   if (paths.length === 0) {
     return new Set();
   }
-  const output = await runGit(["check-attr", "linguist-generated", "--", ...paths], repoRoot, true);
+  const output = await runGit(
+    ["-c", "core.quotepath=false", "check-attr", "-z", "linguist-generated", "--", ...paths],
+    repoRoot,
+    true
+  );
   const generated = new Set<string>();
-  for (const line of output.split(/\r?\n/)) {
-    const match = line.match(/^(.*): linguist-generated: (.*)$/);
-    if (match && match[2] === "true") {
-      generated.add(normalizeRepoRelative(match[1] ?? ""));
+  const fields = output.split("\0");
+  for (let index = 0; index + 2 < fields.length; index += 3) {
+    const [file, attribute, value] = fields.slice(index, index + 3);
+    if (attribute === "linguist-generated" && value === "true" && file) {
+      generated.add(normalizeRepoRelative(file));
     }
   }
   return generated;

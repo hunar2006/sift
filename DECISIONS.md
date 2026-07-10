@@ -70,3 +70,4 @@ This craft pass was performed **without a browser** this session (the app was no
 - The v0.4 baseline is green before implementation: `pnpm i`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm smoke` all passed. The suite has 176 tests across 23 files, core line coverage is 88.63%, and smoke reports 35 hunks in 11 groups.
 - The v0.4 work follows the specified order: Windows audit and CI, watch/SSE, live UI, brief and seen-sidecar state, editor jump, the three deferred visual items, render evidence, performance, resilience, packaging, then final docs/audit.
 - The v0.4 cut-line protocol is active in this order: demo GIF/video, New filter, editor jump, and perf CI gate. No cut has been made.
+- The Windows audit uses Git's NUL-delimited `ls-files` and `check-attr` output with `core.quotepath=false`, rather than newline/colon parsing. This preserves spaces, Unicode, and Windows-normalized paths without relying on command-line quoting conventions.

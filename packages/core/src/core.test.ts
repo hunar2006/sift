@@ -20,8 +20,17 @@ import {
 } from "./state.js";
 import { renderMarkdownReport } from "./report.js";
 import { computeRiskSignals } from "./classify/signals.js";
-import { discoverRepoRoot, generatedPathsFromGitAttributes, readWorktreeFile, runGit, syntheticDiffForUntracked } from "./git.js";
+import {
+  discoverRepoRoot,
+  generatedPathsFromGitAttributes,
+  listUntracked,
+  readWorktreeFile,
+  runGit,
+  syntheticDiffForUntracked
+} from "./git.js";
 import { ingestDiff } from "./ingest.js";
+import { isConfigPath, isDocsPath, isTestPath } from "./classify/categories.js";
+import { normalizeRepoRelative } from "./path-utils.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -80,10 +89,12 @@ describe("git ingest", () => {
     await git(repoRoot, ["commit", "-m", "base"]);
     await fs.writeFile(path.join(repoRoot, "tracked.ts"), "export const a = 2;\n", "utf8");
     await fs.writeFile(path.join(repoRoot, "new.ts"), "export const b = 1;\n", "utf8");
+    await fs.writeFile(path.join(repoRoot, "new file.ts"), "export const c = 1;\n", "utf8");
 
     expect(await discoverRepoRoot(repoRoot)).toBe(repoRoot);
     expect(await readWorktreeFile(repoRoot, "tracked.ts")).toContain("a = 2");
     expect(await generatedPathsFromGitAttributes(repoRoot, ["tracked.ts"])).toBeInstanceOf(Set);
+    expect(await listUntracked(repoRoot)).toEqual(expect.arrayContaining(["new.ts", "new file.ts"]));
     expect(await syntheticDiffForUntracked(repoRoot, "new.ts")).toContain("+++ b/new.ts");
     expect(await runGit(["rev-parse", "--show-toplevel"], repoRoot)).toContain(repoRoot.replace(/\\/g, "/").split("/").at(-1) ?? "");
 
@@ -91,6 +102,15 @@ describe("git ingest", () => {
     expect(ingested.diffSpec).toBe("WORKTREE");
     expect(ingested.patch).toContain("tracked.ts");
     expect(ingested.patch).toContain("new.ts");
+  });
+});
+
+describe("Windows path normalization", () => {
+  it("uses POSIX-normalized paths for category matching", () => {
+    expect(normalizeRepoRelative("a\\tests\\auth.test.ts")).toBe("tests/auth.test.ts");
+    expect(isTestPath("src\\tests\\auth.test.ts")).toBe(true);
+    expect(isConfigPath(".github\\workflows\\ci.yml")).toBe(true);
+    expect(isDocsPath("docs\\windows.md")).toBe(true);
   });
 });
 

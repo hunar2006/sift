@@ -9,6 +9,11 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 ### Added
 
 - Live & Launch-Ready upgrade work started from a clean v0.3 baseline.
+- Windows is now part of the CI matrix (Node 20), alongside Ubuntu 20/22 and macOS 20.
+
+### Changed
+
+- Git discovery of untracked and linguist-generated paths now uses NUL-delimited output, preserving Windows, Unicode, and whitespace-bearing paths.
 
 ## [0.3.0] - Unreleased
 

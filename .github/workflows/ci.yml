@@ -8,8 +8,15 @@ jobs:
   test:
     strategy:
       matrix:
-        node: [20, 22]
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            node: 20
+          - os: ubuntu-latest
+            node: 22
+          - os: macos-latest
+            node: 20
+          - os: windows-latest
+            node: 20
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
