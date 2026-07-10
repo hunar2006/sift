@@ -82,7 +82,9 @@ export function App() {
   const [groupPreview, setGroupPreview] = useState<{ groupId: string; blockedIds?: string[] } | null>(null);
   const [completionDismissed, setCompletionDismissed] = useState(false);
   const [stamp, setStamp] = useState<"verified" | "flagged" | null>(null);
+  const [paneFade, setPaneFade] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const paneFadeTriggered = useRef(false);
 
   function showStamp(kind: "verified" | "flagged"): void {
     setStamp(kind);
@@ -115,6 +117,20 @@ export function App() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
+
+  useEffect(() => {
+    if (!model || !stats || !meta || paneFadeTriggered.current || hasSeenPaneFade()) {
+      return;
+    }
+    paneFadeTriggered.current = true;
+    markPaneFadeSeen();
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+    setPaneFade(true);
+    const timer = window.setTimeout(() => setPaneFade(false), 240);
+    return () => window.clearTimeout(timer);
+  }, [meta, model, stats]);
 
   useEffect(() => {
     if (!timelineOpen) {
@@ -396,7 +412,7 @@ export function App() {
   });
 
   return (
-    <main className="shell">
+    <main className={paneFade ? "shell pane-fade" : "shell"}>
       <header className="topbar">
         <div className="brandline">
           <Logomark />
@@ -407,12 +423,20 @@ export function App() {
             {meta.diffSpec}
           </span>
         </div>
-        <div className="headline">
-          <span className="progress">{reviewedPct.toFixed(0)}%</span>
-          <span>
-            {model.totals.changedLines.toLocaleString()} changed, {model.totals.attentionLines.toLocaleString()} attn
+        <div className="headline hud">
+          <div className="hud-progress" aria-label={`${reviewedPct.toFixed(0)}% reviewed`}>
+            {Array.from({ length: 10 }, (_, index) => (
+              <span key={index} className={reviewedPct > index * 10 ? "filled" : ""} />
+            ))}
+          </div>
+          <span className="hud-count">{reviewedPct.toFixed(0)}%</span>
+          <span className="hud-count">
+            {stats.reviewedReviewableLines.toLocaleString()}/{model.totals.reviewableLines.toLocaleString()} reviewed
           </span>
-          {coverageLine && <span>{coverageLine}</span>}
+          <span className="hud-count">
+            {model.totals.changedLines.toLocaleString()} changed / {model.totals.attentionLines.toLocaleString()} attn
+          </span>
+          {coverageLine && <span className="hud-count">{coverageLine}</span>}
           {Object.keys(freshIds).length > 0 && (
             <button className={freshOnly ? "fresh-filter active" : "fresh-filter"} onClick={toggleFreshOnly}>
               New ({Object.keys(freshIds).length})
@@ -1023,7 +1047,6 @@ function Inspector({
         <strong>Risk {hunk.risk}</strong>
         <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
         {fresh && <span className="fresh-chip">fresh</span>}
-        <CoverageBadge hunk={hunk} />
       </div>
       <DigestBlock hunk={hunk} />
       {hunk.provenance && <IntentBlock provenance={hunk.provenance} />}
@@ -1048,10 +1071,8 @@ function Inspector({
         )}
       </section>
       <section>
-        <h2>Category</h2>
-        <p>
-          {hunk.category} | {hunk.categoryReason}
-        </p>
+        <h2>Coverage</h2>
+        {hunk.coverage ? <CoverageBadge hunk={hunk} /> : <p>No coverage evidence for this hunk.</p>}
       </section>
       <section>
         <h2>Provenance</h2>
@@ -1640,4 +1661,20 @@ async function refreshStatsOnly(
 
 function repoName(repoRoot: string): string {
   return repoRoot.split(/[\\/]/).filter(Boolean).at(-1) ?? repoRoot;
+}
+
+function hasSeenPaneFade(): boolean {
+  try {
+    return sessionStorage.getItem("sift.paneFadeSeen") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markPaneFadeSeen(): void {
+  try {
+    sessionStorage.setItem("sift.paneFadeSeen", "1");
+  } catch {
+    // The effect is purely presentational when browser storage is unavailable.
+  }
 }

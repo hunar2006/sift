@@ -185,9 +185,63 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
+.hud {
+  gap: 8px;
+}
+
+.hud-progress {
+  width: 84px;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+}
+
+.hud-progress span {
+  height: 5px;
+  border: 1px solid var(--border-strong);
+  background: var(--ink-0);
+}
+
+.hud-progress span.filled {
+  border-color: var(--verdict);
+  background: var(--verdict);
+}
+
+.hud-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
 .progress {
   color: var(--focus);
   font-weight: 700;
+}
+
+.pane-fade .queue,
+.pane-fade > .workspace > .diff,
+.pane-fade .inspector {
+  animation: pane-enter 240ms ease-out both;
+}
+
+.pane-fade > .workspace > .diff {
+  animation-delay: 40ms;
+}
+
+.pane-fade .inspector {
+  animation-delay: 80ms;
+}
+
+@keyframes pane-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .workspace {
@@ -1140,6 +1194,12 @@ textarea:focus-visible {
   }
 
   .live-dot {
+    animation: none;
+  }
+
+  .pane-fade .queue,
+  .pane-fade > .workspace > .diff,
+  .pane-fade .inspector {
     animation: none;
   }
 }

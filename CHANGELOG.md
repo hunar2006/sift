@@ -15,6 +15,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - `sift brief` now produces an agent-ready Markdown handoff for flagged hunks (or `--unreviewed-high`), including reviewer notes, plain-language primary reasons, and per-hunk patches capped at 120 lines.
 - Hunk responses now carry persistent `firstSeenAt` values backed by an atomic, bounded `.sift/seen.json` sidecar. Freshness can therefore survive a page reload in the same browser session.
 - Press `e` or use **Open in editor** from the inspector/focus card to open the selected hunk at its first changed line. Editor launches are server-resolved and use direct argument arrays only.
+- The deferred v0.3 craft work is now implemented: a segmented, tabular-count HUD; ordered inspector evidence sections; and a reduced-motion-safe, once-per-session pane entrance that does not replay during live model updates.
 
 ### Changed
 
