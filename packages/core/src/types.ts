@@ -348,6 +348,10 @@ export const statusUpdateSchema = z.object({
   note: z.string().optional()
 });
 
+export const openHunkSchema = z.object({
+  hunkId: z.string().min(1).max(200)
+});
+
 export const statsSnapshotSchema: z.ZodType<StatsSnapshot> = z.object({
   at: z.string(),
   diffSpec: z.string(),

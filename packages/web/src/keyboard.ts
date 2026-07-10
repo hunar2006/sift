@@ -35,7 +35,8 @@ export type KeyboardCommand =
   | { type: "collapse-all"; collapsed: boolean }
   | { type: "focus-note" }
   | { type: "undo" }
-  | { type: "toggle-focus" };
+  | { type: "toggle-focus" }
+  | { type: "open-editor" };
 
 export function keyboardCommand(
   state: KeyboardState,
@@ -110,6 +111,8 @@ export function keyboardCommand(
       return { type: "undo" };
     case "f":
       return { type: "toggle-focus" };
+    case "e":
+      return { type: "open-editor" };
     case " ":
     case "Spacebar":
       return { type: "toggle-current-collapse" };

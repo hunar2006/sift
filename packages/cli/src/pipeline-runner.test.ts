@@ -73,6 +73,23 @@ describe("tree-sitter pipeline preparation", () => {
     expect(await response.json()).toMatchObject({ astCoverage: 0 });
   });
 
+  it("validates editor-open requests before resolving a hunk", async () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "WORKTREE",
+      patch: "",
+      git: { headSha: "abc", branch: "main" }
+    });
+    const app = createSiftApp({
+      model,
+      provenanceRecords: 0,
+      aiRan: false,
+      brief: null,
+      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false, brief: null })
+    });
+    expect((await app.request("/api/open", { method: "POST", body: JSON.stringify({}) })).status).toBe(400);
+  });
+
   it("streams model updates as Server-Sent Events", async () => {
     const model = analyzeDiff({
       repoRoot: "/repo",

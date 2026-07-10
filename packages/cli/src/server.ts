@@ -12,6 +12,7 @@ import {
   computeStats,
   loadFlagReasons,
   mergeReviewState,
+  openHunkSchema,
   readGitFile,
   readHistory,
   readReviewState,
@@ -23,6 +24,7 @@ import {
   type ReviewBrief,
   type ReviewModel
 } from "@sift-review/core";
+import { EditorNotFoundError, openHunkInEditor } from "./editor.js";
 
 export interface ServerContext {
   model: ReviewModel;
@@ -142,6 +144,25 @@ export function createSiftApp(context: ServerContext | SiftServerState): Hono {
       parsed.data.note
     );
     return c.json(reviewState);
+  });
+
+  app.post("/api/open", async (c) => {
+    const parsed = openHunkSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Invalid open request." }, 400);
+    }
+    try {
+      await openHunkInEditor(state.current.model.meta.repoRoot, state.current.model, parsed.data.hunkId);
+      return c.json({ opened: true });
+    } catch (error) {
+      if (error instanceof EditorNotFoundError) {
+        return c.json({ error: error.message }, 404);
+      }
+      if (error instanceof Error && error.message === "Unknown hunk.") {
+        return c.json({ error: error.message }, 404);
+      }
+      throw error;
+    }
   });
 
   app.post("/api/groups/:id/approve", async (c) => {

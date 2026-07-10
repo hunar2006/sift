@@ -14,6 +14,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - The web review queue now subscribes to live updates, preserves the nearest prior selection when a hunk disappears, toasts the add/remove count, marks new hunks with a verdict-teal dot and inspector chip, offers a `New (n)` filter, and shows a reduced-motion-safe live HUD indicator.
 - `sift brief` now produces an agent-ready Markdown handoff for flagged hunks (or `--unreviewed-high`), including reviewer notes, plain-language primary reasons, and per-hunk patches capped at 120 lines.
 - Hunk responses now carry persistent `firstSeenAt` values backed by an atomic, bounded `.sift/seen.json` sidecar. Freshness can therefore survive a page reload in the same browser session.
+- Press `e` or use **Open in editor** from the inspector/focus card to open the selected hunk at its first changed line. Editor launches are server-resolved and use direct argument arrays only.
 
 ### Changed
 

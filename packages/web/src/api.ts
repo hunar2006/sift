@@ -60,6 +60,18 @@ export async function refreshReview(): Promise<ReviewModel> {
   return checked<ReviewModel>(await fetch("/api/refresh", { method: "POST" }));
 }
 
+export async function openHunkInEditor(hunkId: string): Promise<void> {
+  const response = await fetch("/api/open", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ hunkId })
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Editor could not be opened.");
+  }
+}
+
 export async function fetchReport(): Promise<string> {
   const response = await fetch("/api/report?format=md");
   if (!response.ok) {

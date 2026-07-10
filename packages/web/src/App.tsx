@@ -7,6 +7,7 @@ import {
   fetchBrief,
   fetchFile,
   fetchMeta,
+  openHunkInEditor,
   fetchReport,
   fetchReview,
   fetchStats,
@@ -222,6 +223,11 @@ export function App() {
       }
       if (command.type === "toggle-focus") {
         setFocusMode((value) => !value);
+      }
+      if (command.type === "open-editor" && selected) {
+        void openHunkInEditor(selected.id)
+          .then(() => setToast("Opened in editor."))
+          .catch((error: unknown) => setToast(error instanceof Error ? error.message : "Editor could not be opened."));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -518,6 +524,11 @@ export function App() {
           noteRef={noteRef}
           nitsOpen={nitsOpen}
           onToggleNits={toggleNits}
+          onOpenEditor={(hunk) =>
+            void openHunkInEditor(hunk.id)
+              .then(() => setToast("Opened in editor."))
+              .catch((error: unknown) => setToast(error instanceof Error ? error.message : "Editor could not be opened."))
+          }
           onStatus={(status, note) => selected && void updateStatus(selected, status, note)}
         />
       </section>
@@ -587,6 +598,11 @@ export function App() {
           onUndo={() => void performUndo()}
           onToggleSplit={() => setSplit(!split)}
           onExit={() => setFocusMode(false)}
+          onOpenEditor={(hunk) =>
+            void openHunkInEditor(hunk.id)
+              .then(() => setToast("Opened in editor."))
+              .catch((error: unknown) => setToast(error instanceof Error ? error.message : "Editor could not be opened."))
+          }
           onOpenFile={(hunk) =>
             void fetchFile(hunk.file, "new")
               .then((text) => setFileModal({ path: hunk.file, text }))
@@ -846,6 +862,7 @@ function FocusMode({
   onUndo,
   onToggleSplit,
   onExit,
+  onOpenEditor,
   onOpenFile
 }: {
   hunk: ReviewHunk;
@@ -858,6 +875,7 @@ function FocusMode({
   onUndo(): void;
   onToggleSplit(): void;
   onExit(): void;
+  onOpenEditor(hunk: ReviewHunk): void;
   onOpenFile(hunk: ReviewHunk): void;
 }) {
   const primaryReasons = hunk.reasons.filter((reason) => reason.tier !== "nit");
@@ -911,6 +929,9 @@ function FocusMode({
           </button>
           <button onClick={onUndo}>
             <span className="keycap">z</span> Undo
+          </button>
+          <button onClick={() => onOpenEditor(hunk)}>
+            <span className="keycap">e</span> Open in editor
           </button>
         </div>
       </article>
@@ -973,6 +994,7 @@ function Inspector({
   noteRef,
   nitsOpen,
   onToggleNits,
+  onOpenEditor,
   onStatus
 }: {
   hunk?: ReviewHunk;
@@ -980,6 +1002,7 @@ function Inspector({
   noteRef: RefObject<HTMLTextAreaElement>;
   nitsOpen: boolean;
   onToggleNits(): void;
+  onOpenEditor(hunk: ReviewHunk): void;
   onStatus(status: ReviewHunk["status"], note?: string): void;
 }) {
   const [note, setNote] = useState("");
@@ -1072,6 +1095,7 @@ function Inspector({
           <button onClick={() => onStatus("approved", note)}>Approve</button>
           <button onClick={() => onStatus("flagged", note)}>Flag</button>
           <button onClick={() => onStatus("unreviewed", note)}>Undo</button>
+          <button onClick={() => onOpenEditor(hunk)}>Open in editor</button>
         </div>
         <textarea
           ref={noteRef}
@@ -1300,7 +1324,7 @@ function HelpOverlay({ tour, onClose }: { tour: boolean; onClose(): void }) {
         <p>j/k next/prev hunk | J/K next/prev file | g g first | G last</p>
         <p>n/p next/prev unreviewed attention hunk | a approve | x flag | u unreviewed | i note</p>
         <p>space collapse current hunk | o split | s sort | t timeline | T theme | Ctrl/Cmd+K palette</p>
-        <p>/ filter | r refresh | [ collapse all | ] expand all | ? help | Esc close</p>
+        <p>/ filter | r refresh | e open editor | [ collapse all | ] expand all | ? help | Esc close</p>
       </div>
     </div>
   );
