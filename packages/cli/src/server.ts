@@ -52,7 +52,7 @@ export class SiftServerState {
 
   async refresh(): Promise<void> {
     const refresh = this.current.refresh;
-    this.current = { ...(await refresh()), refresh };
+    this.current = { ...(await refresh()), refresh, watchActive: this.current.watchActive };
   }
 
   update(next: Omit<ServerContext, "refresh">, event: ModelUpdatedEvent): void {

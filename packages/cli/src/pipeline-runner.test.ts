@@ -120,6 +120,27 @@ describe("tree-sitter pipeline preparation", () => {
     await reader?.cancel();
   });
 
+  it("keeps the live HUD state after a manual refresh", async () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "WORKTREE",
+      patch: "",
+      git: { headSha: "abc", branch: "main" }
+    });
+    const app = createSiftApp(
+      new SiftServerState({
+        model,
+        provenanceRecords: 0,
+        aiRan: false,
+        brief: null,
+        watchActive: true,
+        refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false, brief: null })
+      })
+    );
+    await app.request("/api/refresh", { method: "POST" });
+    expect(await (await app.request("/api/meta")).json()).toMatchObject({ watchActive: true });
+  });
+
   it("serves a markdown report without snapshotting review state", async () => {
     const repoRoot = await tempRoot();
     const model = analyzeDiff({
