@@ -38,3 +38,9 @@
 - The web minimap is a hunk-level rail over the visible queue. It selects hunks directly and hides below 1000px width; the deeper virtualized multi-hunk scroll map remains unnecessary for the current one-hunk viewer architecture.
 - Demo v2 intentionally includes deterministic trigger snippets for every new signal family, a repo rules file that both fires and suppresses a built-in reason, fresh LCOV evidence for covered and untested hunks, a rename-pattern fixture, and definition/reference hunks with reading ranks.
 - The final smoke script now asserts the demo model, `sift print --json`, `sift rules lint`, `sift mcp` via the SDK stdio client, and CLI package assets. This keeps publish-readiness checks on the installed-user path without publishing.
+
+## 2026-07-10 — v0.3 Clarity & Craft
+
+- The v0.3 baseline is green before implementation: `pnpm i`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm smoke` all passed. The suite has 72 tests across 15 files, core line coverage is 88.65%, and smoke reports 34 hunks in 11 groups.
+- The implementation follows the specification's phase order: real tree-sitter, deterministic digests, intent surfacing, labeled AI summaries and Review Brief, decision UX, Assay Office visual system, craft pass, demo/smoke, then documentation and final audit.
+- The v0.3 cut-line protocol is active in this order: Review Brief, completion-screen flourishes while retaining basic stats, then tree-sitter only after three materially different documented integration attempts. No cut has been made.
