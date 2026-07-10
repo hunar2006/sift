@@ -15,6 +15,7 @@ import {
   readHistory,
   readReviewState,
   readWorktreeFile,
+  renderMarkdownReport,
   renderStats,
   statusUpdateSchema,
   updateHunkStatus,
@@ -97,6 +98,16 @@ export function createSiftApp(context: ServerContext): Hono {
   });
 
   app.get("/api/timeline", (c) => c.json(buildProvenanceTimeline(current.model)));
+
+  app.get("/api/report", async (c) => {
+    const { state } = await readReviewState(current.model.meta.repoRoot);
+    const stats = computeStats(current.model, state);
+    const markdown = renderMarkdownReport(current.model, state, stats);
+    if ((c.req.query("format") ?? "md") === "md") {
+      return c.text(markdown, 200, { "Content-Type": "text/markdown; charset=utf-8" });
+    }
+    return c.json({ markdown });
+  });
 
   app.get("/api/meta", (c) =>
     c.json({

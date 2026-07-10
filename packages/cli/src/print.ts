@@ -22,6 +22,7 @@ export interface PrintPayload {
     score: number;
     band: string;
     status: string;
+    headline: string;
     topReason?: string;
   }>;
   skimBundles: Array<{
@@ -54,6 +55,7 @@ export function printPayload(model: ReviewModel, state: ReviewStateFile, stats: 
         score: hunk.risk,
         band: hunk.band,
         status: hunk.status,
+        headline: hunk.digest.headline,
         topReason: topReason(hunk)
       })),
     skimBundles: model.groups.filter((group) => group.kind === "skim").map(skimSummary)
@@ -85,6 +87,7 @@ export function renderPrintReport(model: ReviewModel, state: ReviewStateFile, st
       const location = `${hunk.file}${hunk.line ? `:${hunk.line}` : ""}`;
       const reason = hunk.topReason ? ` - ${hunk.topReason}` : "";
       lines.push(`  ${riskLabel(hunk.score, color)} ${location} - score ${hunk.score} - ${hunk.status}${reason}`);
+      lines.push(`      ${colorize(hunk.headline, "muted", color)}`);
     }
   }
 
@@ -131,12 +134,15 @@ function pct(value: number): string {
   return `${(value * 100).toFixed(0)}%`;
 }
 
-function colorize(value: string, kind: "title" | "critical" | "high" | "medium" | "low", enabled: boolean): string {
+function colorize(value: string, kind: "title" | "critical" | "high" | "medium" | "low" | "muted", enabled: boolean): string {
   if (!enabled) {
     return value;
   }
   if (kind === "title") {
     return pc.bold(value);
+  }
+  if (kind === "muted") {
+    return pc.dim(value);
   }
   if (kind === "critical") {
     return pc.red(pc.bold(value));

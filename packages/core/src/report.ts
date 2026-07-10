@@ -32,7 +32,7 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
           const reasonCodes = hunk.reasons.map((reason) => reason.code).join(", ");
           const line = hunk.newStart ? ` L${hunk.newStart}` : "";
           const note = stored?.note ? ` - note: "${stored.note}"` : "";
-          return `- \`${hunk.file}\`${line} - risk ${hunk.risk} (${reasonCodes || "no signals"})${note}`;
+          return `- \`${hunk.file}\`${line} - risk ${hunk.risk} - ${hunk.digest.headline} (${reasonCodes || "no signals"})${note}`;
         })),
     "",
     `## High risk, approved (${approvedHigh.length})`,
@@ -40,8 +40,15 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
       ? ["- None"]
       : approvedHigh.map((hunk) => {
           const reasonCodes = hunk.reasons.map((reason) => reason.code).join(", ");
-          return `- \`${hunk.file}\` - risk ${hunk.risk} (${reasonCodes || "no signals"}) - approved by review`;
+          return `- \`${hunk.file}\` - risk ${hunk.risk} - ${hunk.digest.headline} (${reasonCodes || "no signals"}) - approved by review`;
         })),
+    "",
+    `## Top attention`,
+    ...(topAttention(model).length === 0
+      ? ["- None"]
+      : topAttention(model).map(
+          (hunk) => `- \`${hunk.file}\` - risk ${hunk.risk} - ${hunk.digest.headline}`
+        )),
     "",
     "## Skimmed in bulk",
     skimGroups.length === 0
@@ -63,6 +70,17 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
         ]),
     ""
   ].join("\n");
+}
+
+function topAttention(model: ReviewModel): ReviewModel["hunks"] {
+  const attentionGroups = new Set(
+    model.groups.filter((group) => group.kind === "attention").map((group) => group.id)
+  );
+  return model.hunks
+    .filter((hunk) => attentionGroups.has(hunk.groupId))
+    .slice()
+    .sort((left, right) => right.risk - left.risk)
+    .slice(0, 8);
 }
 
 function coverageSummary(stats: StatsSnapshot): string {

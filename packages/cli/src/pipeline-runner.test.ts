@@ -71,6 +71,30 @@ describe("tree-sitter pipeline preparation", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ astCoverage: 0 });
   });
+
+  it("serves a markdown report without snapshotting review state", async () => {
+    const repoRoot = await tempRoot();
+    const model = analyzeDiff({
+      repoRoot,
+      diffSpec: "WORKTREE",
+      patch: "",
+      git: { headSha: "abc", branch: "main" }
+    });
+    const app = createSiftApp({
+      model,
+      provenanceRecords: 0,
+      aiRan: false,
+      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false })
+    });
+
+    const response = await app.request("/api/report?format=md");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("text/markdown");
+    const body = await response.text();
+    expect(body).toContain("# Sift review");
+    expect(body).toContain("## Top attention");
+    await expect(fs.stat(path.join(repoRoot, ".sift", "history.jsonl"))).rejects.toBeTruthy();
+  });
 });
 
 async function tempRoot(): Promise<string> {

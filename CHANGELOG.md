@@ -10,6 +10,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 - Real WASM tree-sitter analysis for TypeScript, TSX, JavaScript, Python, and Go, including AST-derived definitions, removed definitions, references, enclosing symbols, format/import facts, rename sites, tokenizer fallback, parser guards, a 2.5-second per-file budget, and `astCoverage` metadata.
 - Deterministic Change Digest engine: every hunk gains a factual `digest` with a `headline` and up to three detail bullets, plus optional `HunkGroup.digest` summaries, driven by a fixed 19-row headline template priority and a signal-code-to-phrase map (`digestPhrases.ts`). Digests describe and never judge, enforced by a forbidden-verdict guardrail scanned in tests and smoke.
+- `sift print` and `sift report` now surface digest headlines for the top risky hunks, and the report gains a Top attention section.
+- `GET /api/report?format=md` serves the reused Markdown report generator with no snapshot side-effects.
 
 ### Changed
 
