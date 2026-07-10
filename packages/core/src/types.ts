@@ -58,6 +58,12 @@ export interface RenameCandidate {
   to: string;
 }
 
+export interface HunkDigest {
+  headline: string;
+  details: string[];
+  source: "auto";
+}
+
 export interface Hunk {
   id: string;
   file: string;
@@ -89,7 +95,10 @@ export interface Hunk {
   isModeChange?: boolean;
   isBinary?: boolean;
   newMode?: string;
+  digest: HunkDigest;
 }
+
+export type UndigestedHunk = Omit<Hunk, "digest">;
 
 export interface HunkGroup {
   id: string;
@@ -99,6 +108,7 @@ export interface HunkGroup {
   hunkIds: string[];
   totalAdded: number;
   totalRemoved: number;
+  digest?: string;
 }
 
 export interface FileChange {
@@ -262,6 +272,12 @@ export const diffLineSchema: z.ZodType<DiffLine> = z.object({
   newLine: z.number().optional()
 });
 
+export const hunkDigestSchema: z.ZodType<HunkDigest> = z.object({
+  headline: z.string().min(1).max(90),
+  details: z.array(z.string().max(100)).max(3),
+  source: z.literal("auto")
+});
+
 export const hunkSchema: z.ZodType<Hunk> = z.object({
   id: z.string(),
   file: z.string(),
@@ -301,7 +317,8 @@ export const hunkSchema: z.ZodType<Hunk> = z.object({
   isRenameOnly: z.boolean().optional(),
   isModeChange: z.boolean().optional(),
   isBinary: z.boolean().optional(),
-  newMode: z.string().optional()
+  newMode: z.string().optional(),
+  digest: hunkDigestSchema
 });
 
 export const storedHunkStateSchema: z.ZodType<StoredHunkState> = z.object({

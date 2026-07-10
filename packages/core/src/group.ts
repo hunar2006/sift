@@ -1,4 +1,4 @@
-import type { Hunk, HunkGroup } from "./types.js";
+import type { HunkGroup, UndigestedHunk } from "./types.js";
 import { isLockfilePath } from "./classify/categories.js";
 
 interface GroupDefinition {
@@ -6,7 +6,7 @@ interface GroupDefinition {
   title: string;
   kind: "attention" | "skim";
   order: number;
-  accepts(hunk: Hunk): boolean;
+  accepts(hunk: UndigestedHunk): boolean;
 }
 
 const DEFINITIONS: GroupDefinition[] = [
@@ -115,8 +115,8 @@ const DEFINITIONS: GroupDefinition[] = [
   }
 ];
 
-export function assignGroups(hunks: Hunk[]): { hunks: Hunk[]; groups: HunkGroup[] } {
-  const hunkBuckets = new Map<string, Hunk[]>();
+export function assignGroups(hunks: UndigestedHunk[]): { hunks: UndigestedHunk[]; groups: HunkGroup[] } {
+  const hunkBuckets = new Map<string, UndigestedHunk[]>();
   const withGroups = hunks.map((hunk) => {
     const group = dynamicGroupForHunk(hunk) ?? groupForHunk(hunk);
     const grouped = { ...hunk, groupId: group.id };
@@ -158,7 +158,7 @@ export function assignGroups(hunks: Hunk[]): { hunks: Hunk[]; groups: HunkGroup[
   return { hunks: withGroups, groups };
 }
 
-export function groupForHunk(hunk: Hunk): GroupDefinition {
+export function groupForHunk(hunk: UndigestedHunk): GroupDefinition {
   const skimDefinition = DEFINITIONS.find(
     (definition) => definition.kind === "skim" && isSkimEligible(hunk) && definition.accepts(hunk)
   );
@@ -176,7 +176,7 @@ export function groupForHunk(hunk: Hunk): GroupDefinition {
   );
 }
 
-function isSkimEligible(hunk: Hunk): boolean {
+function isSkimEligible(hunk: UndigestedHunk): boolean {
   return (
     (hunk.band === "skim" &&
       (hunk.category === "mechanical" || hunk.category === "generated" || hunk.category === "binary")) ||
@@ -186,11 +186,11 @@ function isSkimEligible(hunk: Hunk): boolean {
   );
 }
 
-function isSkimBundled(hunk: Hunk): boolean {
+function isSkimBundled(hunk: UndigestedHunk): boolean {
   return isSkimEligible(hunk);
 }
 
-function dynamicGroupForHunk(hunk: Hunk): GroupDefinition | null {
+function dynamicGroupForHunk(hunk: UndigestedHunk): GroupDefinition | null {
   if (!hunk.categoryReason.startsWith("RENAME_PATTERN:")) {
     return null;
   }

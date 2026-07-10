@@ -9,6 +9,7 @@ import { assignGroups } from "./group.js";
 import { assignReadingRanks, orderReview } from "./order.js";
 import { attachCoverageToHunks } from "./coverage.js";
 import { applyRenamePatternGroups, analyzeParsedHunksStructure } from "./structure/index.js";
+import { attachDigests } from "./digest.js";
 import { normalizeRepoRelative } from "./path-utils.js";
 
 export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
@@ -39,8 +40,9 @@ export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
     identified.flatMap((hunk) => (hunk.renameCandidates === undefined ? [] : [[hunk.id ?? "", hunk.renameCandidates] as const]))
   );
   const structuralHunks = applyRenamePatternGroups(hunks, renameCandidatesByHunkId);
-  const { hunks: groupedHunks, groups } = assignGroups(structuralHunks);
-  const rankedHunks = assignReadingRanks(groupedHunks, groups);
+  const { hunks: groupedHunks, groups: undigestedGroups } = assignGroups(structuralHunks);
+  const { hunks: digestedHunks, groups } = attachDigests(groupedHunks, undigestedGroups, parsed.files);
+  const rankedHunks = assignReadingRanks(digestedHunks, groups);
   const ordered = orderReview(rankedHunks, groups);
   const hunkIdsByFile = new Map<string, string[]>();
   for (const hunk of ordered.hunks) {

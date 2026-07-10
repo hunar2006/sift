@@ -13,6 +13,7 @@ const hunk = (overrides: Partial<ReviewHunk> & Pick<ReviewHunk, "id" | "file" | 
   band: "low",
   reasons: [],
   groupId: "logic",
+  digest: { headline: "Modifies `hunk`", details: [], source: "auto" },
   status: "unreviewed",
   ...overrides
 });

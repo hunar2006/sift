@@ -16,6 +16,7 @@ const hunk = (id: string, file: string, status: ReviewHunk["status"] = "unreview
   band: "low",
   reasons: [],
   groupId: "low-risk-logic",
+  digest: { headline: `Modifies \`${file}\``, details: [], source: "auto" },
   status
 });
 

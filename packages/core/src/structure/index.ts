@@ -1,5 +1,5 @@
 import Parser from "web-tree-sitter";
-import type { Hunk, ParsedHunk, RenameCandidate } from "../types.js";
+import type { ParsedHunk, RenameCandidate, UndigestedHunk } from "../types.js";
 import { extension, normalizeRepoRelative } from "../path-utils.js";
 
 export const TREE_SITTER_MAX_BYTES = 512 * 1024;
@@ -226,9 +226,9 @@ export function isTokenFormatOnly(hunk: ParsedHunk): boolean {
 }
 
 export function applyRenamePatternGroups(
-  hunks: Hunk[],
+  hunks: UndigestedHunk[],
   astCandidatesByHunkId: ReadonlyMap<string, readonly RenameCandidate[]> = new Map()
-): Hunk[] {
+): UndigestedHunk[] {
   const sites = hunks.flatMap((hunk) => renameSitesForHunk(hunk, astCandidatesByHunkId.get(hunk.id)));
   const byMapping = new Map<string, RenameSite[]>();
   for (const site of sites) {
@@ -503,7 +503,7 @@ function enclosingSymbolFromLine(file: string, text: string): string | undefined
   return undefined;
 }
 
-function renameSitesForHunk(hunk: Hunk, astCandidates?: readonly RenameCandidate[]): RenameSite[] {
+function renameSitesForHunk(hunk: UndigestedHunk, astCandidates?: readonly RenameCandidate[]): RenameSite[] {
   if (hunk.reasons.some((reason) => reason.weight >= 15)) {
     return [];
   }

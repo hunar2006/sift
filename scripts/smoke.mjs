@@ -67,6 +67,19 @@ function assertDemoSignals(model) {
   if (!model.hunks.some((hunk) => hunk.readingRank !== undefined)) {
     throw new Error("Smoke failed: expected reading-order ranks in demo model.");
   }
+  const undigested = model.hunks.filter(
+    (hunk) => typeof hunk.digest?.headline !== "string" || hunk.digest.headline.trim().length === 0
+  );
+  if (undigested.length > 0) {
+    throw new Error(`Smoke failed: ${undigested.length} demo hunks missing a digest headline.`);
+  }
+  const forbidden = /\blooks good\b|\bsafe to approve\b|\bready to approve\b|\blgtm\b/iu;
+  for (const hunk of model.hunks) {
+    const text = [hunk.digest?.headline, ...(hunk.digest?.details ?? [])].filter(Boolean).join(" ");
+    if (forbidden.test(text)) {
+      throw new Error(`Smoke failed: digest for ${hunk.file} contains a verdict word.`);
+    }
+  }
 }
 
 async function assertPrint() {

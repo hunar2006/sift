@@ -84,7 +84,8 @@ function hunk(id: string, file: string, risk: number, band: Hunk["band"], groupI
     band,
     reasons: risk > 70 ? [{ code: "TLS_DISABLED", label: "TLS validation disabled", weight: 45 }] : [],
     groupId,
-    newStart: line
+    newStart: line,
+    digest: { headline: `Modifies \`${file}\``, details: [], source: "auto" }
   };
 }
 

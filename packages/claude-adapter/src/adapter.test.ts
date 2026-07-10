@@ -38,7 +38,8 @@ describe("claude adapter", () => {
       risk: 35,
       band: "low",
       reasons: [],
-      groupId: "low-risk-logic"
+      groupId: "low-risk-logic",
+      digest: { headline: "Adds `a`", details: [], source: "auto" }
     };
     expect(matchProvenance([hunk], records).get("h1")?.confidence).toBe(1);
   });

@@ -18,7 +18,8 @@ const hunk = (id: string): Hunk => ({
   risk: 35,
   band: "low",
   reasons: [],
-  groupId: "low-risk-logic"
+  groupId: "low-risk-logic",
+  digest: { headline: "Adds `a`", details: [], source: "auto" }
 });
 
 describe("generic provenance", () => {

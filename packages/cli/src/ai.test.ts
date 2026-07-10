@@ -16,6 +16,7 @@ const hunk = (id: string, modelFamily?: "anthropic" | "openai" | "unknown"): Hun
   band: "high",
   reasons: [],
   groupId: "high-risk-logic",
+  digest: { headline: `Modifies \`${id}.ts\``, details: [], source: "auto" },
   provenance: modelFamily
     ? {
         source: "claude-code",

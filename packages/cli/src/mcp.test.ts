@@ -22,7 +22,8 @@ const hunk = (id: string, risk: number, band: Hunk["band"]): Hunk => ({
   band,
   reasons: [{ code: "TLS_DISABLED", label: "TLS validation disabled", weight: 45, evidence: "rejectUnauthorized" }],
   groupId: band === "high" ? "high-risk-logic" : "medium-risk",
-  newStart: 1
+  newStart: 1,
+  digest: { headline: `Modifies \`src/${id}.ts\``, details: [], source: "auto" }
 });
 
 describe("Sift MCP server", () => {

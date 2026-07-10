@@ -1,11 +1,16 @@
-import type { Hunk, ParsedHunk, ProvenanceRef } from "../types.js";
+import type { ParsedHunk, ProvenanceRef, UndigestedHunk } from "../types.js";
 import { classifyHunk } from "./categories.js";
 import { computeRiskSignals, type SignalContext } from "./signals.js";
 import { scoreHunk } from "../score.js";
 import { applyRulesToReasons, type EffectiveRules } from "../rules.js";
 
 export interface Classifier {
-  classify(hunk: ParsedHunk, generatedPaths?: Set<string>, provenance?: ProvenanceRef, context?: ClassifierContext): Hunk;
+  classify(
+    hunk: ParsedHunk,
+    generatedPaths?: Set<string>,
+    provenance?: ProvenanceRef,
+    context?: ClassifierContext
+  ): UndigestedHunk;
 }
 
 export interface ClassifierContext extends SignalContext {
@@ -18,7 +23,7 @@ export class HeuristicClassifier implements Classifier {
     generatedPaths: Set<string> = new Set(),
     provenance?: ProvenanceRef,
     context: ClassifierContext = {}
-  ): Hunk {
+  ): UndigestedHunk {
     const initial = classifyHunk(hunk, [], generatedPaths);
     const initialReasons = applyRulesToReasons(
       hunk,
