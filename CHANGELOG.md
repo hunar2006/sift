@@ -13,6 +13,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - `sift print` and `sift report` now surface digest headlines for the top risky hunks, and the report gains a Top attention section.
 - `GET /api/report?format=md` serves the reused Markdown report generator with no snapshot side-effects.
 - Inspector now leads with a Digest block (headline + detail bullets, code refs rendered inline) and, for provenance-matched hunks, an Intent block promoting the Asked/Agent excerpts, a source chip, and line-match percentage out of the provenance card (which keeps session and transcript details). The Agent reasoning collapses to two lines with an expand toggle.
+- `--ai` now also produces one whole-diff AI Review Brief (`{ story, readingHint }`) from the group digests and top attention-hunk digests with secrets excluded, cached at `.sift/ai-cache/<sha256>.json` and bypassable with `--no-ai-cache`. Served at `GET /api/brief` (404 when absent) and rendered as a dismissible, collapsible, per-diff Briefing bar under the header.
+- AI annotations render as a labeled second headline line (`AI · <provider>`) beneath the deterministic digest without ever replacing it. The annotation system prompt now forbids stating or implying a change is safe, correct, or ready to approve.
 
 ### Changed
 

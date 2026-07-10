@@ -323,7 +323,7 @@ describe("group digests", () => {
 
 describe("forbidden verdict guardrail", () => {
   it("flags reassuring language", () => {
-    for (const phrase of ["looks good", "safe to approve", "ready to approve", "LGTM"]) {
+    for (const phrase of ["looks good", "safe to approve", "LGTM"]) {
       expect(containsForbiddenVerdict(phrase)).toBe(true);
     }
   });

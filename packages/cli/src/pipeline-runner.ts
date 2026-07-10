@@ -22,10 +22,12 @@ import {
   type IngestedDiff,
   type ProvenanceProvider,
   type ProvenanceRecord,
+  type ReviewBrief,
   type ReviewModel
 } from "@sift-review/core";
 import { ClaudeProvenanceProvider } from "@sift-review/claude-adapter";
 import { annotateWithAi, type AiMode } from "./ai.js";
+import { generateBrief } from "./brief.js";
 
 export interface RunPipelineOptions {
   cwd: string;
@@ -33,6 +35,7 @@ export interface RunPipelineOptions {
   range?: string;
   pr?: string;
   ai?: true | AiMode;
+  noAiCache?: boolean;
   coverage?: string;
 }
 
@@ -40,17 +43,19 @@ export interface PipelineResult {
   model: ReviewModel;
   provenanceRecords: number;
   aiRan: boolean;
+  brief: ReviewBrief | null;
 }
 
 export async function runPipeline(options: RunPipelineOptions): Promise<PipelineResult> {
   const ingested = options.pr ? await ingestPrDiff(options.cwd, options.pr) : await ingestDiff(options);
-  return buildModelFromIngested(ingested, options.ai, options.coverage);
+  return buildModelFromIngested(ingested, options.ai, options.coverage, { noAiCache: options.noAiCache });
 }
 
 export async function buildModelFromIngested(
   ingested: IngestedDiff,
   ai?: true | AiMode,
-  coveragePath?: string
+  coveragePath?: string,
+  extra: { noAiCache?: boolean } = {}
 ): Promise<PipelineResult> {
   const parsed = parseUnifiedDiff(ingested.patch);
   const [generatedPaths, newFileSources] = await Promise.all([
@@ -93,13 +98,16 @@ export async function buildModelFromIngested(
       };
     }
   }
+  let brief: ReviewBrief | null = null;
   if (ai) {
     model = await annotateWithAi(model, ai);
+    brief = await generateBrief(model, ai, { useCache: extra.noAiCache !== true });
   }
   return {
     model,
     provenanceRecords: provenanceSources.reduce((sum, source) => sum + source.records.length, 0),
-    aiRan: Boolean(ai)
+    aiRan: Boolean(ai),
+    brief
   };
 }
 

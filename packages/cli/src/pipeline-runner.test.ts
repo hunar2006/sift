@@ -64,7 +64,8 @@ describe("tree-sitter pipeline preparation", () => {
       model,
       provenanceRecords: 0,
       aiRan: false,
-      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false })
+      brief: null,
+      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false, brief: null })
     });
 
     const response = await app.request("/api/meta");
@@ -84,7 +85,8 @@ describe("tree-sitter pipeline preparation", () => {
       model,
       provenanceRecords: 0,
       aiRan: false,
-      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false })
+      brief: null,
+      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false, brief: null })
     });
 
     const response = await app.request("/api/report?format=md");
@@ -94,6 +96,43 @@ describe("tree-sitter pipeline preparation", () => {
     expect(body).toContain("# Sift review");
     expect(body).toContain("## Top attention");
     await expect(fs.stat(path.join(repoRoot, ".sift", "history.jsonl"))).rejects.toBeTruthy();
+  });
+
+  it("returns 404 for the brief endpoint when no briefing is available", async () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "WORKTREE",
+      patch: "",
+      git: { headSha: "abc", branch: "main" }
+    });
+    const app = createSiftApp({
+      model,
+      provenanceRecords: 0,
+      aiRan: false,
+      brief: null,
+      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: false, brief: null })
+    });
+    expect((await app.request("/api/brief")).status).toBe(404);
+  });
+
+  it("serves the brief when present", async () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "WORKTREE",
+      patch: "",
+      git: { headSha: "abc", branch: "main" }
+    });
+    const brief = { story: "Rotates tokens.", readingHint: null, provider: "anthropic" as const, model: "claude-sonnet-4-6" };
+    const app = createSiftApp({
+      model,
+      provenanceRecords: 0,
+      aiRan: true,
+      brief,
+      refresh: () => Promise.resolve({ model, provenanceRecords: 0, aiRan: true, brief })
+    });
+    const response = await app.request("/api/brief");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ story: "Rotates tokens.", provider: "anthropic" });
   });
 });
 

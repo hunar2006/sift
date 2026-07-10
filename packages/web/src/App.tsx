@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
-import type { StatsSnapshot } from "@sift-review/core";
+import type { ReviewBrief, StatsSnapshot } from "@sift-review/core";
 import {
   approveGroup,
+  fetchBrief,
   fetchFile,
   fetchMeta,
   fetchReview,
@@ -66,10 +67,14 @@ export function App() {
   const [fileModal, setFileModal] = useState<{ path: string; text: string } | null>(null);
   const [timeline, setTimeline] = useState<ProvenanceTimelineSession[] | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const [brief, setBrief] = useState<ReviewBrief | null>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     void loadAll(setData, setToast);
+    void fetchBrief()
+      .then((result) => setBrief(result))
+      .catch(() => undefined);
   }, [setData, setToast]);
 
   useEffect(() => {
@@ -282,6 +287,8 @@ export function App() {
           <button onClick={() => void refresh()}>Refresh</button>
         </div>
       </header>
+
+      {brief && <Briefing brief={brief} diffKey={`${meta.diffSpec}:${model.meta.git.headSha}`} />}
 
       <section className="workspace">
         <aside className="queue" aria-label="Review queue">
@@ -546,9 +553,16 @@ function renderInlineCode(text: string): ReactNode {
 }
 
 export function DigestBlock({ hunk }: { hunk: ReviewHunk }) {
+  const aiLine = aiHeadlineFor(hunk);
   return (
     <section className="digest-block" aria-label="Change digest">
       <p className="digest-headline">{renderInlineCode(hunk.digest.headline)}</p>
+      {aiLine && (
+        <p className="digest-ai-line">
+          <span className="chip ai-chip">AI · {providerLabel(aiLine.provider)}</span>
+          <span className="digest-ai-text">{aiLine.summary}</span>
+        </p>
+      )}
       {hunk.digest.details.length > 0 && (
         <ul className="digest-details">
           {hunk.digest.details.map((detail, index) => (
@@ -558,6 +572,12 @@ export function DigestBlock({ hunk }: { hunk: ReviewHunk }) {
       )}
     </section>
   );
+}
+
+function aiHeadlineFor(hunk: ReviewHunk): { provider: string; summary: string } | undefined {
+  const annotations = aiAnnotationsFor(hunk);
+  const primary = annotations.find((annotation) => annotation.provider !== "unknown") ?? annotations[0];
+  return primary?.summary ? { provider: primary.provider, summary: primary.summary } : undefined;
 }
 
 export function IntentBlock({ provenance }: { provenance: NonNullable<ReviewHunk["provenance"]> }) {
@@ -587,6 +607,55 @@ export function IntentBlock({ provenance }: { provenance: NonNullable<ReviewHunk
             </button>
           )}
         </p>
+      )}
+    </section>
+  );
+}
+
+export function Briefing({ brief, diffKey }: { brief: ReviewBrief; diffKey: string }) {
+  const storageKey = `sift-briefing-${diffKey}`;
+  const [state, setState] = useState<"expanded" | "collapsed" | "dismissed">(() => {
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      return stored === "collapsed" || stored === "dismissed" ? stored : "expanded";
+    } catch {
+      return "expanded";
+    }
+  });
+  function persist(next: "expanded" | "collapsed" | "dismissed"): void {
+    setState(next);
+    try {
+      window.localStorage.setItem(storageKey, next);
+    } catch {
+      // Persistence is best-effort.
+    }
+  }
+  if (state === "dismissed") {
+    return null;
+  }
+  return (
+    <section className="briefing" aria-label="AI briefing">
+      <div className="briefing-head">
+        <span className="chip ai-chip">AI · {providerLabel(brief.provider)}</span>
+        <button
+          className="briefing-toggle"
+          onClick={() => persist(state === "expanded" ? "collapsed" : "expanded")}
+        >
+          Briefing {state === "expanded" ? "▾" : "▸"}
+        </button>
+        <button className="briefing-dismiss" onClick={() => persist("dismissed")} aria-label="Dismiss briefing">
+          ✕
+        </button>
+      </div>
+      {state === "expanded" && (
+        <div className="briefing-body">
+          <p className="briefing-story">{brief.story}</p>
+          {brief.readingHint && (
+            <p className="briefing-hint">
+              <span className="intent-label">Start</span> {brief.readingHint}
+            </p>
+          )}
+        </div>
       )}
     </section>
   );

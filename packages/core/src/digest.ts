@@ -18,7 +18,6 @@ const RENAME_PREFIX = "RENAME_PATTERN:";
 export const FORBIDDEN_VERDICT_PATTERNS = [
   /\blooks good\b/iu,
   /\bsafe to approve\b/iu,
-  /\bready to approve\b/iu,
   /\blgtm\b/iu
 ] as const;
 

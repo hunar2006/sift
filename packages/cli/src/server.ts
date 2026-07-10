@@ -19,6 +19,7 @@ import {
   renderStats,
   statusUpdateSchema,
   updateHunkStatus,
+  type ReviewBrief,
   type ReviewModel
 } from "@sift-review/core";
 
@@ -26,7 +27,8 @@ export interface ServerContext {
   model: ReviewModel;
   provenanceRecords: number;
   aiRan: boolean;
-  refresh(): Promise<{ model: ReviewModel; provenanceRecords: number; aiRan: boolean }>;
+  brief: ReviewBrief | null;
+  refresh(): Promise<{ model: ReviewModel; provenanceRecords: number; aiRan: boolean; brief: ReviewBrief | null }>;
 }
 
 export function createSiftApp(context: ServerContext): Hono {
@@ -98,6 +100,13 @@ export function createSiftApp(context: ServerContext): Hono {
   });
 
   app.get("/api/timeline", (c) => c.json(buildProvenanceTimeline(current.model)));
+
+  app.get("/api/brief", (c) => {
+    if (!current.brief) {
+      return c.json({ error: "No briefing available. Re-run with --ai." }, 404);
+    }
+    return c.json(current.brief);
+  });
 
   app.get("/api/report", async (c) => {
     const { state } = await readReviewState(current.model.meta.repoRoot);

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { DigestBlock, IntentBlock } from "./App.js";
+import type { ReviewBrief } from "@sift-review/core";
+import { Briefing, DigestBlock, IntentBlock } from "./App.js";
 import type { ReviewHunk } from "./types.js";
 
 const provenance: NonNullable<ReviewHunk["provenance"]> = {
@@ -36,5 +37,31 @@ describe("Intent surfacing", () => {
     expect(html).toContain("rotate the refresh token on every login");
     expect(html).toContain("Claude Code");
     expect(html).toContain("line match 82%");
+  });
+
+  it("renders the AI second-headline as a labeled line, not replacing the digest", () => {
+    const annotated = {
+      digest: { headline: "Adds `rotate()`", details: [], source: "auto" },
+      aiAnnotations: [
+        { provider: "anthropic", model: "claude-sonnet-4-6", summary: "Rotates the refresh token.", concern: null, drift: null }
+      ]
+    } as unknown as ReviewHunk;
+    const html = renderToStaticMarkup(<DigestBlock hunk={annotated} />);
+    expect(html).toContain("rotate()");
+    expect(html).toContain("AI · Anthropic");
+    expect(html).toContain("Rotates the refresh token.");
+  });
+
+  it("renders an AI-labeled briefing bar with story and reading hint", () => {
+    const brief: ReviewBrief = {
+      story: "Rotates refresh tokens across the auth module and updates the session store.",
+      readingHint: "Start in auth.ts",
+      provider: "anthropic",
+      model: "claude-sonnet-4-6"
+    };
+    const html = renderToStaticMarkup(<Briefing brief={brief} diffKey="WORKTREE:abc" />);
+    expect(html).toContain("AI · Anthropic");
+    expect(html).toContain("Rotates refresh tokens across the auth module");
+    expect(html).toContain("Start in auth.ts");
   });
 });

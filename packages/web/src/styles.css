@@ -658,6 +658,75 @@ textarea:focus-visible {
   color: var(--muted);
 }
 
+.ai-chip {
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.digest-ai-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.digest-ai-text {
+  color: var(--muted);
+  flex: 1 1 auto;
+}
+
+.briefing {
+  border-bottom: 1px solid var(--border);
+  background: var(--panel, transparent);
+  padding: 8px 16px;
+}
+
+.briefing-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.briefing-toggle {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-weight: 650;
+  cursor: pointer;
+  padding: 0;
+}
+
+.briefing-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.briefing-body {
+  margin-top: 6px;
+  max-width: 900px;
+}
+
+.briefing-story {
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.briefing-hint {
+  margin-top: 4px;
+  color: var(--muted);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
 .toast {
   position: fixed;
   right: 16px;

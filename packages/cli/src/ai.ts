@@ -4,8 +4,8 @@ import { z } from "zod";
 const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 const OPENAI_MODEL = "gpt-4.1-mini";
 
-const SYSTEM_PROMPT =
-  'You annotate code-review hunks. For each hunk, return strict JSON: an array of objects {"id": string, "summary": string, "concern": string|null, "drift": string|null}. "summary" is ONE sentence, <= 140 chars, describing what the change does. "concern" is ONE sentence naming the single most review-worthy risk, or null if nothing stands out. If "userPromptExcerpt" is present, "drift" is ONE sentence naming a way the implementation appears to exceed or miss that request, else null. Do not praise. Do not suggest style changes. Do not invent issues. Output JSON only.';
+export const SYSTEM_PROMPT =
+  'You annotate code-review hunks. For each hunk, return strict JSON: an array of objects {"id": string, "summary": string, "concern": string|null, "drift": string|null}. "summary" is ONE sentence, <= 140 chars, describing what the change does. "concern" is ONE sentence naming the single most review-worthy risk, or null if nothing stands out. If "userPromptExcerpt" is present, "drift" is ONE sentence naming a way the implementation appears to exceed or miss that request, else null. Do not praise. Do not suggest style changes. Do not invent issues. Never state or imply that a change is safe, correct, or ready to approve. Output JSON only.';
 
 const annotationSchema = z.array(
   z.object({
@@ -53,7 +53,7 @@ export async function annotateWithAi(model: ReviewModel, requested: true | AiMod
     for (let index = 0; index < hunks.length; index += 8) {
       const batch = hunks.slice(index, index + 8);
       try {
-        const raw = provider === "anthropic" ? await callAnthropic(batch) : await callOpenAi(batch);
+        const raw = await callProvider(provider, SYSTEM_PROMPT, payloadFor(batch));
         for (const item of parseAnnotationJson(raw)) {
           const annotation: AiAnnotation = {
             provider,
@@ -174,7 +174,15 @@ function modelForProvider(provider: AiProvider): string {
   return provider === "anthropic" ? ANTHROPIC_MODEL : OPENAI_MODEL;
 }
 
-async function callAnthropic(hunks: Hunk[]): Promise<string> {
+export function modelNameForProvider(provider: AiProvider): string {
+  return modelForProvider(provider);
+}
+
+export async function callProvider(provider: AiProvider, system: string, user: string): Promise<string> {
+  return provider === "anthropic" ? callAnthropic(system, user) : callOpenAi(system, user);
+}
+
+async function callAnthropic(system: string, user: string): Promise<string> {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -185,8 +193,8 @@ async function callAnthropic(hunks: Hunk[]): Promise<string> {
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
       max_tokens: 1200,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: payloadFor(hunks) }]
+      system,
+      messages: [{ role: "user", content: user }]
     })
   });
   const json = (await response.json()) as unknown;
@@ -198,7 +206,7 @@ async function callAnthropic(hunks: Hunk[]): Promise<string> {
     .join("\n");
 }
 
-async function callOpenAi(hunks: Hunk[]): Promise<string> {
+async function callOpenAi(system: string, user: string): Promise<string> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -208,8 +216,8 @@ async function callOpenAi(hunks: Hunk[]): Promise<string> {
     body: JSON.stringify({
       model: OPENAI_MODEL,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: payloadFor(hunks) }
+        { role: "system", content: system },
+        { role: "user", content: user }
       ],
       temperature: 0
     })

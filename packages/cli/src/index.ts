@@ -43,10 +43,12 @@ program
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
   .option("--ai [provider]", "opt-in AI annotations: anthropic, openai, same, cross, or both")
+  .option("--no-ai-cache", "bypass the cached AI Review Brief and regenerate it")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (range: string | undefined, options: ReviewCommandOptions) => {
     const ai = parseAiOption(options.ai);
-    const result = await runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai, coverage: options.coverage });
+    const noAiCache = options.aiCache === false;
+    const result = await runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai, noAiCache, coverage: options.coverage });
     if (result.model.hunks.length === 0) {
       console.log("Nothing to review.");
       return;
@@ -54,7 +56,7 @@ program
     const server = await startServer(
       {
         ...result,
-        refresh: () => runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai, coverage: options.coverage })
+        refresh: () => runPipeline({ cwd: process.cwd(), staged: options.staged, range, ai, noAiCache, coverage: options.coverage })
       },
       Number.parseInt(options.port, 10)
     );
@@ -72,16 +74,18 @@ program
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
   .option("--ai [provider]", "opt-in AI annotations: anthropic, openai, same, cross, or both")
+  .option("--no-ai-cache", "bypass the cached AI Review Brief and regenerate it")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (pr: string, options: ReviewCommandOptions) => {
     const ai = parseAiOption(options.ai);
-    const result = await runPipeline({ cwd: process.cwd(), pr, ai, coverage: options.coverage });
+    const noAiCache = options.aiCache === false;
+    const result = await runPipeline({ cwd: process.cwd(), pr, ai, noAiCache, coverage: options.coverage });
     if (result.model.hunks.length === 0) {
       console.log("Nothing to review.");
       return;
     }
     const server = await startServer(
-      { ...result, refresh: () => runPipeline({ cwd: process.cwd(), pr, ai, coverage: options.coverage }) },
+      { ...result, refresh: () => runPipeline({ cwd: process.cwd(), pr, ai, noAiCache, coverage: options.coverage }) },
       Number.parseInt(options.port, 10)
     );
     console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention · ${result.model.groups.length} groups · sift v${SIFT_VERSION}`);
@@ -255,6 +259,7 @@ interface ReviewCommandOptions {
   port: string;
   open: boolean;
   ai?: true | string;
+  aiCache?: boolean;
   coverage?: string;
 }
 

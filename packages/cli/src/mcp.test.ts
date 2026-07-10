@@ -40,7 +40,7 @@ describe("Sift MCP server", () => {
       "utf8"
     );
     const model = modelFor(repoRoot);
-    const server = createSiftMcpServer({ model, provenanceRecords: 0, aiRan: false } satisfies PipelineResult);
+    const server = createSiftMcpServer({ model, provenanceRecords: 0, aiRan: false, brief: null } satisfies PipelineResult);
     const client = new Client({ name: "sift-test", version: "0.0.0" });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);

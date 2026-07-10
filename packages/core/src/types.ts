@@ -64,6 +64,13 @@ export interface HunkDigest {
   source: "auto";
 }
 
+export interface ReviewBrief {
+  story: string;
+  readingHint: string | null;
+  provider: "anthropic" | "openai";
+  model: string;
+}
+
 export interface Hunk {
   id: string;
   file: string;

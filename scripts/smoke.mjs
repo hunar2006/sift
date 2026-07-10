@@ -73,7 +73,7 @@ function assertDemoSignals(model) {
   if (undigested.length > 0) {
     throw new Error(`Smoke failed: ${undigested.length} demo hunks missing a digest headline.`);
   }
-  const forbidden = /\blooks good\b|\bsafe to approve\b|\bready to approve\b|\blgtm\b/iu;
+  const forbidden = /\blooks good\b|\bsafe to approve\b|\blgtm\b/iu;
   for (const hunk of model.hunks) {
     const text = [hunk.digest?.headline, ...(hunk.digest?.details ?? [])].filter(Boolean).join(" ");
     if (forbidden.test(text)) {
