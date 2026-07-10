@@ -64,3 +64,9 @@ This craft pass was performed **without a browser** this session (the app was no
 - **Do both themes hold AA?** Enforced by `contrast.test.ts` (28 checks): body text ≥ 4.5:1 and large/accent text ≥ 3:1 for token pairs in both themes. Light accent hues were darkened (`--verdict #12897a`, `--critical #c0353a`, etc.) to clear the bar.
 - **Anything decorative to cut?** Cut nothing further; the interface is already lean. 
 - **Known remaining redline gaps (documented, not yet applied blind):** the header is not yet the full segmented-progress "HUD" (still a text progress figure + buttons); the inspector keeps a `Category` section not in the §6.4 order and renders coverage in the scoreline rather than as its own ordered block; the first-load staggered pane fade is not implemented. These are visual-polish items best finished with a live render and are logged here so they are not lost.
+
+## 2026-07-10 - v0.4 Live & Launch-Ready
+
+- The v0.4 baseline is green before implementation: `pnpm i`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `pnpm smoke` all passed. The suite has 176 tests across 23 files, core line coverage is 88.63%, and smoke reports 35 hunks in 11 groups.
+- The v0.4 work follows the specified order: Windows audit and CI, watch/SSE, live UI, brief and seen-sidecar state, editor jump, the three deferred visual items, render evidence, performance, resilience, packaging, then final docs/audit.
+- The v0.4 cut-line protocol is active in this order: demo GIF/video, New filter, editor jump, and perf CI gate. No cut has been made.

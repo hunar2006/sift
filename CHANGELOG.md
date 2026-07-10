@@ -4,6 +4,12 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.4.0] - Unreleased
+
+### Added
+
+- Live & Launch-Ready upgrade work started from a clean v0.3 baseline.
+
 ## [0.3.0] - Unreleased
 
 ### Added
