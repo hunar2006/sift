@@ -13,6 +13,7 @@ export interface ApiMeta {
   counts: ReviewModelWithState["totals"];
   provenanceSourcesFound: boolean;
   aiRan: boolean;
+  watchActive?: boolean;
   briefAvailable?: boolean;
   flagReasons?: string[];
 }

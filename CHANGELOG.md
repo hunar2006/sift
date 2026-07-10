@@ -11,6 +11,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Live & Launch-Ready upgrade work started from a clean v0.3 baseline.
 - Windows is now part of the CI matrix (Node 20), alongside Ubuntu 20/22 and macOS 20.
 - `sift --watch` and `sift --staged --watch` now keep the review server live: Chokidar watches the worktree plus Git index/HEAD, debounces changes, serializes re-analysis, and publishes hunk deltas through `GET /api/events` Server-Sent Events.
+- The web review queue now subscribes to live updates, preserves the nearest prior selection when a hunk disappears, toasts the add/remove count, marks new hunks with a verdict-teal dot and inspector chip, offers a `New (n)` filter, and shows a reduced-motion-safe live HUD indicator.
 
 ### Changed
 

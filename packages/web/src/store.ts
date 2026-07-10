@@ -24,6 +24,8 @@ interface ReviewStore {
   timelineOpen: boolean;
   statsOpen: boolean;
   filter: string;
+  freshIds: Record<string, true>;
+  freshOnly: boolean;
   theme: ThemeMode;
   sortMode: ReviewSortMode;
   collapsed: Record<string, boolean>;
@@ -34,6 +36,7 @@ interface ReviewStore {
   pushUndoEntry(entry: UndoEntry): void;
   popUndoEntry(): UndoResult;
   setData(model: ReviewModel, stats: StatsSnapshot, meta: ApiMeta): void;
+  applyLiveData(model: ReviewModel, stats: StatsSnapshot, meta: ApiMeta, addedIds: string[], removedIds: string[]): void;
   setSelected(id?: string): void;
   setStatus(id: string, status: ReviewHunk["status"], note?: string): void;
   setSplit(split: boolean): void;
@@ -42,6 +45,7 @@ interface ReviewStore {
   setTimelineOpen(open: boolean): void;
   setStatsOpen(open: boolean): void;
   setFilter(filter: string): void;
+  toggleFreshOnly(): void;
   setTheme(theme: ThemeMode): void;
   toggleTheme(): void;
   setSortMode(mode: ReviewSortMode): void;
@@ -64,6 +68,8 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   timelineOpen: false,
   statsOpen: false,
   filter: "",
+  freshIds: {},
+  freshOnly: false,
   theme: readStoredTheme(),
   sortMode: readStoredSortMode(),
   collapsed: {},
@@ -87,7 +93,26 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
         ? state.selectedId
         : model.hunks[0]?.id
     })),
-  setSelected: (id) => set({ selectedId: id }),
+  applyLiveData: (model, stats, meta, addedIds, removedIds) =>
+    set((state) => {
+      const available = new Set(model.hunks.map((hunk) => hunk.id));
+      const freshIds = Object.fromEntries(
+        [...Object.keys(state.freshIds), ...addedIds]
+          .filter((id, index, ids) => available.has(id) && ids.indexOf(id) === index)
+          .map((id) => [id, true] as const)
+      );
+      const selectedId = preserveNearestSelection(state.model?.hunks ?? [], state.selectedId, available) ?? model.hunks[0]?.id;
+      return {
+        model,
+        stats,
+        meta,
+        freshIds,
+        selectedId,
+        toast: `${addedIds.length} new hunks · ${removedIds.length} removed`
+      };
+    }),
+  setSelected: (id) =>
+    set((state) => ({ selectedId: id, freshIds: id ? omitFresh(state.freshIds, id) : state.freshIds })),
   setStatus: (id, status, note) =>
     set((state) => ({
       model: state.model
@@ -97,7 +122,8 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
               hunk.id === id ? { ...hunk, status, note, reviewedAt: new Date().toISOString() } : hunk
             )
           }
-        : state.model
+        : state.model,
+      freshIds: status === "unreviewed" ? state.freshIds : omitFresh(state.freshIds, id)
     })),
   setSplit: (split) => {
     writeStorage(SPLIT_STORAGE_KEY, String(split));
@@ -115,6 +141,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   setTimelineOpen: (timelineOpen) => set({ timelineOpen }),
   setStatsOpen: (statsOpen) => set({ statsOpen }),
   setFilter: (filter) => set({ filter }),
+  toggleFreshOnly: () => set((state) => ({ freshOnly: !state.freshOnly })),
   setTheme: (theme) => {
     writeStorage(THEME_STORAGE_KEY, theme);
     set({ theme });
@@ -152,7 +179,9 @@ export function visibleHunks(
   model: ReviewModel | undefined,
   filter: string,
   collapsed: Record<string, boolean>,
-  sortMode: ReviewSortMode = "risk"
+  sortMode: ReviewSortMode = "risk",
+  freshIds: Record<string, true> = {},
+  freshOnly = false
 ): ReviewHunk[] {
   if (!model) {
     return [];
@@ -163,9 +192,30 @@ export function visibleHunks(
     if (needle && !hunk.file.toLowerCase().includes(needle)) {
       return false;
     }
+    if (freshOnly && !freshIds[hunk.id]) {
+      return false;
+    }
     const group = groupById.get(hunk.groupId);
     return group ? !collapsed[group.id] : true;
   });
+}
+
+function preserveNearestSelection(previous: ReviewHunk[], selectedId: string | undefined, available: ReadonlySet<string>): string | undefined {
+  if (selectedId && available.has(selectedId)) {
+    return selectedId;
+  }
+  const index = selectedId ? previous.findIndex((hunk) => hunk.id === selectedId) : -1;
+  const after = previous.slice(index + 1).find((hunk) => available.has(hunk.id));
+  if (after) {
+    return after.id;
+  }
+  return [...previous.slice(0, Math.max(0, index))].reverse().find((hunk) => available.has(hunk.id))?.id;
+}
+
+function omitFresh(freshIds: Record<string, true>, id: string): Record<string, true> {
+  const remaining = { ...freshIds };
+  delete remaining[id];
+  return remaining;
 }
 
 export function sortReviewHunks(

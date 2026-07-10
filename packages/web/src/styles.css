@@ -1092,8 +1092,54 @@ textarea:focus-visible {
   color: var(--high);
 }
 
+.live-dot,
+.fresh-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--verdict);
+}
+
+.live-dot {
+  width: 3px;
+  height: 3px;
+  margin-right: 5px;
+  vertical-align: middle;
+  animation: live-pulse 1.8s ease-in-out infinite;
+}
+
+.fresh-dot {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.fresh-chip,
+.fresh-filter {
+  color: var(--green-text);
+  border-color: var(--green-border);
+  background: var(--green-bg);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.fresh-filter.active {
+  background: var(--verdict);
+  color: var(--ink-0);
+}
+
+@keyframes live-pulse {
+  50% {
+    opacity: 0.38;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .stamp-overlay .stamp {
+    animation: none;
+  }
+
+  .live-dot {
     animation: none;
   }
 }

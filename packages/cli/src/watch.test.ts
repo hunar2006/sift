@@ -40,6 +40,20 @@ describe("live watcher", () => {
     scheduler.close();
   });
 
+  it("isolates a failed tick and records one warning", async () => {
+    vi.useFakeTimers();
+    const warning = vi.fn();
+    const scheduler = createRefreshScheduler(() => Promise.reject(new Error("index.lock is present")), warning);
+
+    scheduler.request();
+    await vi.advanceTimersByTimeAsync(400);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(warning).toHaveBeenCalledTimes(1);
+    expect(warning).toHaveBeenCalledWith("Watch update failed: index.lock is present");
+    scheduler.close();
+  });
+
   it("refreshes for a worktree edit and a staged index update", async () => {
     const repoRoot = await tempRepo();
     const source = path.join(repoRoot, "src", "value.ts");

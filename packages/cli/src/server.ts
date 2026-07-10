@@ -29,6 +29,7 @@ export interface ServerContext {
   provenanceRecords: number;
   aiRan: boolean;
   brief: ReviewBrief | null;
+  watchActive?: boolean;
   refresh(): Promise<{ model: ReviewModel; provenanceRecords: number; aiRan: boolean; brief: ReviewBrief | null }>;
 }
 
@@ -53,7 +54,7 @@ export class SiftServerState {
   }
 
   update(next: Omit<ServerContext, "refresh">, event: ModelUpdatedEvent): void {
-    this.current = { ...next, refresh: this.current.refresh };
+    this.current = { ...next, refresh: this.current.refresh, watchActive: this.current.watchActive };
     for (const listener of this.listeners) {
       listener(event);
     }
@@ -194,6 +195,7 @@ export function createSiftApp(context: ServerContext | SiftServerState): Hono {
       counts: state.current.model.totals,
       provenanceSourcesFound: state.current.provenanceRecords > 0,
       aiRan: state.current.aiRan,
+      watchActive: state.current.watchActive === true,
       briefAvailable: state.current.brief !== null,
       flagReasons: await loadFlagReasons(state.current.model.meta.repoRoot)
     })

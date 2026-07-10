@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sortReviewHunks, useReviewStore } from "./store.js";
-import type { ReviewHunk, ReviewModel } from "./types.js";
+import type { ApiMeta, ReviewHunk, ReviewModel } from "./types.js";
+import type { StatsSnapshot } from "@sift-review/core";
 
 const hunk = (overrides: Partial<ReviewHunk> & Pick<ReviewHunk, "id" | "file" | "risk">): ReviewHunk => ({
   language: "typescript",
@@ -83,4 +84,48 @@ describe("sortReviewHunks", () => {
     expect(useReviewStore.getState().nitsOpen).toBe(true);
     expect(useReviewStore.getState().theme).toBe("light");
   });
+
+  it("tracks fresh live hunks, preserves the nearest selection, and clears fresh on visit or decision", () => {
+    const previous = modelFor([
+      hunk({ id: "one", file: "src/one.ts", risk: 40 }),
+      hunk({ id: "gone", file: "src/gone.ts", risk: 30 })
+    ]);
+    const next = modelFor([
+      hunk({ id: "one", file: "src/one.ts", risk: 40 }),
+      hunk({ id: "fresh", file: "src/fresh.ts", risk: 80 })
+    ]);
+    useReviewStore.setState({
+      model: previous,
+      stats: {} as StatsSnapshot,
+      meta: meta(),
+      selectedId: "gone",
+      freshIds: {},
+      freshOnly: false,
+      toast: undefined
+    });
+
+    useReviewStore.getState().applyLiveData(next, {} as StatsSnapshot, meta(), ["fresh"], ["gone"]);
+    expect(useReviewStore.getState().selectedId).toBe("one");
+    expect(useReviewStore.getState().freshIds).toEqual({ fresh: true });
+    expect(useReviewStore.getState().toast).toBe("1 new hunks · 1 removed");
+
+    useReviewStore.getState().setSelected("fresh");
+    expect(useReviewStore.getState().freshIds).toEqual({});
+    useReviewStore.getState().applyLiveData(next, {} as StatsSnapshot, meta(), ["fresh"], []);
+    useReviewStore.getState().setStatus("fresh", "approved");
+    expect(useReviewStore.getState().freshIds).toEqual({});
+  });
 });
+
+function meta(): ApiMeta {
+  return {
+    version: "0.4.0",
+    repoRoot: "/repo",
+    diffSpec: "WORKTREE",
+    astCoverage: 0,
+    counts: { changedLines: 0, attentionLines: 0, reviewableLines: 0, files: 0 },
+    provenanceSourcesFound: false,
+    aiRan: false,
+    watchActive: true
+  };
+}

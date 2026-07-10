@@ -60,6 +60,7 @@ program
     const server = await startServer(
       {
         ...result,
+        watchActive: options.watch,
         refresh: async () => {
           result = await runPipeline(pipelineOptions);
           return result;
@@ -323,7 +324,7 @@ class WatchUsageError extends Error {}
 
 function assertWatchUsage(watch: boolean | undefined, range: string | undefined, isPr = false): void {
   if (watch && (range || isPr)) {
-    throw new WatchUsageError("--watch is only supported for the default working-tree or --staged review.");
+    throw new WatchUsageError("Watch follows the working tree. For ranges, re-run sift <range> after changes.");
   }
 }
 

@@ -41,6 +41,8 @@ export function App() {
     timelineOpen,
     statsOpen,
     filter,
+    freshIds,
+    freshOnly,
     theme,
     sortMode,
     collapsed,
@@ -48,6 +50,7 @@ export function App() {
     nitsOpen,
     toast,
     setData,
+    applyLiveData,
     setSelected,
     setStatus,
     setSplit,
@@ -56,6 +59,7 @@ export function App() {
     setTimelineOpen,
     setStatsOpen,
     setFilter,
+    toggleFreshOnly,
     toggleTheme,
     cycleSortMode,
     setCollapsed,
@@ -93,6 +97,20 @@ export function App() {
   }, [setData, setToast]);
 
   useEffect(() => {
+    const events = new EventSource("/api/events");
+    const onModelUpdated = (event: Event) => {
+      try {
+        const update = JSON.parse((event as MessageEvent<string>).data) as LiveUpdateEvent;
+        void reloadLiveUpdate(update, applyLiveData);
+      } catch {
+        // A malformed local event is ignored; EventSource quietly reconnects.
+      }
+    };
+    events.addEventListener("model-updated", onModelUpdated);
+    return () => events.close();
+  }, [applyLiveData]);
+
+  useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
@@ -109,8 +127,8 @@ export function App() {
   }, [setToast, timelineOpen]);
 
   const visible = useMemo(
-    () => visibleHunks(model, filter, collapsed, sortMode),
-    [model, filter, collapsed, sortMode]
+    () => visibleHunks(model, filter, collapsed, sortMode, freshIds, freshOnly),
+    [model, filter, collapsed, sortMode, freshIds, freshOnly]
   );
   const selected = visible.find((hunk) => hunk.id === selectedId) ?? visible[0];
 
@@ -378,7 +396,10 @@ export function App() {
           <Logomark />
           <strong>sift</strong>
           <span className="mono-dim">{repoName(meta.repoRoot)}</span>
-          <span className="mono-dim">{meta.diffSpec}</span>
+          <span className="mono-dim">
+            {meta.watchActive && <span className="live-dot" aria-label="Watch mode active" />}
+            {meta.diffSpec}
+          </span>
         </div>
         <div className="headline">
           <span className="progress">{reviewedPct.toFixed(0)}%</span>
@@ -386,6 +407,11 @@ export function App() {
             {model.totals.changedLines.toLocaleString()} changed, {model.totals.attentionLines.toLocaleString()} attn
           </span>
           {coverageLine && <span>{coverageLine}</span>}
+          {Object.keys(freshIds).length > 0 && (
+            <button className={freshOnly ? "fresh-filter active" : "fresh-filter"} onClick={toggleFreshOnly}>
+              New ({Object.keys(freshIds).length})
+            </button>
+          )}
           <button onClick={() => setPaletteOpen(true)}>Palette</button>
           <button onClick={() => setTimelineOpen(true)}>Timeline</button>
           <button onClick={() => void refresh()}>Refresh</button>
@@ -411,7 +437,7 @@ export function App() {
           </div>
           {model.groups.map((group) => {
             const groupHunks = sortReviewHunks(
-              model.hunks.filter((hunk) => hunk.groupId === group.id),
+              model.hunks.filter((hunk) => hunk.groupId === group.id && (!freshOnly || freshIds[hunk.id])),
               model,
               sortMode
             );
@@ -455,6 +481,7 @@ export function App() {
                         <span className="hunk-row-body">
                           <span className="hunk-row-top">
                             <span className="path">{hunk.file}</span>
+                            {freshIds[hunk.id] && <span className="fresh-dot" aria-label="Fresh hunk" />}
                             {hunk.status === "approved" && <span className="mini-stamp verified">✓</span>}
                             {hunk.status === "flagged" && <span className="mini-stamp flagged">⚑</span>}
                             <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
@@ -487,6 +514,7 @@ export function App() {
 
         <Inspector
           hunk={selected}
+          fresh={Boolean(selected && freshIds[selected.id])}
           noteRef={noteRef}
           nitsOpen={nitsOpen}
           onToggleNits={toggleNits}
@@ -941,12 +969,14 @@ export function Briefing({ brief, diffKey }: { brief: ReviewBrief; diffKey: stri
 
 function Inspector({
   hunk,
+  fresh,
   noteRef,
   nitsOpen,
   onToggleNits,
   onStatus
 }: {
   hunk?: ReviewHunk;
+  fresh: boolean;
   noteRef: RefObject<HTMLTextAreaElement>;
   nitsOpen: boolean;
   onToggleNits(): void;
@@ -969,6 +999,7 @@ function Inspector({
       <div className="scoreline">
         <strong>Risk {hunk.risk}</strong>
         <span className={`band ${visualBand(hunk)}`}>{visualLabel(hunk)}</span>
+        {fresh && <span className="fresh-chip">fresh</span>}
         <CoverageBadge hunk={hunk} />
       </div>
       <DigestBlock hunk={hunk} />
@@ -1547,6 +1578,23 @@ async function loadAll(
     setData(model, stats, meta);
   } catch {
     setToast("Server unavailable. Retry with r.");
+  }
+}
+
+interface LiveUpdateEvent {
+  addedIds: string[];
+  removedIds: string[];
+}
+
+async function reloadLiveUpdate(
+  update: LiveUpdateEvent,
+  applyLiveData: (model: ReviewModel, stats: StatsSnapshot, meta: ApiMeta, addedIds: string[], removedIds: string[]) => void
+): Promise<void> {
+  try {
+    const [model, stats, meta] = await Promise.all([fetchReview(), fetchStats(), fetchMeta()]);
+    applyLiveData(model, stats, meta, update.addedIds, update.removedIds);
+  } catch {
+    // Retain the last complete model; the next event or manual refresh can recover.
   }
 }
 
