@@ -200,3 +200,21 @@ This craft pass was performed **without a browser** this session (the app was no
 - Landing page shipped under `site/` (static HTML/CSS, Assay tokens, local woff2, workbench shot). `.github/workflows/pages.yml` present but inert until the repo is public (commented in-file).
 - `sift init` writes commented `.sift/config.json` + `.sift/rules.yml` if absent; idempotent; prints 5-line quickstart.
 - `RELEASING.md` mechanical launch runbook (npm rename, pack-check, publish, tag, Pages, post-publish smoke).
+
+## 2026-07-11 - v0.5 Phase 10: final audit
+
+- Full gate green: lint · typecheck · test (231) · build · smoke · perf (median ~925 ms) · pack-check. Core line coverage **88.93%** (≥80%).
+- Scoring audit vs v0.4.1 (`55b9ed2`): `score.ts` and `signals.ts` **unchanged**. Only `categories.ts` gained `isBuildOrCompilerDirective` (COMMENT_ONLY predicate fix; no weight/band edits).
+- Eval package spawn audit: only `git` via `execFile` in `corpus.ts` — no install/build/execute of corpus trees.
+- Cuts logged: demo GIF/mp4 (cut-line 2). Not cut: eval invariants+fuzzer, live MCP, decision-core, TUI core loop, landing, init, RELEASING.
+- Closing headline: **6×40 corpus, 1442 hunks, 0 invariant violations**; fuzz empty at full volume; one mechanical misclassification fixed (Go build tags).
+
+### New-user commands
+
+```bash
+pnpm i && pnpm build
+pnpm sift                 # web cockpit
+pnpm sift -- tui          # terminal cockpit
+pnpm sift -- --watch      # live web
+pnpm sift -- init         # starter config/rules
+```

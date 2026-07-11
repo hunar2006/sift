@@ -26,7 +26,7 @@ function hunk(overrides: Partial<SessionHunk> = {}): SessionHunk {
     reasons: [{ code: "PUBLIC_API", label: "Public API surface changed", weight: 15 }],
     groupId: "g1",
     newStart: 1,
-    digest: { headline: "Updates a constant", details: ["changes a"] },
+    digest: { headline: "Updates a constant", details: ["changes a"], source: "auto" },
     status: "unreviewed",
     ...overrides
   };
@@ -35,14 +35,21 @@ function hunk(overrides: Partial<SessionHunk> = {}): SessionHunk {
 describe("TUI", () => {
   it("renders queue and advances on approve", async () => {
     const session = new ReviewSession();
-    const second = hunk({ id: "h2", file: "src/b.ts", risk: 12, band: "low", digest: { headline: "Tweaks b", details: [] } });
+    const second = hunk({
+      id: "h2",
+      file: "src/b.ts",
+      risk: 12,
+      band: "low",
+      digest: { headline: "Tweaks b", details: [], source: "auto" }
+    });
     session.setModel({
       meta: {
         siftVersion: "0.5.0",
         repoRoot: "/repo",
         diffSpec: "WORKTREE",
         generatedAt: new Date().toISOString(),
-        git: { headSha: "abc", branch: "main" }
+        git: { headSha: "abc", branch: "main" },
+        astCoverage: 0
       },
       files: [],
       hunks: [hunk(), second],
@@ -57,10 +64,12 @@ describe("TUI", () => {
           totalRemoved: 2
         }
       ],
-      totals: { changedLines: 4, attentionLines: 2, reviewableLines: 4, filesChanged: 2 }
+      totals: { changedLines: 4, attentionLines: 2, reviewableLines: 4, files: 2 }
     });
 
-    const persistStatus = vi.fn(async () => undefined);
+    const persistStatus = vi.fn(async () => {
+      await Promise.resolve();
+    });
     const { lastFrame, stdin } = render(
       React.createElement(TuiApp, {
         session,
@@ -68,7 +77,9 @@ describe("TUI", () => {
         getRepoRoot: () => "/repo",
         getModel: () => session.getState().model!,
         persistStatus,
-        persistGroupApprove: async () => undefined,
+        persistGroupApprove: async () => {
+          await Promise.resolve();
+        },
         onExit: () => undefined
       })
     );
@@ -91,7 +102,8 @@ describe("TUI", () => {
         repoRoot: "/repo",
         diffSpec: "WORKTREE",
         generatedAt: new Date().toISOString(),
-        git: { headSha: "abc", branch: "main" }
+        git: { headSha: "abc", branch: "main" },
+        astCoverage: 0
       },
       files: [],
       hunks: [hunk()],
@@ -106,9 +118,11 @@ describe("TUI", () => {
           totalRemoved: 1
         }
       ],
-      totals: { changedLines: 2, attentionLines: 2, reviewableLines: 2, filesChanged: 1 }
+      totals: { changedLines: 2, attentionLines: 2, reviewableLines: 2, files: 1 }
     });
-    const persistStatus = vi.fn(async () => undefined);
+    const persistStatus = vi.fn(async () => {
+      await Promise.resolve();
+    });
     const { stdin } = render(
       React.createElement(TuiApp, {
         session,
@@ -116,7 +130,9 @@ describe("TUI", () => {
         getRepoRoot: () => "/repo",
         getModel: () => session.getState().model!,
         persistStatus,
-        persistGroupApprove: async () => undefined,
+        persistGroupApprove: async () => {
+          await Promise.resolve();
+        },
         onExit: () => undefined
       })
     );

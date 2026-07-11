@@ -136,7 +136,7 @@ function syntheticDiff(seed: number): string {
   ].join("\n");
 }
 
-export async function runFuzz(): Promise<void> {
+export function runFuzz(): void {
   const parserCases = envInt("FUZZ_PARSER", process.env.CI ? 1500 : 10_000);
   const pipelineCases = envInt("FUZZ_PIPELINE", process.env.CI ? 200 : 1000);
   const seed = envInt("FUZZ_SEED", 0x5f17);
@@ -207,7 +207,7 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 
 if (isMain || process.argv[1]?.endsWith("fuzz.ts")) {
   try {
-    await runFuzz();
+    runFuzz();
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

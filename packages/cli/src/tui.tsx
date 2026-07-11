@@ -79,7 +79,6 @@ export async function runTui(options: TuiOptions): Promise<void> {
   }
 
   let watcher: LiveWatcher | undefined;
-  let unmount: (() => void) | undefined;
   let exitSummary = "";
 
   const session = new ReviewSession();
@@ -104,11 +103,10 @@ export async function runTui(options: TuiOptions): Promise<void> {
       },
       onExit: (summary) => {
         exitSummary = summary;
-        unmount?.();
+        app.unmount();
       }
     })
   );
-  unmount = app.unmount;
 
   if (options.watch) {
     watcher = await startLiveWatcher({

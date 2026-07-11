@@ -14,7 +14,7 @@ export function lockPath(repoRoot: string): string {
   return path.join(siftDir(repoRoot), "lock.json");
 }
 
-export async function isPidAlive(pid: number): Promise<boolean> {
+export function isPidAlive(pid: number): boolean {
   if (!Number.isFinite(pid) || pid <= 0) {
     return false;
   }
@@ -48,7 +48,7 @@ export async function acquireLock(repoRoot: string, surface: LockSurface): Promi
   await fs.mkdir(siftDir(repoRoot), { recursive: true });
   const existing = await readLock(repoRoot);
   let warning: string | undefined;
-  if (existing && existing.pid !== process.pid && (await isPidAlive(existing.pid))) {
+  if (existing && existing.pid !== process.pid && isPidAlive(existing.pid)) {
     warning = `state is also open in another sift process — last write wins`;
   }
   const next: SiftLockFile = {

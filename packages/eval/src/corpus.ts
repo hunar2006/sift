@@ -64,11 +64,12 @@ export async function parentOf(repoPath: string, sha: string): Promise<string | 
 }
 
 export async function runGit(args: string[]): Promise<{ stdout: Buffer; stderr: Buffer }> {
-  return execFileAsync("git", args, {
+  const result = await execFileAsync("git", args, {
     maxBuffer: 64 * 1024 * 1024,
     windowsHide: true,
     encoding: "buffer"
-  }) as Promise<{ stdout: Buffer; stderr: Buffer }>;
+  });
+  return { stdout: Buffer.from(result.stdout), stderr: Buffer.from(result.stderr) };
 }
 
 export function filterCorpus(entries: CorpusEntry[], repoFilter?: string): CorpusEntry[] {

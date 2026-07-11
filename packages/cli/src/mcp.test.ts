@@ -95,6 +95,7 @@ describe("Sift MCP server", () => {
 
     let generation = 0;
     const refresh = async (): Promise<PipelineResult> => {
+      await Promise.resolve();
       generation += 1;
       const model = modelFor(repoRoot);
       model.hunks = [
