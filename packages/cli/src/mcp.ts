@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { z } from "zod";
 import {
@@ -9,6 +10,8 @@ import {
   emptyState,
   mergeReviewState,
   reviewStateFileSchema,
+  runGit,
+  seenPath,
   statePath,
   type HunkWithState,
   type ReviewModel,
@@ -18,12 +21,101 @@ import type { PipelineResult } from "./pipeline-runner.js";
 
 const bandRank = { skim: 0, low: 1, medium: 2, high: 3 } as const;
 
-export async function runMcpServer(result: PipelineResult): Promise<void> {
-  const server = createSiftMcpServer(result);
+export interface LiveMcpOptions {
+  initial: PipelineResult;
+  /** Re-run the analysis pipeline when the worktree fingerprint changes. */
+  refresh?: () => Promise<PipelineResult>;
+}
+
+class LiveReviewCache {
+  private result: PipelineResult;
+  private fingerprint: string | undefined;
+  private inFlight: Promise<PipelineResult> | undefined;
+  private gate: Promise<void> = Promise.resolve();
+  private readonly refresh?: () => Promise<PipelineResult>;
+
+  constructor(options: LiveMcpOptions) {
+    this.result = options.initial;
+    this.refresh = options.refresh;
+    this.gate = computeWorktreeFingerprint(options.initial.model.meta.repoRoot)
+      .then((fp) => {
+        this.fingerprint = fp;
+      })
+      .catch(() => {
+        this.fingerprint = "unknown";
+      });
+  }
+
+  /** Always re-reads state; refreshes the model when the cheap fingerprint changes. */
+  async currentModel(): Promise<ReviewModel> {
+    const next = await this.ensureFresh();
+    return next.model;
+  }
+
+  async currentResult(): Promise<PipelineResult> {
+    return this.ensureFresh();
+  }
+
+  private async ensureFresh(): Promise<PipelineResult> {
+    await this.gate;
+    if (!this.refresh) {
+      return this.result;
+    }
+    const fp = await computeWorktreeFingerprint(this.result.model.meta.repoRoot);
+    if (fp === this.fingerprint) {
+      return this.result;
+    }
+    if (this.inFlight) {
+      return this.inFlight;
+    }
+    this.inFlight = this.refresh()
+      .then(async (next) => {
+        this.result = next;
+        this.fingerprint = await computeWorktreeFingerprint(next.model.meta.repoRoot);
+        return next;
+      })
+      .finally(() => {
+        this.inFlight = undefined;
+      });
+    return this.inFlight;
+  }
+}
+
+export async function computeWorktreeFingerprint(repoRoot: string): Promise<string> {
+  const [head, porcelain, stateMtime, seenMtime] = await Promise.all([
+    runGit(["rev-parse", "HEAD"], repoRoot, true),
+    runGit(["status", "--porcelain", "-z"], repoRoot, true),
+    mtimeOrZero(statePath(repoRoot)),
+    mtimeOrZero(seenPath(repoRoot))
+  ]);
+  return createHash("sha256")
+    .update(head.trim())
+    .update("\0")
+    .update(porcelain)
+    .update("\0")
+    .update(String(stateMtime))
+    .update("\0")
+    .update(String(seenMtime))
+    .digest("hex");
+}
+
+async function mtimeOrZero(filePath: string): Promise<number> {
+  try {
+    const stat = await fs.stat(filePath);
+    return stat.mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+export async function runMcpServer(options: LiveMcpOptions | PipelineResult): Promise<void> {
+  const live = isPipelineResult(options) ? { initial: options } : options;
+  const server = createSiftMcpServer(live);
   await server.connect(new StdioServerTransport());
 }
 
-export function createSiftMcpServer(result: PipelineResult): McpServer {
+export function createSiftMcpServer(options: LiveMcpOptions | PipelineResult): McpServer {
+  const live = isPipelineResult(options) ? new LiveReviewCache({ initial: options }) : new LiveReviewCache(options);
   const server = new McpServer({ name: BINARY_NAME, version: SIFT_VERSION });
 
   server.registerTool(
@@ -33,7 +125,7 @@ export function createSiftMcpServer(result: PipelineResult): McpServer {
       description: "Read review totals, group counts, debt, coverage, and flagged count.",
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
-    async () => jsonResult(await summaryFor(result.model))
+    async () => jsonResult(await summaryFor(await live.currentModel()))
   );
 
   server.registerTool(
@@ -43,7 +135,7 @@ export function createSiftMcpServer(result: PipelineResult): McpServer {
       description: "Read flagged hunks with file, line span, risk, top reasons, and user note.",
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
-    async () => jsonResult((await modelWithState(result.model)).hunks.filter((hunk) => hunk.status === "flagged").map(hunkListItem))
+    async () => jsonResult((await modelWithState(await live.currentModel())).hunks.filter((hunk) => hunk.status === "flagged").map(hunkListItem))
   );
 
   server.registerTool(
@@ -56,7 +148,7 @@ export function createSiftMcpServer(result: PipelineResult): McpServer {
     },
     async ({ minBand }) => {
       const minRank = minBand ? bandRank[minBand] : bandRank.low;
-      const hunks = (await modelWithState(result.model)).hunks.filter(
+      const hunks = (await modelWithState(await live.currentModel())).hunks.filter(
         (hunk) => hunk.status === "unreviewed" && bandRank[hunk.band] >= minRank
       );
       return jsonResult(hunks.map(hunkListItem));
@@ -72,7 +164,7 @@ export function createSiftMcpServer(result: PipelineResult): McpServer {
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
     async ({ id }) => {
-      const hunk = (await modelWithState(result.model)).hunks.find((candidate) => candidate.id === id);
+      const hunk = (await modelWithState(await live.currentModel())).hunks.find((candidate) => candidate.id === id);
       if (!hunk) {
         return jsonResult({ error: "Unknown hunk id." });
       }
@@ -87,10 +179,17 @@ export function createSiftMcpServer(result: PipelineResult): McpServer {
       description: "Read the current StatsSnapshot.",
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
     },
-    async () => jsonResult(computeStats(result.model, await readStateReadonly(result.model.meta.repoRoot)))
+    async () => {
+      const model = await live.currentModel();
+      return jsonResult(computeStats(model, await readStateReadonly(model.meta.repoRoot)));
+    }
   );
 
   return server;
+}
+
+function isPipelineResult(value: LiveMcpOptions | PipelineResult): value is PipelineResult {
+  return "model" in value && "provenanceRecords" in value;
 }
 
 async function summaryFor(model: ReviewModel): Promise<Record<string, unknown>> {

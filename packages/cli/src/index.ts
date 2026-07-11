@@ -308,7 +308,12 @@ program
   .option("--staged", "review staged changes")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (range: string | undefined, options: { staged?: boolean; coverage?: string }) => {
-    await runMcpServer(await runPipeline({ cwd: process.cwd(), staged: options.staged, range, coverage: options.coverage }));
+    const pipelineOptions = { cwd: process.cwd(), staged: options.staged, range, coverage: options.coverage };
+    const initial = await runPipeline(pipelineOptions);
+    await runMcpServer({
+      initial,
+      refresh: () => runPipeline(pipelineOptions)
+    });
   });
 
 program

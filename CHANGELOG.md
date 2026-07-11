@@ -18,10 +18,12 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 - Go `//go:build` / `// +build` (and similar compiler directives) are no longer classified as mechanical `COMMENT_ONLY` (eval spot-check finding; regression fixture added).
 - Terminal cockpit: `sift tui` (Ink + React 19) sharing decision-core, pipeline, and `state.json`; `--watch`, `--print-frame` for smoke; ink-testing-library coverage for approve/flag.
+- Live MCP freshness: tool calls re-read state and re-run the pipeline when the worktree fingerprint changes (serialized, coalesced).
 
 ### Changed
 
 - Web review store is now an adapter over the shared session module; behavior and visuals unchanged (screenshots re-shot).
+- `docs/MCP.md` documents the mid-session fix loop with live refresh.
 
 ## [0.4.1] - Unreleased
 

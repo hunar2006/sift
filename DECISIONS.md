@@ -181,3 +181,9 @@ This craft pass was performed **without a browser** this session (the app was no
 - Runtime deps: `ink@7` + `react@19` (Ink 7 peer); `ink-testing-library` + `@types/react` as CLI devDeps. Logged as allowlist peers, not new analysis deps.
 - Keys: j/k/g/G/n/p/a/x(+quick reasons)/u/z/A/space/o/?/q; `--watch` reuses `startLiveWatcher`; `--print-frame` for CI.
 - Smoke asserts `tui --print-frame`. README + TROUBLESHOOTING updated.
+
+## 2026-07-11 - v0.5 Phase 6: live MCP
+
+- MCP tools now freshness-aware: fingerprint = `HEAD` + porcelain `-z` + `state.json`/`seen.json` mtimes; state re-read every call; pipeline refresh serialized with in-flight coalesce.
+- Integration test covers mid-session file+flag visibility and concurrent call coalescing.
+- `docs/MCP.md` updated for the live loop.

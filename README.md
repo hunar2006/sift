@@ -169,7 +169,7 @@ Sift never executes repository tests, scripts, or configs. It only parses LCOV a
 
 `sift hooks install` merges a Claude Code PostToolUse hook into settings and writes compact provenance metadata to `~/.sift/provenance.jsonl`. On Windows, the default settings file is `%USERPROFILE%\.claude\settings.json`; use `sift hooks install --project` for repo-local settings. See [docs/PROVENANCE.md](docs/PROVENANCE.md).
 
-`sift mcp` runs one review and exposes read-only stdio tools for agents. It has no write tools and accepts only IDs/enums as inputs. See [docs/MCP.md](docs/MCP.md).
+`sift mcp` serves read-only stdio tools and **refreshes mid-session** when the worktree fingerprint changes, so the flag→agent→fix loop works without restarting the server. It has no write tools and accepts only IDs/enums as inputs. See [docs/MCP.md](docs/MCP.md).
 
 ## Optional AI
 
