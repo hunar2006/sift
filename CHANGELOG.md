@@ -11,6 +11,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Proven upgrade work started from a green v0.4.1 baseline (lint · typecheck · test · build · smoke · perf · pack-check). Demo GIF absent; production of `docs/demo.gif`/`mp4` joins Phase 8.
 - Shared decision-core (`@sift-review/core/session`): queue derivation, navigation, undo (depth 20), fresh-set lifecycle, and a tiny event-emitting `ReviewSession` store with no DOM/React/Ink imports. Web cockpit uses it through a thin zustand adapter.
 - Private `@sift-review/eval` harness: pinned 6-repo corpus (`corpus.lock.json`), shallow clones under `.evalcache/`, 40 non-merge commits × replay (`C^..C`), hard invariants (crash/completeness/mechanical-honesty/determinism/bounds/state/perf), and `pnpm eval` → `packages/eval/report/report.md`.
+- Property fuzzer (`pnpm fuzz`, fast-check): mutates fixture patches for the parser and synthesizes diffs for the pipeline; 10k/1k locally, 1500/200 under `CI=true` with fixed seed. Regression fixtures live in `packages/eval/fuzz-regressions/`.
 
 ### Changed
 

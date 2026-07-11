@@ -156,3 +156,10 @@ This craft pass was performed **without a browser** this session (the app was no
 - Hard invariants: no-crash, completeness, independent mechanical honesty (whitespace / token-format / import-reorder / rename groups — not via classifier), determinism double-run, score/line bounds, per-repo state-safety sample (25), perf budget × `PERF_MULT`.
 - First full run: 6×40, **1442 hunks, 0 violations** (~4 min wall with warm cache, PERF_MULT=2). Env knobs: `EVAL_REPOS`, `EVAL_COMMITS`, `PERF_MULT`; repro via `pnpm eval --repo X --sha Y`.
 - Root scripts: `pnpm eval`. Report gitignored at `packages/eval/report/`; committed summary deferred to Phase 4 (`docs/EVAL.md`).
+
+## 2026-07-11 - v0.5 Phase 3: fuzzer
+
+- Added `packages/eval/src/fuzz.ts` (fast-check, allowlisted). Parser: mutate fixture patches (truncate, corrupt `@@`, binary, invalid UTF-8, huge lines, duplicate hunks, CRLF, path quoting). Pipeline: synthetic + mutated diffs; never throws; digests present; determinism holds.
+- Volumes: local 10_000 / 1_000; CI via `CI=true` → 1_500 / 200; seed `FUZZ_SEED` default `0x5f17`.
+- First full local run: **zero failures**. No regression fixtures yet beyond the README placeholder in `fuzz-regressions/`.
+- Root script: `pnpm fuzz`. No scoring/weight changes.
