@@ -4,6 +4,12 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.5.0] - Unreleased
+
+### Added
+
+- Proven upgrade work started from a green v0.4.1 baseline (lint · typecheck · test · build · smoke · perf · pack-check). Demo GIF absent; production of `docs/demo.gif`/`mp4` joins Phase 8.
+
 ## [0.4.1] - Unreleased
 
 ### Changed

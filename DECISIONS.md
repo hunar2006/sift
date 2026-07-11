@@ -132,3 +132,12 @@ This craft pass was performed **without a browser** this session (the app was no
 - Light theme pixel-sampled (`#f4f6f9` / white panels) — description noise earlier was wrong; theme toggle works.
 - Red still rare; chrome quieter than diff; reduced-motion rules cover stamp/stagger/palette/live-dot/progress.
 - Checklist: D1–D8 each visible in committed screenshots; no network fonts; suite green with updated contrast test.
+
+## 2026-07-11 - v0.5 Proven (baseline + plan)
+
+- Baseline gate green before upgrade: `pnpm i`, `lint`, `typecheck`, `test` (212), `build`, `smoke`, `perf` (median 866 ms), `pack-check`. Core line coverage 88.89%.
+- Demo GIF/mp4/webm is **absent** from `docs/` (v0.4 stretch was cut). Producing it per v0.4 §6.4 joins this release's Phase 8 (cut-line 2 if blocked).
+- Build order (commit per phase): 0 baseline/plan · 1 decision-core + web rewire + shots · 2 eval corpus+invariants · 3 fuzzer+fixes · 4 eval report+spot-check · 5 TUI · 6 live MCP · 7 lock.json+CI · 8 GIF+landing · 9 init+RELEASING · 10 docs/audit.
+- Cut-line protocol active: (1) landing page, (2) demo GIF, (3) `sift init`, (4) TUI quick-flag+undo (keep a/x/u), (5) eval corpus may shrink to 3×20. Must not cut: eval invariants+fuzzer core, live MCP, decision-core, TUI core loop.
+- Tuning boundary: risk weights/bands frozen unless an invariant/spec contradiction; each such fix cites the clause in DECISIONS.
+- Corpus choices (Phase 2): pin `zod`, `express`, `flask`, `httpx`, `chi`, `fastify` (or nearest permissively licensed SHAs) in `packages/eval/corpus.lock.json`; clones in `.evalcache/` (gitignored).
