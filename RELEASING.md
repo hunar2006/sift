@@ -1,63 +1,97 @@
 # Releasing Sift
 
-Engineering-only runbook for the first public launch. No marketing copy.
+Literal launch runbook for `siftdiff`. Engineering-only, no marketing copy.
+Work top to bottom. `[AGENT DONE]` items are already committed on this branch;
+`[HUMAN]` items require your hands (login, publish, push, repo settings).
 
-## 1. Choose the final npm name
+The package is **`siftdiff`**; the installed command is **`sift`**. Only
+`packages/cli` is ever published; `@sift-review/*` stay private and bundled.
 
-The bare `sift` name is taken on npm. Pick an available scoped or unscoped name (examples to check: `@assay/sift`, `sift-review`, `sift-diff`).
+Before anything: replace **`PLACEHOLDER_OWNER`** with the real GitHub owner/org
+across `packages/cli/package.json`, `packages/cli/scripts/prepack.mjs`,
+`site/index.html`, and `SECURITY.md`. This is the only placeholder in the tree.
 
-Rename procedure (after the name is chosen):
+---
 
-1. Set the brand/binary constants in `packages/core/src/brand.ts` (`BINARY_NAME`, `PRODUCT_NAME` if needed).
-2. Update `packages/cli/package.json` `name` and `bin` keys to match.
-3. Update workspace package names only if publishing more than the CLI (usually keep `@sift-review/*` private).
-4. Replace user-facing strings in `README.md`, `site/index.html`, `docs/*`, and `CHANGELOG.md`.
-5. Grep for leftovers:
+## Prep — [AGENT DONE]
 
-```bash
-rg -n "sift-review|BINARY_NAME|npx sift|pnpm sift" --glob '!**/node_modules/**' --glob '!**/dist/**' --glob '!**/.evalcache/**'
-```
+- [x] npm name set to `siftdiff`, `private` removed, `version` `0.5.0`, publish
+      metadata (`description`, `license`, `repository`, `homepage`, `bugs`,
+      `keywords`, `engines`, `bin`, `files`, `publishConfig`) filled in.
+- [x] `prepack` builds the bundle and stages `LICENSE` + `README.md` (with
+      absolute GitHub image/link URLs) into the package.
+- [x] `pnpm pack-check` asserts the tarball name, required assets, `LICENSE`/
+      `README`, and **no** `workspace:` / `@sift-review/*` leak in the manifest
+      or bundle.
+- [x] `.github/workflows/release.yml` added (inert; gated on `NPM_TOKEN`).
+- [x] User-facing install strings swept to `npx siftdiff` / `npm i -g siftdiff`.
+- [x] OSS hygiene: `SECURITY.md`, issue templates, PR template, `CONTRIBUTING.md`.
 
-Files that usually need a pass: `packages/core/src/brand.ts`, `packages/cli/package.json`, `package.json` (workspace scripts), `README.md`, `site/index.html`, `docs/MCP.md`, `docs/TROUBLESHOOTING.md`, `RELEASING.md`.
+## Repo metadata to paste — [HUMAN]
 
-## 2. Pack dry-run
+In **Settings → General**, set the repository description and topics:
 
-```bash
-pnpm i
-pnpm build
-pnpm pack-check
-cd packages/cli
-npm publish --dry-run
-```
+- **Description:** `Local-first review cockpit for AI-generated diffs — deterministic triage, provenance, and verification.`
+- **Topics (8):** `code-review`, `diff`, `ai`, `claude-code`, `triage`, `cli`, `mcp`, `local-first`
 
-Confirm the tarball includes `dist/index.js`, `dist/web/**`, `dist/grammars/**`, and that `ink`/`react` are runtime dependencies.
+## Ship it — [HUMAN]
 
-## 3. Publish
+The full CI gate (ubuntu + windows) runs on the tag before publish. Pick one path.
 
-1. Flip `"private": false` on the publishable CLI package only.
-2. `npm publish --access public` (or the org equivalent) from `packages/cli` after a clean `pnpm build`.
-3. Tag `@latest`.
-4. On a clean machine/VM (no workspace checkout):
-
-```bash
-npx <final-name> --version
-npx <final-name> print --json
-```
-
-## 4. Tag and Pages
+### Path A — publish locally (simplest)
 
 ```bash
-git tag v0.5.0
-git push origin v0.5.0
+npm login
+cd packages/cli && npm publish   # prepack builds + stages docs; publishConfig makes it public with provenance
 ```
 
-- Activate GitHub Pages for the `pages.yml` workflow (Settings → Pages → GitHub Actions). The workflow is present but inert until the repo is public and Pages is enabled.
-- Confirm `docs/screenshots/*` and any `docs/demo.*` assets are fresh (`pnpm shots`; regenerate GIF/mp4 if present).
+Then tag so the site deploys and the release is marked:
 
-## 5. Post-publish smoke
+```bash
+git tag v0.5.0 && git push origin v0.5.0
+```
 
-1. Install from the registry into an empty directory.
-2. Run against a throwaway git repo with a small diff.
-3. Exercise web (`npx <name>`), TUI (`npx <name> tui --print-frame`), and MCP (`npx <name> mcp` with a one-shot tool client) enough to prove the published bin resolves assets.
+### Path B — publish from CI (hands-off)
 
-Do not announce until steps 3–5 are green.
+1. Add an npm automation token as the repo secret **`NPM_TOKEN`**
+   (Settings → Secrets and variables → Actions).
+2. Push the tag; `release.yml` runs the gate then publishes, `pages.yml` deploys the site:
+
+```bash
+git tag v0.5.0 && git push origin v0.5.0
+```
+
+## Make it public & enable Pages — [HUMAN]
+
+- Settings → General → **Change visibility → Public**.
+- Settings → **Pages → Source: GitHub Actions** (arms `pages.yml`; the tag push above deploys `site/`).
+
+## Verify the published package — [HUMAN]
+
+In a fresh empty directory (no workspace checkout):
+
+```bash
+mkdir /tmp/sift-cold && cd /tmp/sift-cold
+npx --yes siftdiff@latest --version      # expect 0.5.0
+sift demo                                 # from the globally installed bin, if installed
+```
+
+Also exercise, enough to prove the published bin resolves its assets:
+
+```bash
+npx siftdiff@latest print --json          # web/grammar/triage path
+npx siftdiff@latest tui --print-frame      # TUI path
+```
+
+## Post links — [HUMAN]
+
+Once green, share the repo/site links in your chosen venues (e.g. Hacker News
+Show HN, r/programming, relevant Discords/Slacks). No marketing copy required.
+
+## Rollback — [HUMAN]
+
+- A bad release is fixed by publishing a patch: bump `packages/cli/package.json`
+  `version` (e.g. `0.5.1`), commit, and republish.
+- `npm deprecate siftdiff@0.5.0 "use 0.5.1"` warns installers off a broken version.
+- `npm unpublish` is only permitted within **72 hours** of publishing and only if
+  nothing depends on it; do not rely on it. Prefer deprecate + patch.

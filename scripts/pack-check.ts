@@ -17,16 +17,24 @@ try {
   await run(pnpm, ["build"], root);
   const packed = JSON.parse(
     await run(npm, ["pack", "--json", "--pack-destination", scratch], cliDir)
-  ) as Array<{ filename?: string }>;
-  const filename = packed[0]?.filename;
+  ) as Array<{ filename?: string; name?: string; files?: Array<{ path: string }> }>;
+  const meta = packed[0];
+  const filename = meta?.filename;
   if (!filename) {
     throw new Error("npm pack did not produce a CLI tarball.");
+  }
+  if (meta?.name !== "siftdiff") {
+    throw new Error(`Expected packed package name "siftdiff", got "${meta?.name ?? "unknown"}".`);
+  }
+  console.log(`pack-check: tarball ${filename} contains:`);
+  for (const entry of meta.files ?? []) {
+    console.log(`  ${entry.path}`);
   }
   const tarball = path.join(scratch, filename);
   await fs.writeFile(path.join(scratch, "package.json"), JSON.stringify({ private: true, name: "sift-pack-check" }), "utf8");
   await run(npm, ["install", "--ignore-scripts", tarball], scratch);
 
-  const installedRoot = path.join(scratch, "node_modules", "@sift-review", "cli");
+  const installedRoot = path.join(scratch, "node_modules", "siftdiff");
   for (const asset of [
     "dist/index.js",
     "dist/web/index.html",
@@ -34,11 +42,32 @@ try {
     "dist/grammars/tree-sitter-tsx.wasm",
     "dist/grammars/tree-sitter-javascript.wasm",
     "dist/grammars/tree-sitter-python.wasm",
-    "dist/grammars/tree-sitter-go.wasm"
+    "dist/grammars/tree-sitter-go.wasm",
+    "LICENSE",
+    "README.md"
   ]) {
     await fs.access(path.join(installedRoot, asset)).catch(() => {
       throw new Error(`Installed package is missing ${asset}.`);
     });
+  }
+
+  // Guard against workspace/internal leaks in the published manifest and bundle.
+  const installedManifest = await fs.readFile(path.join(installedRoot, "package.json"), "utf8");
+  const manifest = JSON.parse(installedManifest) as { dependencies?: Record<string, string>; private?: boolean };
+  if (manifest.private) {
+    throw new Error("Packed manifest is still marked private.");
+  }
+  if (/workspace:/u.test(installedManifest)) {
+    throw new Error("Packed manifest still contains a workspace: protocol range.");
+  }
+  for (const dep of Object.keys(manifest.dependencies ?? {})) {
+    if (dep.startsWith("@sift-review/")) {
+      throw new Error(`Packed manifest leaks internal dependency ${dep}; it must be bundled.`);
+    }
+  }
+  const bundle = await fs.readFile(path.join(installedRoot, "dist", "index.js"), "utf8");
+  if (/require\(["']@sift-review\/|from ["']@sift-review\//u.test(bundle)) {
+    throw new Error("Bundled dist/index.js still resolves @sift-review/* at runtime; check tsup noExternal.");
   }
 
   const demo = await createDemoRepo({ rootDir: path.join(scratch, "demo") });

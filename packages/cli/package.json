@@ -1,8 +1,30 @@
 {
-  "name": "@sift-review/cli",
-  "version": "0.1.0",
-  "private": true,
+  "name": "siftdiff",
+  "version": "0.5.0",
   "type": "module",
+  "description": "Local-first review cockpit for AI-generated diffs — deterministic triage, provenance, and verification.",
+  "license": "MIT",
+  "homepage": "https://github.com/PLACEHOLDER_OWNER/sift#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PLACEHOLDER_OWNER/sift.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/PLACEHOLDER_OWNER/sift/issues"
+  },
+  "keywords": [
+    "code-review",
+    "diff",
+    "ai",
+    "claude-code",
+    "triage",
+    "cli",
+    "tui",
+    "mcp",
+    "local-first",
+    "developer-tools"
+  ],
   "bin": {
     "sift": "./dist/index.js"
   },
@@ -10,6 +32,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup && tsc -p tsconfig.build.json --emitDeclarationOnly && node scripts/copy-assets.mjs",
+    "prepack": "node scripts/prepack.mjs",
     "test": "cd ../.. && vitest run packages/cli/src",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -19,8 +42,14 @@
     "dist/*.d.ts.map",
     "dist/web",
     "dist/grammars",
-    "package.json"
+    "package.json",
+    "LICENSE",
+    "README.md"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=20"
   },

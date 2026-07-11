@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in Sift behaved incorrectly.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did Sift do?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `sift --version`.
+      placeholder: "0.5.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS and terminal
+      placeholder: "Windows 11 / Windows Terminal, or macOS 14 / iTerm2"
+    validations:
+      required: true
+  - type: dropdown
+    id: diff-source
+    attributes:
+      label: Diff source
+      options:
+        - worktree
+        - staged
+        - range (ref/range)
+        - pr
+    validations:
+      required: true
+  - type: textarea
+    id: debug
+    attributes:
+      label: SIFT_DEBUG=1 output
+      description: Re-run with `SIFT_DEBUG=1` and paste the output. Redact anything sensitive.
+      render: shell
+    validations:
+      required: false

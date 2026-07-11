@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a capability for Sift.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What review situation is underserved today?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alignment
+    attributes:
+      label: Alignment
+      description: >
+        Sift is deliberately scoped. Please check your idea against the "What Sift is not"
+        / kill-list section of the README and note how the request fits — or why it is worth
+        an exception. Requests that ask Sift to decide for the reviewer, add telemetry, or
+        execute repo code are out of scope.
+    validations:
+      required: true

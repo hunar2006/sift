@@ -4,6 +4,20 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.5.1] - Ship prep (Unreleased)
+
+Packaging, naming, and release plumbing only — no feature, behavior, or visual changes from 0.5.0.
+
+### Changed
+
+- npm package name is **`siftdiff`** (the command it installs stays `sift`). The CLI package carries full publish metadata (description, license, repository/homepage/bugs, keywords, engines, `publishConfig`) and is no longer private. `SIFT_VERSION` is `0.5.0`.
+- `prepack` builds the bundle and stages `LICENSE` + `README.md` (with absolute GitHub image/link URLs) into the published tarball; `pack-check` now asserts the tarball name, staged docs, and that no `workspace:` / `@sift-review/*` reference leaks into the manifest or bundle.
+- Install strings across README and the landing page use `npx siftdiff` / `npm i -g siftdiff`.
+
+### Added
+
+- `.github/workflows/release.yml` (inert until `NPM_TOKEN` is armed), `SECURITY.md`, issue templates, a pull-request template, and a literal launch runbook in `RELEASING.md`.
+
 ## [0.5.0] - Unreleased
 
 ### Added

@@ -12,7 +12,28 @@ AI agents can produce more code than a human can calmly review in one pass. Sift
 
 ## Quickstart
 
-macOS/Linux:
+Run it without installing:
+
+```bash
+npx siftdiff
+```
+
+Or install globally:
+
+```bash
+npm i -g siftdiff
+sift
+```
+
+> The package is `siftdiff`; the command it installs is `sift`. All examples below use `sift ...`.
+
+Try the demo:
+
+```bash
+sift demo
+```
+
+### From a source checkout
 
 ```bash
 pnpm i
@@ -20,22 +41,7 @@ pnpm build
 pnpm sift
 ```
 
-Windows PowerShell:
-
-```powershell
-Set-Location C:\path\to\sift
-pnpm i
-pnpm build
-pnpm sift
-```
-
-Until packages are published, run the built binary directly:
-
-```bash
-node packages/cli/dist/index.js
-```
-
-Try the demo with `pnpm demo`, or run `node packages/cli/dist/index.js demo` after building.
+On Windows PowerShell, `Set-Location C:\path\to\sift` first. Or run the built binary directly with `node packages/cli/dist/index.js`.
 
 ## Screenshots
 
