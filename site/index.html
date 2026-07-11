@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sift — Stop reading slop. Verify what matters.</title>
+    <meta name="description" content="Local-first review cockpit for AI-generated diffs. Deterministic triage, zero telemetry, never executes your code." />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="#top" aria-label="Sift home">
+        <svg class="mark" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4.5" y="4.5" width="15" height="15" rx="4" transform="rotate(-8 12 12)"></rect>
+          <circle cx="8" cy="8.5" r="1.15" fill="currentColor" stroke="none"></circle>
+          <circle cx="12" cy="12.5" r="1.15" fill="currentColor" stroke="none"></circle>
+          <circle cx="16" cy="16.5" r="1.15" fill="currentColor" stroke="none"></circle>
+        </svg>
+        <span>Sift</span>
+      </a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/PLACEHOLDER/sift">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="brand-hero">Sift</p>
+        <h1>Stop reading slop. Verify what matters.</h1>
+        <p class="lede">A local-first review cockpit for large AI-generated diffs — critical logic first, mechanical noise last.</p>
+        <p class="cta">
+          <a class="button" href="#install">Install (TBD)</a>
+          <a class="ghost" href="https://github.com/PLACEHOLDER/sift">View source</a>
+        </p>
+        <img class="hero-shot" src="assets/workbench-dark.png" width="1440" height="900" alt="Sift workbench reviewing an AI-generated diff" />
+      </section>
+
+      <section id="features" class="features">
+        <article>
+          <h2>Triage</h2>
+          <p>Ordered queue with risk bands, digests, and skim bundles so you read what can break first.</p>
+        </article>
+        <article>
+          <h2>Provenance</h2>
+          <p>Optional agent intent and coverage evidence sit beside the hunk — describe, never judge.</p>
+        </article>
+        <article>
+          <h2>The loop</h2>
+          <p>Flag in web or TUI → agent fixes via MCP or brief → fresh hunks return under watch.</p>
+        </article>
+      </section>
+
+      <section class="principles">
+        <h2>Principles</h2>
+        <ul>
+          <li>local-first</li>
+          <li>deterministic</li>
+          <li>read-only git</li>
+          <li>zero telemetry</li>
+          <li>never executes your code</li>
+        </ul>
+      </section>
+
+      <section id="install" class="install">
+        <h2>Install</h2>
+        <p>Package name on npm is still being finalized — the <code>sift</code> name is taken.</p>
+        <pre><code># TBD — final package name before publish
+npx &lt;package-name-TBD&gt;
+# or from source
+pnpm i &amp;&amp; pnpm build &amp;&amp; pnpm sift</code></pre>
+      </section>
+    </main>
+
+    <footer>
+      <p>MIT · <a href="https://github.com/PLACEHOLDER/sift">GitHub (placeholder)</a></p>
+    </footer>
+  </body>
+</html>

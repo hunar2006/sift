@@ -20,11 +20,17 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 - Terminal cockpit: `sift tui` (Ink + React 19) sharing decision-core, pipeline, and `state.json`; `--watch`, `--print-frame` for smoke; ink-testing-library coverage for approve/flag.
 - Live MCP freshness: tool calls re-read state and re-run the pipeline when the worktree fingerprint changes (serialized, coalesced).
 - `.sift/lock.json` concurrency warning for web/TUI; CI `eval` job (corpus + fuzz subset, cache on `corpus.lock.json`).
+- Static landing page in `site/` with Assay fonts/tokens and workbench screenshot; inert `pages.yml` for future GitHub Pages.
+- `sift init` starter files; `RELEASING.md` publish runbook.
 
 ### Changed
 
 - Web review store is now an adapter over the shared session module; behavior and visuals unchanged (screenshots re-shot).
 - `docs/MCP.md` documents the mid-session fix loop with live refresh.
+
+### Notes
+
+- Demo GIF/mp4 cut for v0.5 (cut-line 2); README still leads with the workbench screenshot.
 
 ## [0.4.1] - Unreleased
 

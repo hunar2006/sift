@@ -193,3 +193,10 @@ This craft pass was performed **without a browser** this session (the app was no
 - `.sift/lock.json` `{pid,surface,startedAt}` on web and TUI start; warn if another live pid holds the lock; release on exit; stale locks tolerated.
 - CI job `eval` (ubuntu, blocking): restore `.evalcache` from actions/cache keyed on `corpus.lock.json`, `pnpm eval` with PERF_MULT=2, `pnpm fuzz` CI subset. Expected ~4–8 min warm.
 - TUI `--print-frame` already in smoke (Phase 5).
+
+## 2026-07-11 - v0.5 Phase 8–9: stage prep
+
+- **Cut (cut-line 2): demo GIF/mp4** — still absent. Playwright scripted video + ffmpeg encode deferred; README continues to lead with the workbench screenshot. Revisit before public launch (`RELEASING.md` §4).
+- Landing page shipped under `site/` (static HTML/CSS, Assay tokens, local woff2, workbench shot). `.github/workflows/pages.yml` present but inert until the repo is public (commented in-file).
+- `sift init` writes commented `.sift/config.json` + `.sift/rules.yml` if absent; idempotent; prints 5-line quickstart.
+- `RELEASING.md` mechanical launch runbook (npm rename, pack-check, publish, tag, Pages, post-publish smoke).

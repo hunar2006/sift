@@ -53,6 +53,10 @@ Try the demo with `pnpm demo`, or run `node packages/cli/dist/index.js demo` aft
 
 Regenerate the complete set with `pnpm shots`.
 
+## How we test Sift
+
+Sift grades AI-written code, so the engine is graded too: a six-repo corpus (`pnpm eval`), hard invariants (including independent mechanical honesty), and a property fuzzer (`pnpm fuzz`). Numbers and recommendations live in [docs/EVAL.md](docs/EVAL.md). Scoring weights stay frozen unless an invariant/spec bug is proven.
+
 ## Live mode and the fix loop
 
 Start a local review companion for the working tree, or for Git's index:
@@ -96,6 +100,7 @@ Use `sift brief` for flagged hunks, or `sift brief --unreviewed-high` for unrevi
 | `sift check [--max-debt pct]` | Personal pre-push aid; not a team performance metric. |
 | `sift demo [--dir path]` | Generate the demo repository and launch Sift. |
 | `sift rules lint` / `sift rules list` | Validate and display the effective ruleset. |
+| `sift init` | Write commented `.sift/config.json` and `.sift/rules.yml` starters if absent. |
 | `sift mcp` | Serve read-only review context over stdio MCP tools. |
 | `sift tui [range]` | Full-screen terminal review cockpit (Ink); same pipeline and `state.json` as the web UI. |
 | `sift hooks install [--project]` | Install the Claude Code PostToolUse capture hook. |
