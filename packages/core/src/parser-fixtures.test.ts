@@ -90,4 +90,15 @@ describe("parser fixtures", () => {
     expect(model.hunks[0]).toMatchObject({ category: "config", categoryReason: "SUBMODULE_BUMP" });
     expect(model.hunks[0]?.reasons.map((reason) => reason.code)).toContain("SUBMODULE_BUMP");
   });
+
+  it("does not treat Go build constraint edits as COMMENT_ONLY", () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "WORKTREE",
+      git: { headSha: "abc", branch: "main" },
+      patch: fixture("go-build-tags.patch")
+    });
+    expect(model.hunks[0]?.categoryReason).not.toBe("COMMENT_ONLY");
+    expect(model.hunks[0]?.category).not.toBe("mechanical");
+  });
 });

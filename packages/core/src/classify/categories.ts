@@ -256,6 +256,10 @@ function isCommentOnly(hunk: ParsedHunk): boolean {
     if (text.length === 0) {
       return true;
     }
+    // Build/compiler directives look like comments but change compile behavior.
+    if (isBuildOrCompilerDirective(text)) {
+      return false;
+    }
     if (language.lineComments.some((prefix) => text.startsWith(prefix))) {
       return true;
     }
@@ -264,6 +268,16 @@ function isCommentOnly(hunk: ParsedHunk): boolean {
     }
     return text.startsWith("*") || text === "*/";
   });
+}
+
+/** Lines that match line-comment syntax but are not documentation-only. */
+function isBuildOrCompilerDirective(text: string): boolean {
+  return (
+    /^\/\/\s*go:build\b/.test(text) ||
+    /^\/\/\s*\+build\b/.test(text) ||
+    /^\/\/\/\s*<reference\b/.test(text) ||
+    /^#\s*(if|ifdef|ifndef|elif|else|endif|pragma|include|define|undef)\b/.test(text)
+  );
 }
 
 function isImportReorderOnly(hunk: ParsedHunk): boolean {

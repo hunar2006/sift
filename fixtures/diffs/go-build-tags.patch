@@ -1,0 +1,11 @@
+diff --git a/path_value.go b/path_value.go
+--- a/path_value.go
++++ b/path_value.go
+@@ -1,4 +1,5 @@
+-//go:build go1.22
+-// +build go1.22
++//go:build go1.22 && !tinygo
++// +build go1.22,!tinygo
++
+ 
+ package chi

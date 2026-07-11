@@ -163,3 +163,14 @@ This craft pass was performed **without a browser** this session (the app was no
 - Volumes: local 10_000 / 1_000; CI via `CI=true` → 1_500 / 200; seed `FUZZ_SEED` default `0x5f17`.
 - First full local run: **zero failures**. No regression fixtures yet beyond the README placeholder in `fuzz-regressions/`.
 - Root script: `pnpm fuzz`. No scoring/weight changes.
+
+## 2026-07-11 - v0.5 Phase 4: eval summary + spot-check
+
+- Committed trimmed summary at `docs/EVAL.md` from the green 6×40 run (1442 hunks, 0 violations).
+- Human spot-check (mechanical sample + all 3 high-band hunks — corpus only produced 3 high):
+  - **Mechanical correct:** rename-only zod docs; ast-format-only silver.tsx brace wrap; most COMMENT_ONLY doc/comment edits in express/zod/chi/fastify.
+  - **Mechanical wrong → fixed:** chi `//go:build` / `// +build` constraint edits classified COMMENT_ONLY. Build directives change compile behavior; treating them as comments contradicts the COMMENT_ONLY mechanical rule. Fix: `isBuildOrCompilerDirective` exclusion in `categories.ts`. Fixture: `fixtures/diffs/go-build-tags.patch` + `fuzz-regressions/go-build-tags-not-comment-only.patch`. **Tuning-boundary citation:** mechanical COMMENT_ONLY must describe documentation/comment text only — compiler directives are not comments for this rule.
+  - **Mechanical debatable:** express JSDoc edits that change documented return values (`undefined`→`false`) — still comment text, but behaviorally meaningful docs; left as COMMENT_ONLY (spec-aligned).
+  - **High correct:** flask session API removal (logic/high); httpx SSLContext test migration with `verify=False` (tests/high).
+  - **High debatable:** zod `package.json` dep bumps scored high via config path + signals — noisy vs real risk, but not an invariant bug; recommendation only (no weight change).
+- Re-ran focused fixture test green. Weights in `score.ts`/`signals.ts` untouched aside from the COMMENT_ONLY predicate fix (no weight table edits).
