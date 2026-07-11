@@ -29,6 +29,7 @@ import type { AiMode } from "./ai.js";
 import { runMcpServer } from "./mcp.js";
 import { printPayload, renderPrintReport } from "./print.js";
 import { renderReviewBrief, type ReviewBriefMode } from "./review-brief.js";
+import { runTui } from "./tui.js";
 
 const program = new Command();
 
@@ -308,6 +309,37 @@ program
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (range: string | undefined, options: { staged?: boolean; coverage?: string }) => {
     await runMcpServer(await runPipeline({ cwd: process.cwd(), staged: options.staged, range, coverage: options.coverage }));
+  });
+
+program
+  .command("tui")
+  .argument("[range]", "git ref/range to diff against HEAD")
+  .option("--staged", "review staged changes")
+  .option("--watch", "watch working-tree changes and refresh the TUI")
+  .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
+  .option("--print-frame", "render one frame to stdout and exit (CI/smoke)", false)
+  .action(async (range: string | undefined, options: { staged?: boolean; watch?: boolean; coverage?: string; printFrame?: boolean }) => {
+    assertWatchUsage(options.watch, range);
+    const pipelineOptions = {
+      cwd: process.cwd(),
+      staged: options.staged,
+      range,
+      coverage: options.coverage
+    };
+    let result = await runPipeline(pipelineOptions);
+    if (result.model.hunks.length === 0 && !options.watch && !options.printFrame) {
+      console.log("Nothing to review.");
+      return;
+    }
+    await runTui({
+      result,
+      reanalyze: async () => {
+        result = await runPipeline(pipelineOptions);
+        return result;
+      },
+      watch: options.watch,
+      printFrame: options.printFrame
+    });
   });
 
 program.parseAsync(process.argv).catch((error: unknown) => {

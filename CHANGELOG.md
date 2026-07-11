@@ -17,6 +17,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 ### Fixed
 
 - Go `//go:build` / `// +build` (and similar compiler directives) are no longer classified as mechanical `COMMENT_ONLY` (eval spot-check finding; regression fixture added).
+- Terminal cockpit: `sift tui` (Ink + React 19) sharing decision-core, pipeline, and `state.json`; `--watch`, `--print-frame` for smoke; ink-testing-library coverage for approve/flag.
 
 ### Changed
 

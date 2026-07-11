@@ -31,8 +31,10 @@
     "commander": "^13.1.0",
     "fast-xml-parser": "^5.9.3",
     "hono": "^4.7.2",
+    "ink": "^7.1.0",
     "open": "^10.1.0",
     "picocolors": "^1.1.1",
+    "react": "^19.2.7",
     "tree-sitter-wasms": "^0.1.13",
     "web-tree-sitter": "0.20.8",
     "yaml": "^2.9.0",
@@ -40,6 +42,8 @@
   },
   "devDependencies": {
     "@sift-review/claude-adapter": "0.1.0",
-    "@sift-review/core": "0.1.0"
+    "@sift-review/core": "0.1.0",
+    "@types/react": "^19.2.17",
+    "ink-testing-library": "^4.0.0"
   }
 }

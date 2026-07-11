@@ -80,6 +80,10 @@ $env:OPENAI_API_KEY = "..."
 
 `sift hooks install` edits `%USERPROFILE%\.claude\settings.json` unless you pass `--project`. If `sift`, `code`, or `cursor` is not found, restart PowerShell after updating PATH and run `Get-Command sift`, `Get-Command code`, or `Get-Command cursor` to confirm it is visible.
 
+## TUI looks cramped or garbled
+
+`sift tui` targets ≥100×28 columns/rows and degrades to 80×24 with truncation. Enlarge the window, or in Windows Terminal enable UTF-8 (`chcp 65001`) and a monospace font. If Ink fails to start, rebuild (`pnpm build`) so `ink`/`react` resolve from the CLI package.
+
 ## Web or grammar assets cannot be found
 
 Rebuild the local package assets, then run Sift again:

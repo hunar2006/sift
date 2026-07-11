@@ -174,3 +174,10 @@ This craft pass was performed **without a browser** this session (the app was no
   - **High correct:** flask session API removal (logic/high); httpx SSLContext test migration with `verify=False` (tests/high).
   - **High debatable:** zod `package.json` dep bumps scored high via config path + signals — noisy vs real risk, but not an invariant bug; recommendation only (no weight change).
 - Re-ran focused fixture test green. Weights in `score.ts`/`signals.ts` untouched aside from the COMMENT_ONLY predicate fix (no weight table edits).
+
+## 2026-07-11 - v0.5 Phase 5: TUI
+
+- Added `sift tui` Ink app in `packages/cli/src/tui.tsx` over shared `ReviewSession`, same pipeline/`state.json` as web.
+- Runtime deps: `ink@7` + `react@19` (Ink 7 peer); `ink-testing-library` + `@types/react` as CLI devDeps. Logged as allowlist peers, not new analysis deps.
+- Keys: j/k/g/G/n/p/a/x(+quick reasons)/u/z/A/space/o/?/q; `--watch` reuses `startLiveWatcher`; `--print-frame` for CI.
+- Smoke asserts `tui --print-frame`. README + TROUBLESHOOTING updated.

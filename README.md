@@ -97,8 +97,24 @@ Use `sift brief` for flagged hunks, or `sift brief --unreviewed-high` for unrevi
 | `sift demo [--dir path]` | Generate the demo repository and launch Sift. |
 | `sift rules lint` / `sift rules list` | Validate and display the effective ruleset. |
 | `sift mcp` | Serve read-only review context over stdio MCP tools. |
+| `sift tui [range]` | Full-screen terminal review cockpit (Ink); same pipeline and `state.json` as the web UI. |
 | `sift hooks install [--project]` | Install the Claude Code PostToolUse capture hook. |
-| `pnpm shots` / `pnpm perf` / `pnpm pack-check` | Reproduce visual evidence, check the pipeline budget, and verify an installed tarball. |
+| `pnpm shots` / `pnpm perf` / `pnpm pack-check` / `pnpm eval` / `pnpm fuzz` | Reproduce visual evidence, check the pipeline budget, verify an installed tarball, run the corpus eval, or property-fuzz the parser/pipeline. |
+
+## Terminal cockpit (`sift tui`)
+
+Browser-averse path that shares the decision-core, digests, and `.sift/state.json` with the web UI.
+
+```text
+SIFT TUI FRAME · 34 hunks · 11 groups · debt 100%
+[attention] High-risk logic (5)
+[attention] Medium risk (15)
+…
+-- src/auth/session.ts · high 100 · Adds `rotateSessionRefresh()` (+7 lines)
+footer: n of m · j/k move · a approve · x flag · u unreview · z undo · q quit
+```
+
+Keys: `j`/`k` hunk · `g`/`G` first/last · `n`/`p` next/prev unreviewed attention · `a` approve · `x` flag (1–4 quick reasons, `i` note) · `u` unreview · `z` undo · `A` group · `space` expand patch · `o` editor · `?` help · `q` quit (prints `sift print` summary). Prefer a terminal ≥100×28; 80×24 still works with truncation. Use `--watch` for live refreshes and `--print-frame` for CI smoke.
 
 ## Cockpit keys
 

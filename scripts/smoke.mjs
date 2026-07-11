@@ -32,6 +32,7 @@ if (!parsed.model || parsed.model.hunks.length <= 0 || parsed.model.groups.lengt
 
 assertDemoSignals(parsed.model);
 await assertPrint();
+await assertTuiFrame();
 await assertRulesLint();
 await assertMcpSummary();
 await assertCliPack();
@@ -111,6 +112,21 @@ async function assertPrint() {
   }
   if (typeof printed.headline.coverageOnChangedLines !== "number") {
     throw new Error("Smoke failed: print JSON missing coverage headline.");
+  }
+}
+
+async function assertTuiFrame() {
+  const { stdout } = await execFileAsync(process.execPath, [cliPath, "tui", "--print-frame"], {
+    cwd: repo,
+    windowsHide: true,
+    env: demoEnv,
+    maxBuffer: 32 * 1024 * 1024
+  });
+  if (!stdout.includes("SIFT TUI FRAME") || !stdout.includes("groups")) {
+    throw new Error("Smoke failed: tui --print-frame missing expected frame markers.");
+  }
+  if (!stdout.includes("footer:")) {
+    throw new Error("Smoke failed: tui --print-frame missing footer keymap line.");
   }
 }
 

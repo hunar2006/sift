@@ -9,6 +9,9 @@ export default defineConfig({
   clean: true,
   splitting: false,
   sourcemap: false,
-  external: ["fast-xml-parser", "tree-sitter-wasms", "web-tree-sitter", "yaml"],
+  esbuildOptions(options) {
+    options.jsx = "automatic";
+  },
+  external: ["fast-xml-parser", "tree-sitter-wasms", "web-tree-sitter", "yaml", "ink", "react", "react-reconciler"],
   noExternal: [/^@sift-review\//]
 });
