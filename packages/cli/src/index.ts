@@ -31,6 +31,7 @@ import { printPayload, renderPrintReport } from "./print.js";
 import { renderReviewBrief, type ReviewBriefMode } from "./review-brief.js";
 import { runTui } from "./tui.js";
 import { acquireLock, releaseLock } from "./lock.js";
+import { initQuickstart, runInit } from "./init.js";
 
 const program = new Command();
 
@@ -327,6 +328,18 @@ program
       initial,
       refresh: () => runPipeline(pipelineOptions)
     });
+  });
+
+program
+  .command("init")
+  .description("Write commented .sift/config.json and .sift/rules.yml starters if absent")
+  .action(async () => {
+    const notes = await runInit(process.cwd());
+    for (const note of notes) {
+      console.log(note);
+    }
+    console.log("");
+    console.log(initQuickstart());
   });
 
 program
