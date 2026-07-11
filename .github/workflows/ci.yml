@@ -40,6 +40,35 @@ jobs:
       - run: pnpm pack-check
         if: (matrix.os == 'ubuntu-latest' && matrix.node == 20) || matrix.os == 'windows-latest'
 
+  eval:
+    runs-on: ubuntu-latest
+    # Expected ~4–8 minutes with a warm .evalcache (6 repos × 40 commits + fuzz subset).
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm --filter @sift-review/core build
+      - uses: actions/cache@v4
+        with:
+          path: .evalcache
+          key: evalcache-${{ hashFiles('packages/eval/corpus.lock.json') }}
+          restore-keys: |
+            evalcache-
+      - run: pnpm eval
+        env:
+          PERF_MULT: "2"
+      - run: pnpm fuzz
+        env:
+          CI: "true"
+          FUZZ_SEED: "24343"
+
   shots:
     runs-on: ubuntu-latest
     continue-on-error: true

@@ -19,6 +19,7 @@ import {
   type SessionHunk
 } from "@sift-review/core/session";
 import { openHunkInEditor } from "./editor.js";
+import { acquireLock, releaseLock } from "./lock.js";
 import { renderPrintReport } from "./print.js";
 import type { PipelineResult } from "./pipeline-runner.js";
 import { startLiveWatcher, type LiveWatcher } from "./watch.js";
@@ -70,6 +71,11 @@ export async function runTui(options: TuiOptions): Promise<void> {
     const frame = renderFrameText(model, stats);
     process.stdout.write(`${frame}\n`);
     return;
+  }
+
+  const lockWarning = await acquireLock(latestResult.model.meta.repoRoot, "tui");
+  if (lockWarning) {
+    console.warn(lockWarning);
   }
 
   let watcher: LiveWatcher | undefined;
@@ -125,8 +131,12 @@ export async function runTui(options: TuiOptions): Promise<void> {
     });
   }
 
-  await app.waitUntilExit();
-  await watcher?.close();
+  try {
+    await app.waitUntilExit();
+  } finally {
+    await watcher?.close();
+    await releaseLock(latestResult.model.meta.repoRoot);
+  }
   if (exitSummary) {
     process.stdout.write(`${exitSummary}\n`);
   } else {

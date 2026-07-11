@@ -187,3 +187,9 @@ This craft pass was performed **without a browser** this session (the app was no
 - MCP tools now freshness-aware: fingerprint = `HEAD` + porcelain `-z` + `state.json`/`seen.json` mtimes; state re-read every call; pipeline refresh serialized with in-flight coalesce.
 - Integration test covers mid-session file+flag visibility and concurrent call coalescing.
 - `docs/MCP.md` updated for the live loop.
+
+## 2026-07-11 - v0.5 Phase 7: lock + CI eval
+
+- `.sift/lock.json` `{pid,surface,startedAt}` on web and TUI start; warn if another live pid holds the lock; release on exit; stale locks tolerated.
+- CI job `eval` (ubuntu, blocking): restore `.evalcache` from actions/cache keyed on `corpus.lock.json`, `pnpm eval` with PERF_MULT=2, `pnpm fuzz` CI subset. Expected ~4–8 min warm.
+- TUI `--print-frame` already in smoke (Phase 5).

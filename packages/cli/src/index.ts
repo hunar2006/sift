@@ -30,6 +30,7 @@ import { runMcpServer } from "./mcp.js";
 import { printPayload, renderPrintReport } from "./print.js";
 import { renderReviewBrief, type ReviewBriefMode } from "./review-brief.js";
 import { runTui } from "./tui.js";
+import { acquireLock, releaseLock } from "./lock.js";
 
 const program = new Command();
 
@@ -60,6 +61,10 @@ program
     if (result.model.hunks.length === 0 && !options.watch) {
       console.log("Nothing to review.");
       return;
+    }
+    const lockWarning = await acquireLock(result.model.meta.repoRoot, "web");
+    if (lockWarning) {
+      console.warn(lockWarning);
     }
     const server = await startServer(
       {
@@ -95,6 +100,7 @@ program
     await waitForShutdown(async () => {
       await watcher?.close();
       await server.close();
+      await releaseLock(result.model.meta.repoRoot);
     });
   });
 
@@ -289,13 +295,20 @@ program
     console.log(demo.expectedSummary);
     console.log(`Demo repo: ${demo.repoRoot}`);
     const result = await runPipeline({ cwd: demo.repoRoot });
+    const lockWarning = await acquireLock(result.model.meta.repoRoot, "web");
+    if (lockWarning) {
+      console.warn(lockWarning);
+    }
     const server = await startServer({ ...result, refresh: () => runPipeline({ cwd: demo.repoRoot }) }, Number.parseInt(options.port, 10));
     printPortFallback(options.port, server.port);
     console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention - sift v${SIFT_VERSION}`);
     if (options.open) {
       await open(server.url);
     }
-    await waitForShutdown(() => server.close());
+    await waitForShutdown(async () => {
+      await server.close();
+      await releaseLock(result.model.meta.repoRoot);
+    });
   });
 
 program.command("hook-capture", { hidden: true }).action(async () => {
