@@ -1,14 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-
-export const MAX_FLAG_REASONS = 6;
-
-export const DEFAULT_FLAG_REASONS = [
-  "Needs tests",
-  "Security concern",
-  "Doesn't match intent",
-  "Unnecessary change"
-];
+import { DEFAULT_FLAG_REASONS, MAX_FLAG_REASONS } from "./flag-reasons.js";
 
 /**
  * Read `.sift/config.json` → `flagReasons` (trimmed, non-empty, capped at

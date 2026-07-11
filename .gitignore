@@ -4,4 +4,6 @@ dist-types
 coverage
 .sift/
 .demo/
+.evalcache/
+packages/eval/report/
 *.tsbuildinfo

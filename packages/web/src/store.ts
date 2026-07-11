@@ -1,7 +1,15 @@
 import { create } from "zustand";
-import type { ApiMeta, ReviewModel, ReviewHunk } from "./types.js";
+import {
+  ReviewSession,
+  nextSortMode,
+  sortReviewHunks,
+  visibleHunks,
+  type FreshPersistence,
+  type UndoEntry,
+  type UndoResult
+} from "@sift-review/core/session";
 import type { ReviewSortMode, StatsSnapshot } from "@sift-review/core";
-import { popUndo, pushUndo, type UndoEntry, type UndoResult } from "./undo.js";
+import type { ApiMeta, ReviewModel, ReviewHunk } from "./types.js";
 
 const SORT_STORAGE_KEY = "sift.sortMode";
 const SPLIT_STORAGE_KEY = "sift.split";
@@ -13,6 +21,19 @@ const SORT_MODES: ReviewSortMode[] = ["risk", "reading", "path"];
 const THEME_MODES = ["dark", "light"] as const;
 
 export type ThemeMode = (typeof THEME_MODES)[number];
+
+const browserFresh: FreshPersistence = {
+  readSessionStartedAt: readFreshSessionStartedAt,
+  readVisitedIds: readFreshVisitedIds,
+  markVisited: markFreshVisited
+};
+
+const session = new ReviewSession(
+  {
+    sortMode: readStoredSortMode()
+  },
+  browserFresh
+);
 
 interface ReviewStore {
   model?: ReviewModel;
@@ -62,77 +83,81 @@ interface ReviewStore {
 
 const showFirstRunHelp = shouldShowFirstRunHelp();
 
+function syncFromSession(
+  patch: Partial<
+    Pick<
+      ReviewStore,
+      "meta" | "split" | "helpOpen" | "helpTour" | "paletteOpen" | "timelineOpen" | "statsOpen" | "theme" | "nitsOpen"
+    >
+  > = {}
+): Pick<
+  ReviewStore,
+  | "model"
+  | "stats"
+  | "selectedId"
+  | "filter"
+  | "freshIds"
+  | "freshOnly"
+  | "sortMode"
+  | "collapsed"
+  | "hunkCollapsed"
+  | "toast"
+  | "undoStack"
+> &
+  typeof patch {
+  const state = session.getState();
+  return {
+    model: state.model,
+    stats: state.stats,
+    selectedId: state.selectedId,
+    filter: state.filter,
+    freshIds: state.freshIds,
+    freshOnly: state.freshOnly,
+    sortMode: state.sortMode,
+    collapsed: state.collapsed,
+    hunkCollapsed: state.hunkCollapsed,
+    toast: state.toast,
+    undoStack: state.undoStack,
+    ...patch
+  };
+}
+
 export const useReviewStore = create<ReviewStore>((set, get) => ({
+  ...syncFromSession(),
   split: readStoredSplit(),
   helpOpen: showFirstRunHelp,
   helpTour: showFirstRunHelp,
   paletteOpen: false,
   timelineOpen: false,
   statsOpen: false,
-  filter: "",
-  freshIds: {},
-  freshOnly: false,
   theme: readStoredTheme(),
-  sortMode: readStoredSortMode(),
-  collapsed: {},
-  hunkCollapsed: {},
   nitsOpen: false,
-  undoStack: [],
-  pushUndoEntry: (entry) => set((state) => ({ undoStack: pushUndo(state.undoStack, entry) })),
+  meta: undefined,
+  pushUndoEntry: (entry) => {
+    session.pushUndoEntry(entry);
+    set(syncFromSession());
+  },
   popUndoEntry: () => {
-    const state = get();
-    const existing = new Set((state.model?.hunks ?? []).map((hunk) => hunk.id));
-    const result = popUndo(state.undoStack, existing);
-    set({ undoStack: result.stack });
+    const result = session.popUndoEntry();
+    set(syncFromSession());
     return result;
   },
-  setData: (model, stats, meta) =>
-    set((state) => ({
-      model,
-      stats,
-      meta,
-      freshIds: hydrateFreshIds(model, state.freshIds),
-      selectedId: state.selectedId && model.hunks.some((hunk) => hunk.id === state.selectedId)
-        ? state.selectedId
-        : model.hunks[0]?.id
-    })),
-  applyLiveData: (model, stats, meta, addedIds, removedIds) =>
-    set((state) => {
-      const available = new Set(model.hunks.map((hunk) => hunk.id));
-      const freshIds = Object.fromEntries(
-        [...Object.keys(state.freshIds), ...addedIds]
-          .filter((id, index, ids) => available.has(id) && ids.indexOf(id) === index)
-          .map((id) => [id, true] as const)
-      );
-      const selectedId = preserveNearestSelection(state.model?.hunks ?? [], state.selectedId, available) ?? model.hunks[0]?.id;
-      return {
-        model,
-        stats,
-        meta,
-        freshIds,
-        selectedId,
-        toast: `${addedIds.length} new hunks · ${removedIds.length} removed`
-      };
-    }),
-  setSelected: (id) =>
-    set((state) => {
-      if (id && state.freshIds[id]) {
-        markFreshVisited(id);
-      }
-      return { selectedId: id, freshIds: id ? omitFresh(state.freshIds, id) : state.freshIds };
-    }),
-  setStatus: (id, status, note) =>
-    set((state) => ({
-      model: state.model
-        ? {
-            ...state.model,
-            hunks: state.model.hunks.map((hunk) =>
-              hunk.id === id ? { ...hunk, status, note, reviewedAt: new Date().toISOString() } : hunk
-            )
-          }
-        : state.model,
-      freshIds: status === "unreviewed" ? state.freshIds : omitFresh(state.freshIds, id)
-    })),
+  setData: (model, stats, meta) => {
+    session.setModel(model, stats);
+    set(syncFromSession({ meta }));
+  },
+  applyLiveData: (model, stats, meta, addedIds, removedIds) => {
+    session.applyLiveData(model, stats, addedIds, removedIds);
+    set(syncFromSession({ meta }));
+  },
+  setSelected: (id) => {
+    session.setSelected(id);
+    set(syncFromSession());
+  },
+  setStatus: (id, status, note) => {
+    session.setStatus(id, status, note);
+    set(syncFromSession());
+  },
   setSplit: (split) => {
     writeStorage(SPLIT_STORAGE_KEY, String(split));
     set({ split });
@@ -148,8 +173,14 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   setTimelineOpen: (timelineOpen) => set({ timelineOpen }),
   setStatsOpen: (statsOpen) => set({ statsOpen }),
-  setFilter: (filter) => set({ filter }),
-  toggleFreshOnly: () => set((state) => ({ freshOnly: !state.freshOnly })),
+  setFilter: (filter) => {
+    session.setFilter(filter);
+    set(syncFromSession());
+  },
+  toggleFreshOnly: () => {
+    session.toggleFreshOnly();
+    set(syncFromSession());
+  },
   setTheme: (theme) => {
     writeStorage(THEME_STORAGE_KEY, theme);
     set({ theme });
@@ -162,83 +193,36 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     }),
   setSortMode: (sortMode) => {
     writeStoredSortMode(sortMode);
-    set({ sortMode });
+    session.setSortMode(sortMode);
+    set(syncFromSession());
   },
-  cycleSortMode: () =>
-    set((state) => {
-      const next = nextSortMode(state.sortMode);
-      writeStoredSortMode(next);
-      return { sortMode: next };
-    }),
-  setCollapsed: (groupId, collapsed) =>
-    set((state) => ({ collapsed: { ...state.collapsed, [groupId]: collapsed } })),
+  cycleSortMode: () => {
+    const next = nextSortMode(get().sortMode);
+    writeStoredSortMode(next);
+    session.setSortMode(next);
+    set(syncFromSession());
+  },
+  setCollapsed: (groupId, collapsed) => {
+    session.setCollapsed(groupId, collapsed);
+    set(syncFromSession());
+  },
   collapseAll: (collapsed) => {
-    const groups = get().model?.groups ?? [];
-    set({ collapsed: Object.fromEntries(groups.map((group) => [group.id, collapsed])) });
+    session.collapseAll(collapsed);
+    set(syncFromSession());
   },
-  toggleHunkCollapsed: (id) =>
-    set((state) => ({ hunkCollapsed: { ...state.hunkCollapsed, [id]: !state.hunkCollapsed[id] } })),
+  toggleHunkCollapsed: (id) => {
+    session.toggleHunkCollapsed(id);
+    set(syncFromSession());
+  },
   setNitsOpen: (nitsOpen) => set({ nitsOpen }),
   toggleNits: () => set((state) => ({ nitsOpen: !state.nitsOpen })),
-  setToast: (toast) => set({ toast })
+  setToast: (toast) => {
+    session.setToast(toast);
+    set(syncFromSession());
+  }
 }));
 
-export function visibleHunks(
-  model: ReviewModel | undefined,
-  filter: string,
-  collapsed: Record<string, boolean>,
-  sortMode: ReviewSortMode = "risk",
-  freshIds: Record<string, true> = {},
-  freshOnly = false
-): ReviewHunk[] {
-  if (!model) {
-    return [];
-  }
-  const groupById = new Map(model.groups.map((group) => [group.id, group]));
-  const needle = filter.trim().toLowerCase();
-  return sortReviewHunks(model.hunks, model, sortMode).filter((hunk) => {
-    if (needle && !hunk.file.toLowerCase().includes(needle)) {
-      return false;
-    }
-    if (freshOnly && !freshIds[hunk.id]) {
-      return false;
-    }
-    const group = groupById.get(hunk.groupId);
-    return group ? !collapsed[group.id] : true;
-  });
-}
-
-function preserveNearestSelection(previous: ReviewHunk[], selectedId: string | undefined, available: ReadonlySet<string>): string | undefined {
-  if (selectedId && available.has(selectedId)) {
-    return selectedId;
-  }
-  const index = selectedId ? previous.findIndex((hunk) => hunk.id === selectedId) : -1;
-  const after = previous.slice(index + 1).find((hunk) => available.has(hunk.id));
-  if (after) {
-    return after.id;
-  }
-  return [...previous.slice(0, Math.max(0, index))].reverse().find((hunk) => available.has(hunk.id))?.id;
-}
-
-function omitFresh(freshIds: Record<string, true>, id: string): Record<string, true> {
-  const remaining = { ...freshIds };
-  delete remaining[id];
-  return remaining;
-}
-
-function hydrateFreshIds(model: ReviewModel, existing: Record<string, true>): Record<string, true> {
-  const startedAt = readFreshSessionStartedAt();
-  const visited = readFreshVisitedIds();
-  return Object.fromEntries(
-    model.hunks
-      .filter((hunk) => existing[hunk.id] || (isFirstSeenThisSession(hunk.firstSeenAt, startedAt) && !visited.has(hunk.id)))
-      .map((hunk) => [hunk.id, true] as const)
-  );
-}
-
-function isFirstSeenThisSession(firstSeenAt: string | undefined, startedAt: string): boolean {
-  return Boolean(firstSeenAt && firstSeenAt >= startedAt);
-}
+export { sortReviewHunks, visibleHunks };
 
 function readFreshSessionStartedAt(): string {
   try {
@@ -274,36 +258,6 @@ function markFreshVisited(id: string): void {
   } catch {
     // Freshness is an optional interface hint; memory-only behavior remains useful.
   }
-}
-
-export function sortReviewHunks(
-  hunks: ReviewHunk[],
-  model: ReviewModel,
-  sortMode: ReviewSortMode = "risk"
-): ReviewHunk[] {
-  const groupOrder = new Map(model.groups.map((group) => [group.id, group.order]));
-  const groupKind = new Map(model.groups.map((group) => [group.id, group.kind]));
-  return [...hunks].sort((a, b) => {
-    const groupDelta = (groupOrder.get(a.groupId) ?? 999) - (groupOrder.get(b.groupId) ?? 999);
-    if (groupDelta !== 0) {
-      return groupDelta;
-    }
-    if (sortMode === "path") {
-      return comparePathThenRisk(a, b);
-    }
-    if (sortMode === "reading" && groupKind.get(a.groupId) === "attention") {
-      const aRank = a.readingRank;
-      const bRank = b.readingRank;
-      if (aRank !== undefined && bRank !== undefined && aRank !== bRank) {
-        return aRank - bRank;
-      }
-    }
-    return compareRiskThenPath(a, b);
-  });
-}
-
-function nextSortMode(current: ReviewSortMode): ReviewSortMode {
-  return SORT_MODES[(SORT_MODES.indexOf(current) + 1) % SORT_MODES.length] ?? "risk";
 }
 
 function readStoredSortMode(): ReviewSortMode {
@@ -354,24 +308,4 @@ function writeStorage(key: string, value: string): void {
   } catch {
     // Local storage can be disabled; preferences are optional.
   }
-}
-
-function compareRiskThenPath(a: ReviewHunk, b: ReviewHunk): number {
-  if (b.risk !== a.risk) {
-    return b.risk - a.risk;
-  }
-  return comparePathOnly(a, b);
-}
-
-function comparePathThenRisk(a: ReviewHunk, b: ReviewHunk): number {
-  const pathDelta = comparePathOnly(a, b);
-  return pathDelta !== 0 ? pathDelta : b.risk - a.risk;
-}
-
-function comparePathOnly(a: ReviewHunk, b: ReviewHunk): number {
-  const fileDelta = a.file.localeCompare(b.file);
-  if (fileDelta !== 0) {
-    return fileDelta;
-  }
-  return (a.newStart ?? a.oldStart ?? 0) - (b.newStart ?? b.oldStart ?? 0);
 }

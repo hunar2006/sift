@@ -1,4 +1,5 @@
 import type { ReviewHunk } from "./types.js";
+import { nextAttentionUnreviewed as sessionNextAttention, nextFileHunkId, relativeHunkId } from "@sift-review/core/session";
 
 export interface KeyboardState {
   selectedId?: string;
@@ -128,36 +129,13 @@ export function nextUnreviewedAfter(hunks: ReviewHunk[], currentId: string): str
 }
 
 export function nextAttentionUnreviewed(state: KeyboardState, delta: 1 | -1): string | undefined {
-  const hunks = state.hunks;
-  if (hunks.length === 0) {
-    return undefined;
-  }
-  const currentIndex = Math.max(0, hunks.findIndex((hunk) => hunk.id === state.selectedId));
-  const forward = [...hunks.slice(currentIndex + 1), ...hunks.slice(0, currentIndex + 1)];
-  const backward = [...hunks.slice(0, currentIndex).reverse(), ...hunks.slice(currentIndex).reverse()];
-  const ordered = delta > 0 ? forward : backward;
-  return ordered.find(isUnreviewedAttentionHunk)?.id ?? state.selectedId;
-}
-
-function isUnreviewedAttentionHunk(hunk: ReviewHunk): boolean {
-  return hunk.status === "unreviewed" && (hunk.band === "high" || hunk.band === "medium");
+  return sessionNextAttention(state.hunks, state.selectedId, delta);
 }
 
 function relativeId(state: KeyboardState, delta: number): string | undefined {
-  if (state.allIds.length === 0) {
-    return undefined;
-  }
-  const index = Math.max(0, state.allIds.findIndex((id) => id === state.selectedId));
-  const next = Math.min(state.allIds.length - 1, Math.max(0, index + delta));
-  return state.allIds[next];
+  return relativeHunkId(state.allIds, state.selectedId, delta);
 }
 
 function nextFileId(state: KeyboardState, delta: number): string | undefined {
-  const current = state.hunks.find((hunk) => hunk.id === state.selectedId);
-  if (!current) {
-    return relativeId(state, delta);
-  }
-  const index = state.hunks.findIndex((hunk) => hunk.id === current.id);
-  const scan = delta > 0 ? state.hunks.slice(index + 1) : state.hunks.slice(0, index).reverse();
-  return scan.find((hunk) => hunk.file !== current.file)?.id ?? current.id;
+  return nextFileHunkId(state.hunks, state.selectedId, delta);
 }

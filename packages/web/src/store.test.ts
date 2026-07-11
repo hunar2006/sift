@@ -44,8 +44,8 @@ const modelFor = (hunks: ReviewHunk[]): ReviewModel => ({
   totals: { changedLines: hunks.length, attentionLines: hunks.length, reviewableLines: hunks.length, files: hunks.length }
 });
 
-describe("sortReviewHunks", () => {
-  it("supports risk, reading, and path modes", () => {
+describe("web store adapter", () => {
+  it("supports risk, reading, and path modes via shared session", () => {
     const hunks = [
       hunk({ id: "use", file: "src/a-use.ts", risk: 60, readingRank: 1, newStart: 20 }),
       hunk({ id: "def", file: "src/z-defs.ts", risk: 10, readingRank: 0, newStart: 5 })
@@ -94,16 +94,8 @@ describe("sortReviewHunks", () => {
       hunk({ id: "one", file: "src/one.ts", risk: 40 }),
       hunk({ id: "fresh", file: "src/fresh.ts", risk: 80 })
     ]);
-    useReviewStore.setState({
-      model: previous,
-      stats: {} as StatsSnapshot,
-      meta: meta(),
-      selectedId: "gone",
-      freshIds: {},
-      freshOnly: false,
-      toast: undefined
-    });
-
+    useReviewStore.getState().setData(previous, {} as StatsSnapshot, meta());
+    useReviewStore.getState().setSelected("gone");
     useReviewStore.getState().applyLiveData(next, {} as StatsSnapshot, meta(), ["fresh"], ["gone"]);
     expect(useReviewStore.getState().selectedId).toBe("one");
     expect(useReviewStore.getState().freshIds).toEqual({ fresh: true });

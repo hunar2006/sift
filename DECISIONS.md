@@ -141,3 +141,10 @@ This craft pass was performed **without a browser** this session (the app was no
 - Cut-line protocol active: (1) landing page, (2) demo GIF, (3) `sift init`, (4) TUI quick-flag+undo (keep a/x/u), (5) eval corpus may shrink to 3×20. Must not cut: eval invariants+fuzzer core, live MCP, decision-core, TUI core loop.
 - Tuning boundary: risk weights/bands frozen unless an invariant/spec contradiction; each such fix cites the clause in DECISIONS.
 - Corpus choices (Phase 2): pin `zod`, `express`, `flask`, `httpx`, `chi`, `fastify` (or nearest permissively licensed SHAs) in `packages/eval/corpus.lock.json`; clones in `.evalcache/` (gitignored).
+
+## 2026-07-11 - v0.5 Phase 1: decision-core
+
+- Extracted framework-agnostic review session into `packages/core/src/session/` (queue/sort, selection/navigation, undo, fresh lifecycle, `ReviewSession` event store). Zero DOM/React/Ink.
+- Web zustand store is a thin adapter over `ReviewSession` via the browser-safe `@sift-review/core/session` subpath export (avoids pulling Node `git`/`fs` into Vite).
+- Flag-reason constants live in `flag-reasons.ts` (shared by config + session) so the session graph stays Node-free.
+- Migrated undo + session tests into core; web store/keyboard tests still pass as adapter coverage. Screenshots re-shot for pixel parity check.

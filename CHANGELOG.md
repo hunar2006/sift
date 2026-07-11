@@ -9,6 +9,11 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 ### Added
 
 - Proven upgrade work started from a green v0.4.1 baseline (lint · typecheck · test · build · smoke · perf · pack-check). Demo GIF absent; production of `docs/demo.gif`/`mp4` joins Phase 8.
+- Shared decision-core (`@sift-review/core/session`): queue derivation, navigation, undo (depth 20), fresh-set lifecycle, and a tiny event-emitting `ReviewSession` store with no DOM/React/Ink imports. Web cockpit uses it through a thin zustand adapter.
+
+### Changed
+
+- Web review store is now an adapter over the shared session module; behavior and visuals unchanged (screenshots re-shot).
 
 ## [0.4.1] - Unreleased
 
