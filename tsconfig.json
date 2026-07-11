@@ -4,6 +4,7 @@
     { "path": "./packages/core" },
     { "path": "./packages/claude-adapter" },
     { "path": "./packages/cli" },
-    { "path": "./packages/web" }
+    { "path": "./packages/web" },
+    { "path": "./packages/eval" }
   ]
 }

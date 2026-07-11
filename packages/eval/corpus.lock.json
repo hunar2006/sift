@@ -1,0 +1,44 @@
+[
+  {
+    "id": "zod",
+    "url": "https://github.com/colinhacks/zod.git",
+    "sha": "912f0f51b0ced654d0069741e7160834dca742ee",
+    "license": "MIT",
+    "language": "typescript"
+  },
+  {
+    "id": "express",
+    "url": "https://github.com/expressjs/express.git",
+    "sha": "ba006766fb964571723138708eacaba0f55759cd",
+    "license": "MIT",
+    "language": "javascript"
+  },
+  {
+    "id": "flask",
+    "url": "https://github.com/pallets/flask.git",
+    "sha": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+    "license": "BSD-3-Clause",
+    "language": "python"
+  },
+  {
+    "id": "httpx",
+    "url": "https://github.com/encode/httpx.git",
+    "sha": "b5addb64f0161ff6bfe94c124ef76f6a1fba5254",
+    "license": "BSD-3-Clause",
+    "language": "python"
+  },
+  {
+    "id": "chi",
+    "url": "https://github.com/go-chi/chi.git",
+    "sha": "8b258c7bb28f97a5f2a856ff7ef962578fec9215",
+    "license": "MIT",
+    "language": "go"
+  },
+  {
+    "id": "fastify",
+    "url": "https://github.com/fastify/fastify.git",
+    "sha": "94bcbcc6e2ef3b8e8f8e8797fe551ccbe7b942fd",
+    "license": "MIT",
+    "language": "typescript"
+  }
+]

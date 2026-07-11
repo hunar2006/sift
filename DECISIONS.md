@@ -148,3 +148,11 @@ This craft pass was performed **without a browser** this session (the app was no
 - Web zustand store is a thin adapter over `ReviewSession` via the browser-safe `@sift-review/core/session` subpath export (avoids pulling Node `git`/`fs` into Vite).
 - Flag-reason constants live in `flag-reasons.ts` (shared by config + session) so the session graph stays Node-free.
 - Migrated undo + session tests into core; web store/keyboard tests still pass as adapter coverage. Screenshots re-shot for pixel parity check.
+
+## 2026-07-11 - v0.5 Phase 2: eval harness
+
+- Added private `@sift-review/eval` with `corpus.lock.json` pinning zod / express / flask / httpx / chi / fastify at exact SHAs (MIT/BSD), clones in `.evalcache/`.
+- Runner analyzes each of the most recent 40 non-merge commits as `C^..C` via core `ingestDiff` + tree-sitter sources + `analyzeDiff` (provenance/AI/coverage off). Never builds or executes corpus code — git + parse only.
+- Hard invariants: no-crash, completeness, independent mechanical honesty (whitespace / token-format / import-reorder / rename groups — not via classifier), determinism double-run, score/line bounds, per-repo state-safety sample (25), perf budget × `PERF_MULT`.
+- First full run: 6×40, **1442 hunks, 0 violations** (~4 min wall with warm cache, PERF_MULT=2). Env knobs: `EVAL_REPOS`, `EVAL_COMMITS`, `PERF_MULT`; repro via `pnpm eval --repo X --sha Y`.
+- Root scripts: `pnpm eval`. Report gitignored at `packages/eval/report/`; committed summary deferred to Phase 4 (`docs/EVAL.md`).

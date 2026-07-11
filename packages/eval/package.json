@@ -1,0 +1,19 @@
+{
+  "name": "@sift-review/eval",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval": "tsx src/cli.ts",
+    "fuzz": "tsx src/fuzz.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sift-review/core": "0.1.0",
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "0.20.8"
+  },
+  "devDependencies": {
+    "fast-check": "^4.3.0"
+  }
+}

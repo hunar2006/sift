@@ -10,6 +10,8 @@ export default tseslint.config(
       "**/coverage/**",
       ".demo/**",
       ".sift/**",
+      ".evalcache/**",
+      "packages/eval/report/**",
       "node_modules/**",
       "pnpm-lock.yaml",
       "scripts/**",
