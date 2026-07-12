@@ -4,6 +4,8 @@ import { computeRiskSignals, type SignalContext } from "./signals.js";
 import { scoreHunk } from "../score.js";
 import { applyRulesToReasons, type EffectiveRules } from "../rules.js";
 
+export { directiveCommentToken, isDirectiveComment } from "./directives.js";
+
 export interface Classifier {
   classify(
     hunk: ParsedHunk,

@@ -53,6 +53,7 @@ export async function createDemoRepo(options: DemoRepoOptions = {}): Promise<Dem
   await write(repo, "src/format/a.ts", renameBaseline("a"));
   await write(repo, "src/format/b.ts", renameBaseline("b"));
   await write(repo, "src/format/c.ts", renameBaseline("c"));
+  await write(repo, "src/compat/legacy.ts", "// legacy TypeScript compatibility\n");
   await write(repo, "src/reports/audit.ts", "export const reportVersion = 1;\n");
   await write(repo, "src/routes/audit.ts", "export const auditRoute = '/audit';\n");
   await write(repo, "src/routes/notifications.ts", "export const notificationRoute = '/notifications';\n");
@@ -101,6 +102,7 @@ async function applyAgentChange(repo: string): Promise<void> {
   await write(repo, "src/format/a.ts", renameChanged("a"));
   await write(repo, "src/format/b.ts", renameChanged("b"));
   await write(repo, "src/format/c.ts", renameChanged("c"));
+  await write(repo, "src/compat/legacy.ts", "// @ts-ignore\n");
   await write(repo, "src/reports/audit.ts", auditDefinitionChanged());
   await write(repo, "src/routes/audit.ts", auditUsageChanged("auditRoute", "describeAuditRoute"));
   await write(repo, "src/routes/notifications.ts", auditUsageChanged("notificationRoute", "describeNotificationRoute"));

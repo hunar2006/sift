@@ -6,6 +6,7 @@ export * from "./ingest.js";
 export * from "./parse.js";
 export * from "./identity.js";
 export * from "./path-utils.js";
+export * from "./patch.js";
 export * from "./score.js";
 export * from "./group.js";
 export * from "./order.js";

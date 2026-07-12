@@ -4,6 +4,17 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.5.3] - Directive Comments (Unreleased)
+
+### Added
+
+- `LINT_SUPPRESSED` (+25, primary) for added or removed compiler, linter, coverage, formatter, and declaration-tooling directive comments, with matched-token evidence.
+
+### Fixed
+
+- Directive comments can no longer fall into comment-only mechanical skim; the shared detector covers TypeScript/JavaScript, Python, Go, Rust, Java/Kotlin, generic coverage directives, and declaration-file tags.
+- Rename-only pseudo-hunks now render their old-to-new path in reports, print output, eval dumps, and the preflight handoff. Blank-line removals now retain the `WHITESPACE_ONLY` subtype.
+
 ## [0.5.2] - Preflight (Unreleased)
 
 ### Added

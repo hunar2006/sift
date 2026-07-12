@@ -2,6 +2,7 @@ import path from "node:path";
 import {
   containsForbiddenVerdict,
   FORBIDDEN_VERDICT_PATTERNS,
+  renderHunkPatch,
   type HunkWithState,
   type ReviewModelWithState
 } from "@sift-review/core";
@@ -67,8 +68,7 @@ export function assertTemplateAvoidsVerdicts(): void {
 }
 
 function renderPatch(hunk: HunkWithState): string {
-  const lines = hunk.lines.map((line) => `${line.kind === "add" ? "+" : line.kind === "del" ? "-" : " "}${line.text}`);
-  return [...lines.slice(0, MAX_PATCH_LINES), ...(lines.length > MAX_PATCH_LINES ? ["\u2026 truncated"] : [])].join("\n");
+  return renderHunkPatch(hunk, MAX_PATCH_LINES);
 }
 
 function hunkLine(hunk: HunkWithState): number {

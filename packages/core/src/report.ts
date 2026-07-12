@@ -1,5 +1,6 @@
 import path from "node:path";
 import { provenanceSourceLabel } from "./provenance.js";
+import { renderHunkPatch } from "./patch.js";
 import type { ReviewModel, ReviewStateFile, StatsSnapshot } from "./types.js";
 
 export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile, stats: StatsSnapshot): string {
@@ -9,6 +10,7 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
     (hunk) => hunk.band === "high" && state.hunks[hunk.id]?.status === "approved"
   );
   const skimGroups = model.groups.filter((group) => group.kind === "skim");
+  const renameOnly = model.hunks.filter((hunk) => hunk.isRenameOnly && hunk.lines.length === 0);
   const provenanceSessions = new Set(
     model.hunks.flatMap((hunk) => (hunk.provenance ? [`${hunk.provenance.source}:${hunk.provenance.sessionId}`] : []))
   );
@@ -54,6 +56,9 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
     skimGroups.length === 0
       ? "None"
       : skimGroups.map((group) => `${group.title} ${group.totalAdded + group.totalRemoved} lines`).join(" | "),
+    "",
+    "## Rename-only files",
+    ...(renameOnly.length === 0 ? ["- None"] : renameOnly.map((hunk) => `- ${renderHunkPatch(hunk)}`)),
     "",
     "## Provenance",
     `${(stats.provenanceCoverage * 100).toFixed(0)}% of attention hunks matched provenance sessions (${provenanceSessions.size} sessions${

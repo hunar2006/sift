@@ -1,6 +1,7 @@
 import type { HunkCategory, ParsedHunk, RiskReason } from "../types.js";
 import { basename, extension, normalizeRepoRelative } from "../path-utils.js";
 import { languageForPath } from "./languages.js";
+import { isDirectiveComment } from "./directives.js";
 import { isTokenFormatOnly } from "../structure/index.js";
 
 const LOCKFILES = new Set([
@@ -232,7 +233,8 @@ function isWhitespaceOnly(hunk: ParsedHunk): boolean {
   const added = changedText(hunk, "add");
   const removed = changedText(hunk, "del");
   if (added.length === 0 || removed.length === 0) {
-    return false;
+    const changed = [...added, ...removed];
+    return changed.length > 0 && changed.every((line) => line.trim().length === 0);
   }
   return normalizeWs(added.join("\n")) === normalizeWs(removed.join("\n"));
 }
@@ -256,8 +258,7 @@ function isCommentOnly(hunk: ParsedHunk): boolean {
     if (text.length === 0) {
       return true;
     }
-    // Build/compiler directives look like comments but change compile behavior.
-    if (isBuildOrCompilerDirective(text)) {
+    if (isDirectiveComment(line.text, language)) {
       return false;
     }
     if (language.lineComments.some((prefix) => text.startsWith(prefix))) {
@@ -268,16 +269,6 @@ function isCommentOnly(hunk: ParsedHunk): boolean {
     }
     return text.startsWith("*") || text === "*/";
   });
-}
-
-/** Lines that match line-comment syntax but are not documentation-only. */
-function isBuildOrCompilerDirective(text: string): boolean {
-  return (
-    /^\/\/\s*go:build\b/.test(text) ||
-    /^\/\/\s*\+build\b/.test(text) ||
-    /^\/\/\/\s*<reference\b/.test(text) ||
-    /^#\s*(if|ifdef|ifndef|elif|else|endif|pragma|include|define|undef)\b/.test(text)
-  );
 }
 
 function isImportReorderOnly(hunk: ParsedHunk): boolean {

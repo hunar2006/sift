@@ -1,0 +1,9 @@
+diff --git a/types/reply.d.ts b/types/reply.d.ts
+index 0aa0000..0bb0000 100644
+--- a/types/reply.d.ts
++++ b/types/reply.d.ts
+@@ -12,4 +12,5 @@ export interface FastifyReply {
+   /** Sends a payload. */
++  /** @deprecated Use send() instead. */
+   send(payload?: unknown): FastifyReply;
+ }

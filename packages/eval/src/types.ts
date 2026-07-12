@@ -1,4 +1,4 @@
-import type { Hunk, HunkCategory, ReviewModel, RiskBand } from "@sift-review/core";
+import { renderHunkPatch, type Hunk, type HunkCategory, type ReviewModel, type RiskBand } from "@sift-review/core";
 
 export interface CorpusEntry {
   id: string;
@@ -88,10 +88,5 @@ export function fingerprintModel(model: ReviewModel): ModelFingerprint {
 }
 
 export function patchForHunk(hunk: Hunk): string {
-  return hunk.lines
-    .map((line) => {
-      const prefix = line.kind === "add" ? "+" : line.kind === "del" ? "-" : " ";
-      return `${prefix}${line.text}`;
-    })
-    .join("\n");
+  return renderHunkPatch(hunk);
 }

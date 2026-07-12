@@ -243,3 +243,8 @@ pnpm sift -- init         # starter config/rules
 - Stage C makes the v0.5.1 release promises executable: package identity, tarball allowlist, packed-manifest sealing, README links, documented placeholders, OSS files, workflow parsing/secret guard, and changelog entries. Its focused tests seed disallowed files, unexpected placeholders, and unguarded publishing to prove the detector paths.
 - Full preflight produces disposable fresh-user and installed-package proofs. The latter runs the packed binary, MCP stdio liveness after a synthetic worktree mutation, sandboxed hook round-trip, idempotent init, and package-local web/wasm/font checks. It never authenticates, publishes, tags, pushes, or runs reviewed-repository code.
 - A missing demo video is an explicit bounded `SKIP`, not a false pass: the scorecard carries the exact encoder result and a one-line manual recording instruction. The Stage H scorecard contains the 10 mechanical patch/repro samples when a full eval report is available, plus the PowerShell-only manual ship list.
+
+## 2026-07-13 — v0.5.3 Directive Comments
+
+- `LINT_SUPPRESSED` is the only signal-table amendment in this hotfix: compiler/linter/coverage/formatter and declaration-tooling directives are +25 primary signals on both additions and removals. A shared comment-aware detector also blocks COMMENT_ONLY demotion independently of weight, while eval keeps a separate lexical guard against directive hunks becoming mechanical.
+- The published CLI version remains `0.5.0`. This is a pre-launch corrective pass folded into the first `0.5.0` artifact, consistent with the earlier v0.5.1/v0.5.2 pre-publish reconciliation; the changelog records the work as v0.5.3 without changing the package or CLI version.

@@ -3,6 +3,8 @@ import type { DiffLine, HunkCategory, ParsedHunk, RiskReason } from "../types.js
 import { extension, normalizeRepoRelative, safeEvidence } from "../path-utils.js";
 import { SIGNAL_WEIGHTS } from "../score.js";
 import { isTestPath, isManifestPath } from "./categories.js";
+import { directiveCommentToken } from "./directives.js";
+import { languageForPath } from "./languages.js";
 import { POPULAR_PACKAGE_NAMES } from "./signals/popular-packages.js";
 
 export interface SignalContext {
@@ -54,6 +56,21 @@ export function computeRiskSignals(
   const added = hunk.lines.filter((line) => line.kind === "add");
   const removed = hunk.lines.filter((line) => line.kind === "del");
   const unchanged = hunk.lines.filter((line) => line.kind === "context");
+  const language = languageForPath(file);
+
+  const directive = [...added, ...removed]
+    .map((line) => ({ line, token: directiveCommentToken(line.text, language) }))
+    .find((match) => match.token !== null);
+  if (directive?.token) {
+    reasons.push({
+      code: "LINT_SUPPRESSED",
+      label: "Adds a compiler/linter directive comment",
+      weight: SIGNAL_WEIGHTS.LINT_SUPPRESSED,
+      tier: "primary",
+      line: directive.line.newLine ?? directive.line.oldLine,
+      evidence: `${directive.line.kind === "add" ? "added" : "removed"}: ${directive.token}`
+    });
+  }
 
   if (SECURITY_PATH_RE.test(file)) {
     reasons.push({ code: "SEC_PATH", label: "Security-sensitive path", weight: SIGNAL_WEIGHTS.SEC_PATH });

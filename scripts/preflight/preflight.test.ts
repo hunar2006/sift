@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkWorkflowGuard, isAllowedPackedFile, sampleMechanicalHunks, scanPlaceholders } from "./audit.js";
+import { renderHumanReview } from "./human.js";
 import { renderPreflightMarkdown, runStages } from "./index.js";
 import type { MechanicalSample, PreflightContext, StageResult } from "./types.js";
 
@@ -43,6 +44,11 @@ describe("preflight helpers", () => {
     expect(samples).toHaveLength(10);
     expect(new Set(samples.map((item) => item.repo)).size).toBeGreaterThan(1);
     expect(samples.map((item) => item.categoryReason)).toEqual(expect.arrayContaining(["ast-format-only", "IMPORT_REORDER", "COMMENT_ONLY", "RENAME_ONLY"]));
+  });
+
+  it("keeps a rename pseudo-hunk visible in the human handoff", () => {
+    const renamed = { ...sample("repo", "rename", "rename", 0), file: "src/new.ts", patch: "renamed: src/old.ts → src/new.ts" };
+    expect(renderHumanReview([renamed])).toContain("renamed: src/old.ts → src/new.ts");
   });
 
   it("runs stages in order, emits markdown, and propagates a failure", async () => {

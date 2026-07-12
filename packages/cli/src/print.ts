@@ -1,5 +1,5 @@
 import pc from "picocolors";
-import { mergeReviewState, type HunkGroup, type HunkWithState, type ReviewModel, type ReviewStateFile, type StatsSnapshot } from "@sift-review/core";
+import { mergeReviewState, renderHunkPatch, type HunkGroup, type HunkWithState, type ReviewModel, type ReviewStateFile, type StatsSnapshot } from "@sift-review/core";
 
 export interface PrintOptions {
   color?: boolean;
@@ -31,6 +31,10 @@ export interface PrintPayload {
     hunks: number;
     lines: number;
   }>;
+  renameOnlyHunks: Array<{
+    file: string;
+    patch: string;
+  }>;
 }
 
 export function printPayload(model: ReviewModel, state: ReviewStateFile, stats: StatsSnapshot): PrintPayload {
@@ -58,7 +62,10 @@ export function printPayload(model: ReviewModel, state: ReviewStateFile, stats: 
         headline: hunk.digest.headline,
         topReason: topReason(hunk)
       })),
-    skimBundles: model.groups.filter((group) => group.kind === "skim").map(skimSummary)
+    skimBundles: model.groups.filter((group) => group.kind === "skim").map(skimSummary),
+    renameOnlyHunks: model.hunks
+      .filter((hunk) => hunk.isRenameOnly && hunk.lines.length === 0)
+      .map((hunk) => ({ file: hunk.file, patch: renderHunkPatch(hunk) }))
   };
 }
 
@@ -97,6 +104,13 @@ export function renderPrintReport(model: ReviewModel, state: ReviewStateFile, st
   } else {
     for (const group of payload.skimBundles) {
       lines.push(`  ${group.title}: ${group.hunks} hunks, ${group.lines} lines`);
+    }
+  }
+
+  if (payload.renameOnlyHunks.length > 0) {
+    lines.push("", "Rename-only:");
+    for (const hunk of payload.renameOnlyHunks) {
+      lines.push(`  ${hunk.patch}`);
     }
   }
 

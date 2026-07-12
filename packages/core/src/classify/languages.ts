@@ -4,6 +4,7 @@ export interface LanguageInfo {
   name: string;
   lineComments: string[];
   blockComments: Array<[string, string]>;
+  declarationTags?: boolean;
   importRegexes: RegExp[];
   importSpecifier(line: string): string | null;
 }
@@ -66,6 +67,17 @@ const byExtension: Record<string, LanguageInfo> = {
   },
   py: {
     name: "python",
+    lineComments: ["#"],
+    blockComments: [
+      ['"""', '"""'],
+      ["'''", "'''"]
+    ],
+    importRegexes: [/^\s*import\s+/, /^\s*from\s+\S+\s+import\s+/],
+    importSpecifier: pyImportSpecifier
+  },
+  pyi: {
+    name: "python",
+    declarationTags: true,
     lineComments: ["#"],
     blockComments: [
       ['"""', '"""'],
@@ -197,6 +209,10 @@ const byExtension: Record<string, LanguageInfo> = {
 };
 
 export function languageForPath(filePath: string): LanguageInfo {
+  if (filePath.toLowerCase().replace(/\\/g, "/").endsWith(".d.ts")) {
+    const typescript = byExtension.ts;
+    return typescript ? { ...typescript, declarationTags: true } : defaultInfo;
+  }
   return byExtension[extension(filePath)] ?? defaultInfo;
 }
 

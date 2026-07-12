@@ -91,6 +91,10 @@ Use `sift brief` for flagged hunks, or `sift brief --unreviewed-high` for unrevi
 - **Provenance:** Claude Code hook logs and compatible open JSONL records.
 - **State:** approved, flagged, and unreviewed decisions stored locally under `.sift/`.
 
+### Risk signals
+
+Directive comments are machine-read behavior changes, not bulk-approvable prose. Sift flags compiler, linter, coverage, formatter, and declaration-tooling suppressions (for example `@ts-ignore`, `# noqa`, and `//go:build`) as the primary `LINT_SUPPRESSED` signal whether they are added or removed, so they remain in the attention queue with the matched directive shown as evidence.
+
 ## Commands
 
 | Command | Purpose |

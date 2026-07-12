@@ -101,4 +101,14 @@ describe("parser fixtures", () => {
     expect(model.hunks[0]?.categoryReason).not.toBe("COMMENT_ONLY");
     expect(model.hunks[0]?.category).not.toBe("mechanical");
   });
+
+  it("keeps chi blank-line removal in the whitespace-only subtype", () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "WORKTREE",
+      git: { headSha: "abc", branch: "main" },
+      patch: fixture("chi-blank-line-removal.patch")
+    });
+    expect(model.hunks[0]).toMatchObject({ category: "mechanical", categoryReason: "WHITESPACE_ONLY" });
+  });
 });

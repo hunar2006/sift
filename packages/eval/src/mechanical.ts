@@ -6,6 +6,8 @@ import type { Hunk, ReviewModel } from "@sift-review/core";
 
 const TOKEN_RE = /[A-Za-z_$][A-Za-z0-9_$]*|[0-9]+|=>|==|===|!=|!==|<=|>=|&&|\|\||[{}()[\].,;:+\-*/%=<>!]|\?/g;
 const COMMENT_RE = /^\s*(\/\/|#|\/\*|\*|\*\/)/;
+const TS_JS_FILE_RE = /\.(?:[cm]?[jt]sx?)$/i;
+const DECLARATION_FILE_RE = /\.(?:d\.ts|pyi)$/i;
 
 function changedText(hunk: Hunk, kind: "add" | "del"): string[] {
   return hunk.lines.filter((line) => line.kind === kind).map((line) => line.text);
@@ -25,7 +27,8 @@ function independentWhitespaceOnly(hunk: Hunk): boolean {
   const added = changedText(hunk, "add");
   const removed = changedText(hunk, "del");
   if (added.length === 0 || removed.length === 0) {
-    return false;
+    const changed = [...added, ...removed];
+    return changed.length > 0 && changed.every((line) => line.trim().length === 0);
   }
   return normalizeWs(added.join("\n")) === normalizeWs(removed.join("\n"));
 }
@@ -122,6 +125,57 @@ function independentImportReorder(hunk: Hunk): boolean {
   return sameMultiset(bags.added, bags.removed) && bags.added.size > 0;
 }
 
+/** A separate lexical check so eval can catch directives accidentally made mechanical. */
+function independentDirectiveComment(file: string, line: string): boolean {
+  const content = commentContent(line);
+  if (content === null) {
+    return false;
+  }
+  const tsOrJs = TS_JS_FILE_RE.test(file);
+  const python = file.endsWith(".py") || file.endsWith(".pyi");
+  const go = file.endsWith(".go");
+  const rust = file.endsWith(".rs");
+  const jvm = file.endsWith(".java") || file.endsWith(".kt");
+  return (
+    (tsOrJs &&
+      /@ts-(?:ignore|expect-error|nocheck)\b|\beslint-disable(?:-[a-z]+)*\b|\b(?:prettier|biome)-ignore\b|\b(?:istanbul|c8) ignore\b|\bwebpackIgnore\s*:\s*true\b|@jsx(?:ImportSource)?\b/.test(
+        content
+      )) ||
+    (python && /\bnoqa\b|\btype:\s*ignore\b|\bpragma:\s*no cover\b|\bmypy:|\bruff:\s*noqa\b|\bfmt:\s*(?:off|on)\b/.test(content)) ||
+    (go && /\bnolint\b|\bgo:[A-Za-z0-9_-]+\b|\+build\b/.test(content)) ||
+    (rust && /\brustfmt::skip\b/.test(content)) ||
+    (jvm && /\bnoinspection\b|\bNOSONAR\b/.test(content)) ||
+    /\bcoverage:ignore\b|\bcodecov ignore\b/.test(content) ||
+    (DECLARATION_FILE_RE.test(file) && /@(?:deprecated|internal)\b/.test(content))
+  );
+}
+
+function commentContent(line: string): string | null {
+  let quote: "'" | '"' | "`" | undefined;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (quote) {
+      if (character === "\\") {
+        index += 1;
+      } else if (character === quote) {
+        quote = undefined;
+      }
+      continue;
+    }
+    if (character === "'" || character === '"' || character === "`") {
+      quote = character;
+      continue;
+    }
+    if (line.startsWith("//", index) || line.startsWith("/*", index)) {
+      return line.slice(index + 2);
+    }
+    if (character === "#") {
+      return line.slice(index + 1);
+    }
+  }
+  return line.trimStart().startsWith("*") ? line.trimStart().slice(1) : null;
+}
+
 function parseRenameReason(reason: string): { from: string; to: string } | null {
   const match = reason.match(/^RENAME_PATTERN:(.+)->(.+)$/);
   if (!match?.[1] || !match[2]) {
@@ -132,6 +186,9 @@ function parseRenameReason(reason: string): { from: string; to: string } | null 
 
 /** Returns null when honest; otherwise a failure detail. */
 export function verifyMechanicalHonesty(hunk: Hunk): string | null {
+  if (hunk.lines.some((line) => line.kind !== "context" && independentDirectiveComment(hunk.file, line.text))) {
+    return `Directive comment must not be mechanical for ${hunk.id}`;
+  }
   const reason = hunk.categoryReason;
   if (reason === "WHITESPACE_ONLY" || reason === "whitespace-only") {
     if (!independentWhitespaceOnly(hunk)) {

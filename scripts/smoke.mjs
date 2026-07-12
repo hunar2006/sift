@@ -50,6 +50,7 @@ function assertDemoSignals(model) {
     "AGENT_GUIDANCE_EDIT",
     "COVERED_CHANGE",
     "UNTESTED_CHANGE",
+    "LINT_SUPPRESSED",
     "USER_BAN_LEGACY_AUTH"
   ]) {
     if (!codes.has(code)) {
@@ -67,6 +68,16 @@ function assertDemoSignals(model) {
   }
   if (!model.hunks.some((hunk) => hunk.readingRank !== undefined)) {
     throw new Error("Smoke failed: expected reading-order ranks in demo model.");
+  }
+  const directiveHunk = model.hunks.find((hunk) => hunk.file === "src/compat/legacy.ts");
+  if (!directiveHunk || !directiveHunk.reasons.some((reason) => reason.code === "LINT_SUPPRESSED")) {
+    throw new Error("Smoke failed: demo directive comment did not receive LINT_SUPPRESSED.");
+  }
+  if (
+    directiveHunk.category === "mechanical" ||
+    model.groups.find((group) => group.id === directiveHunk.groupId)?.kind === "skim"
+  ) {
+    throw new Error("Smoke failed: demo directive comment landed in the skim queue.");
   }
   const undigested = model.hunks.filter(
     (hunk) => typeof hunk.digest?.headline !== "string" || hunk.digest.headline.trim().length === 0

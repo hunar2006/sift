@@ -1,0 +1,11 @@
+diff --git a/middleware/content_type.go b/middleware/content_type.go
+index 0aa0000..0bb0000 100644
+--- a/middleware/content_type.go
++++ b/middleware/content_type.go
+@@ -8,5 +8,4 @@ func SetContentType(next http.Handler) http.Handler {
+ func SetContentType(next http.Handler) http.Handler {
+   return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+     next.ServeHTTP(w, r)
+   })
+-
+ }

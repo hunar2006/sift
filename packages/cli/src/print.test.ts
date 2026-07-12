@@ -28,6 +28,16 @@ describe("print renderer", () => {
       lines: 5
     });
   });
+
+  it("renders rename-only pseudo-hunks without an empty patch", () => {
+    const renamed = { ...model(), hunks: [...model().hunks, renameHunk()] };
+    expect(renderPrintReport(renamed, emptyState(), stats(), { color: false })).toContain(
+      "renamed: src/old.ts → src/new.ts"
+    );
+    expect(printPayload(renamed, emptyState(), stats()).renameOnlyHunks).toEqual([
+      { file: "src/new.ts", patch: "renamed: src/old.ts → src/new.ts" }
+    ]);
+  });
 });
 
 function model(): ReviewModel {
@@ -86,6 +96,27 @@ function hunk(id: string, file: string, risk: number, band: Hunk["band"], groupI
     groupId,
     newStart: line,
     digest: { headline: `Modifies \`${file}\``, details: [], source: "auto" }
+  };
+}
+
+function renameHunk(): Hunk {
+  return {
+    id: "rename",
+    file: "src/new.ts",
+    oldPath: "src/old.ts",
+    language: "typescript",
+    header: "RENAME_ONLY",
+    lines: [],
+    addedLines: 0,
+    removedLines: 0,
+    category: "mechanical",
+    categoryReason: "RENAME_ONLY",
+    risk: 0,
+    band: "skim",
+    reasons: [],
+    groupId: "skim",
+    isRenameOnly: true,
+    digest: { headline: "Renames `old.ts` → `new.ts`", details: [], source: "auto" }
   };
 }
 

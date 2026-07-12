@@ -12,6 +12,7 @@ export const BASE_SCORE_BY_CATEGORY: Record<HunkCategory, number> = {
 };
 
 export const SIGNAL_WEIGHTS = {
+  LINT_SUPPRESSED: 25,
   SEC_PATH: 25,
   SECRET_LIKE: 40,
   SECRET_ENTROPY: 35,
