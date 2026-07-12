@@ -79,16 +79,28 @@ async function stageGate(context: PreflightContext): Promise<StageResult> {
       const match = output.match(/Tests\s+(\d+) passed/u);
       if (match) {
         metrics.tests = Number(match[1]);
+        details[details.length - 1] = `PASS test (${match[1]} passing)`;
+      }
+      const coverage = output.match(/All files\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|\s+([0-9.]+)/u);
+      if (coverage) {
+        metrics.coverageLines = Number(coverage[1]);
+        details[details.length - 1] = `${details[details.length - 1]} · ${coverage[1]}% lines`;
       }
     }
     if (label === "perf") {
       const match = output.match(/median ([0-9.]+) ms/u);
       if (match) {
         metrics.perfMedianMs = Number(match[1]);
+        details[details.length - 1] = `PASS perf (median ${match[1]} ms)`;
       }
     }
   }
-  return completed("A", started, "PASS", "all seven project gates passed", details, metrics);
+  const measured = [
+    typeof metrics.tests === "number" ? `${metrics.tests} tests` : undefined,
+    typeof metrics.coverageLines === "number" ? `${metrics.coverageLines}% lines` : undefined,
+    typeof metrics.perfMedianMs === "number" ? `${metrics.perfMedianMs} ms median` : undefined
+  ].filter(Boolean);
+  return completed("A", started, "PASS", `all seven project gates passed${measured.length ? ` (${measured.join(", ")})` : ""}`, details, metrics);
 }
 
 async function stageEvidence(context: PreflightContext): Promise<StageResult> {
@@ -120,7 +132,7 @@ async function stageEvidence(context: PreflightContext): Promise<StageResult> {
   if (violations > 0) {
     return completed("B", started, "FAIL", `eval reported ${violations} invariant violations`, details, { hunks, violations });
   }
-  details.push(`PASS eval: ${hunks} hunks, 0 invariant violations`, "PASS report: packages/eval/report/report.md");
+  details.push(`PASS eval: ${hunks} hunks, 0 invariant violations`, "PASS per-repo table: packages/eval/report/report.md#per-repo");
   return completed("B", started, "PASS", "eval and fuzz evidence passed", details, { hunks, violations });
 }
 

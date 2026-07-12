@@ -16,6 +16,15 @@ export function renderHumanReview(candidates: MechanicalSample[]): string {
     lines.push("No mechanical samples were available. Run `pnpm preflight` without `--fast` to refresh the eval report.");
     return lines.join("\n");
   }
+  const expected = ["format-only", "import-reorder", "comment-only", "rename"] as const;
+  const available = new Set(candidates.map(mechanicalSubtype));
+  const absent = expected.filter((subtype) => !available.has(subtype));
+  const repos = new Set(candidates.map((sample) => sample.repo));
+  lines.push(`Stratified across ${repos.size} corpus repo(s) with mechanical candidates.`);
+  if (absent.length > 0) {
+    lines.push(`Coverage note: the latest eval report has no ${absent.join(", ")} mechanical candidate; no substitute is fabricated.`);
+  }
+  lines.push("");
   for (const sample of samples) {
     lines.push(`### ${sample.repo} · ${sample.sha.slice(0, 8)} · ${sample.file}`);
     lines.push("");
