@@ -42,12 +42,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm i --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
-      - run: node scripts/smoke.mjs
-      - run: pnpm pack-check
+      - run: pnpm preflight --fast
 
   publish:
     needs: gate

@@ -153,7 +153,19 @@ export async function writeReport(report: EvalReport): Promise<string> {
   appendSpot(lines, report.spotHigh);
 
   await fs.writeFile(out, `${lines.join("\n")}\n`, "utf8");
+  await fs.writeFile(path.join(REPORT_DIR, "report.json"), `${JSON.stringify(serializableReport(report), null, 2)}\n`, "utf8");
   return out;
+}
+
+function serializableReport(report: EvalReport): Record<string, unknown> {
+  return {
+    ...report,
+    repos: report.repos.map((repo) => ({
+      ...repo,
+      signalCounts: Object.fromEntries(repo.signalCounts),
+      signalFires: Object.fromEntries(repo.signalFires)
+    }))
+  };
 }
 
 function appendSpot(lines: string[], samples: SpotSample[]): void {

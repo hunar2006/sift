@@ -14,6 +14,7 @@
     "shots": "tsx scripts/shots.ts",
     "perf": "tsx scripts/perf.ts",
     "pack-check": "tsx scripts/pack-check.ts",
+    "preflight": "tsx scripts/preflight/index.ts",
     "eval": "tsx packages/eval/src/cli.ts",
     "fuzz": "tsx packages/eval/src/fuzz.ts",
     "test": "vitest run --coverage",

@@ -1,0 +1,37 @@
+name: preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm i --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: .evalcache
+          key: evalcache-${{ hashFiles('packages/eval/corpus.lock.json') }}
+          restore-keys: |
+            evalcache-
+      - run: pnpm preflight --json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sift-preflight
+          path: |
+            PREFLIGHT.md
+            PREFLIGHT.json
+            preflight-artifacts

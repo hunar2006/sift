@@ -61,7 +61,7 @@ Regenerate the complete set with `pnpm shots`.
 
 ## How we test Sift
 
-Sift grades AI-written code, so the engine is graded too: a six-repo corpus (`pnpm eval`), hard invariants (including independent mechanical honesty), and a property fuzzer (`pnpm fuzz`). Numbers and recommendations live in [docs/EVAL.md](docs/EVAL.md). Scoring weights stay frozen unless an invariant/spec bug is proven.
+Sift grades AI-written code, so the engine is graded too: a six-repo corpus (`pnpm eval`), hard invariants (including independent mechanical honesty), and a property fuzzer (`pnpm fuzz`). Run `pnpm preflight` for the complete release-readiness scorecard before shipping. Numbers and recommendations live in [docs/EVAL.md](docs/EVAL.md). Scoring weights stay frozen unless an invariant/spec bug is proven.
 
 ## Live mode and the fix loop
 

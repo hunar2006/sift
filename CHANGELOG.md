@@ -4,6 +4,17 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.5.2] - Preflight (Unreleased)
+
+### Added
+
+- `pnpm preflight`: a sequential, Windows-safe release-readiness scorecard with full and fast modes, stage selection, Markdown output, optional JSON, disposable fresh-user/package simulations, and a human review handoff.
+- Fast preflight now gates the guarded release workflow and runs on Ubuntu plus Windows CI. An on-demand full preflight workflow uploads its scorecard and visual evidence.
+
+### Fixed
+
+- The v0.5.1 audit found and corrected relative root-README image links and internal workspace development dependencies leaking into the packed CLI manifest.
+
 ## [0.5.1] - Ship prep (Unreleased)
 
 Packaging, naming, and release plumbing only — no feature, behavior, or visual changes from 0.5.0.

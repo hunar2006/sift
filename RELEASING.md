@@ -1,97 +1,46 @@
 # Releasing Sift
 
-Literal launch runbook for `siftdiff`. Engineering-only, no marketing copy.
-Work top to bottom. `[AGENT DONE]` items are already committed on this branch;
-`[HUMAN]` items require your hands (login, publish, push, repo settings).
+`pnpm preflight` is the release path. It does the repeatable operating work; the human spends the final minutes judging the sampled mechanical changes and arming the one guarded publish action.
 
-The package is **`siftdiff`**; the installed command is **`sift`**. Only
-`packages/cli` is ever published; `@sift-review/*` stay private and bundled.
+The npm package is **`siftdiff`** and its installed command is **`sift`**. Only `packages/cli` is published.
 
-Before anything: replace **`PLACEHOLDER_OWNER`** with the real GitHub owner/org
-across `packages/cli/package.json`, `packages/cli/scripts/prepack.mjs`,
-`site/index.html`, and `SECURITY.md`. This is the only placeholder in the tree.
+## Automated path
 
----
+1. Run `pnpm preflight` locally. Read the generated `PREFLIGHT.md`, especially **READ THESE — ~8 minutes**. For every sample that looks wrong, file the displayed repro before shipping.
+2. The release workflow runs `pnpm preflight --fast` on Ubuntu and Windows before the publish job. The publish job remains inert until `NPM_TOKEN` exists.
+3. The optional **preflight** workflow runs the full scorecard on Ubuntu and uploads `PREFLIGHT.md` plus its browser evidence.
 
-## Prep — [AGENT DONE]
+## SHIP IT — the only manual steps
 
-- [x] npm name set to `siftdiff`, `private` removed, `version` `0.5.0`, publish
-      metadata (`description`, `license`, `repository`, `homepage`, `bugs`,
-      `keywords`, `engines`, `bin`, `files`, `publishConfig`) filled in.
-- [x] `prepack` builds the bundle and stages `LICENSE` + `README.md` (with
-      absolute GitHub image/link URLs) into the package.
-- [x] `pnpm pack-check` asserts the tarball name, required assets, `LICENSE`/
-      `README`, and **no** `workspace:` / `@sift-review/*` leak in the manifest
-      or bundle.
-- [x] `.github/workflows/release.yml` added (inert; gated on `NPM_TOKEN`).
-- [x] User-facing install strings swept to `npx siftdiff` / `npm i -g siftdiff`.
-- [x] OSS hygiene: `SECURITY.md`, issue templates, PR template, `CONTRIBUTING.md`.
+```powershell
+# In npmjs.com: Access Tokens -> Generate New Token -> Automation.
+# In GitHub: Settings -> Secrets and variables -> Actions -> New repository secret.
+# Add the token with the exact name NPM_TOKEN.
 
-## Repo metadata to paste — [HUMAN]
+# In GitHub: Settings -> General -> Change visibility -> Public.
+# Set description: Local-first review cockpit for AI-generated diffs — deterministic triage, provenance, and verification.
+# Set topics: code-review, diff, ai, claude-code, triage, cli, mcp, local-first
 
-In **Settings → General**, set the repository description and topics:
+# Replace PLACEHOLDER_OWNER in the tracked release metadata and commit that change.
+git tag v0.5.0
+git push origin v0.5.0
 
-- **Description:** `Local-first review cockpit for AI-generated diffs — deterministic triage, provenance, and verification.`
-- **Topics (8):** `code-review`, `diff`, `ai`, `claude-code`, `triage`, `cli`, `mcp`, `local-first`
+# GitHub -> Actions -> release: watch preflight-fast pass, then the guarded publish job.
 
-## Ship it — [HUMAN]
-
-The full CI gate (ubuntu + windows) runs on the tag before publish. Pick one path.
-
-### Path A — publish locally (simplest)
-
-```bash
-npm login
-cd packages/cli && npm publish   # prepack builds + stages docs; publishConfig makes it public with provenance
+$cold = Join-Path $env:TEMP ("sift-cold-" + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $cold | Out-Null
+Push-Location $cold
+npx --yes siftdiff@latest --version
+Pop-Location
+Remove-Item -LiteralPath $cold -Recurse -Force
 ```
 
-Then tag so the site deploys and the release is marked:
+Run `pnpm sift -- --watch` during one real agent session; if refreshes feel jittery rather than calm, file it before shipping.
 
-```bash
-git tag v0.5.0 && git push origin v0.5.0
-```
+## Superseded manual path
 
-### Path B — publish from CI (hands-off)
+The previous local `npm login` / `npm publish` path is deliberately superseded. Do not publish locally: arm the guarded workflow once with the automation token, tag the verified commit, and let preflight gate the publish.
 
-1. Add an npm automation token as the repo secret **`NPM_TOKEN`**
-   (Settings → Secrets and variables → Actions).
-2. Push the tag; `release.yml` runs the gate then publishes, `pages.yml` deploys the site:
+## Rollback
 
-```bash
-git tag v0.5.0 && git push origin v0.5.0
-```
-
-## Make it public & enable Pages — [HUMAN]
-
-- Settings → General → **Change visibility → Public**.
-- Settings → **Pages → Source: GitHub Actions** (arms `pages.yml`; the tag push above deploys `site/`).
-
-## Verify the published package — [HUMAN]
-
-In a fresh empty directory (no workspace checkout):
-
-```bash
-mkdir /tmp/sift-cold && cd /tmp/sift-cold
-npx --yes siftdiff@latest --version      # expect 0.5.0
-sift demo                                 # from the globally installed bin, if installed
-```
-
-Also exercise, enough to prove the published bin resolves its assets:
-
-```bash
-npx siftdiff@latest print --json          # web/grammar/triage path
-npx siftdiff@latest tui --print-frame      # TUI path
-```
-
-## Post links — [HUMAN]
-
-Once green, share the repo/site links in your chosen venues (e.g. Hacker News
-Show HN, r/programming, relevant Discords/Slacks). No marketing copy required.
-
-## Rollback — [HUMAN]
-
-- A bad release is fixed by publishing a patch: bump `packages/cli/package.json`
-  `version` (e.g. `0.5.1`), commit, and republish.
-- `npm deprecate siftdiff@0.5.0 "use 0.5.1"` warns installers off a broken version.
-- `npm unpublish` is only permitted within **72 hours** of publishing and only if
-  nothing depends on it; do not rely on it. Prefer deprecate + patch.
+Publish a patch, then deprecate the broken version. Prefer `npm deprecate`; npm unpublish is time-limited and should not be the planned recovery path.

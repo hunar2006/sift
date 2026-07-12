@@ -134,7 +134,7 @@ export async function runEval(argv = process.argv.slice(2)): Promise<EvalReport>
             stats.signalFires.set(reason.code, list);
           }
         }
-        if (hunk.category === "mechanical" && spotMechanical.length < 20) {
+        if (hunk.category === "mechanical" && spotMechanical.length < 200) {
           spotMechanical.push({
             repo: entry.id,
             sha,

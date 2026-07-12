@@ -39,6 +39,8 @@ jobs:
           PERF_MULT: 2
       - run: pnpm pack-check
         if: (matrix.os == 'ubuntu-latest' && matrix.node == 20) || matrix.os == 'windows-latest'
+      - run: pnpm preflight --fast
+        if: (matrix.os == 'ubuntu-latest' && matrix.node == 20) || matrix.os == 'windows-latest'
 
   eval:
     runs-on: ubuntu-latest

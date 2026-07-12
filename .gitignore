@@ -6,4 +6,7 @@ coverage
 .demo/
 .evalcache/
 packages/eval/report/
+PREFLIGHT.md
+PREFLIGHT.json
+preflight-artifacts/
 *.tsbuildinfo
