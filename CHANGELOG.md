@@ -13,7 +13,7 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 
 ### Fixed
 
-- The v0.5.1 audit found and corrected relative root-README image links and internal workspace development dependencies leaking into the packed CLI manifest.
+- The v0.5.1 audit found and corrected relative root-README image links, internal workspace development dependencies leaking into the packed CLI manifest, and a stale root build filter that silently skipped the renamed CLI.
 
 ## [0.5.1] - Ship prep (Unreleased)
 

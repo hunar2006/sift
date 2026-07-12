@@ -130,12 +130,14 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
   const failures: string[] = [];
   const cliDir = path.join(context.root, "packages", "cli");
   const manifest = await readJson<Record<string, unknown>>(path.join(cliDir, "package.json"));
+  const rootManifest = await readJson<{ scripts?: Record<string, unknown> }>(path.join(context.root, "package.json"));
   const packageChecks: Array<[boolean, string]> = [
     [manifest.name === "siftdiff", "cli name is siftdiff"],
     [manifest.version === "0.5.0", "cli version is 0.5.0"],
     [!("private" in manifest), "cli private field is absent"],
     [JSON.stringify(manifest.bin) === JSON.stringify({ sift: "./dist/index.js" }), "cli bin is sift"],
-    [JSON.stringify(manifest.publishConfig) === JSON.stringify({ access: "public", provenance: true }), "publishConfig is public + provenance"]
+    [JSON.stringify(manifest.publishConfig) === JSON.stringify({ access: "public", provenance: true }), "publishConfig is public + provenance"],
+    [String(rootManifest.scripts?.build ?? "").includes("--filter siftdiff build"), "root build targets renamed CLI package"]
   ];
   const prepack = await fs.readFile(path.join(cliDir, "scripts", "prepack.mjs"), "utf8");
   packageChecks.push([typeof (manifest.scripts as Record<string, unknown> | undefined)?.prepack === "string" && prepack.includes("run", "build"), "prepack builds"]);
@@ -492,7 +494,7 @@ async function startSiftServer(root: string, cwd: string): Promise<{ url: string
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   await stopProcess(child);
-  throw new Error(`Sift server did not become ready: ${output.slice(-500)}`);
+  throw new Error(`Sift server did not become ready: ${output.slice(-3000)}`);
 }
 
 async function stopProcess(child: ChildProcess): Promise<void> {

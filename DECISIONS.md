@@ -232,8 +232,8 @@ pnpm sift -- init         # starter config/rules
 
 ## 2026-07-12 — v0.5.2 preflight audit remediation
 
-- The claimed v0.5.1 package proof missed two release-facing details: the repository README still embedded relative screenshot paths, and the packed CLI manifest retained internal `@sift-review/core` and `@sift-review/claude-adapter` development dependencies. The former breaks npm-hosted image rendering; the latter violates the sealed-package boundary even though tsup bundles the code.
-- Screenshot embeds now use absolute raw-GitHub URLs (with the documented `PLACEHOLDER_OWNER` token), and the internal workspace references live only at the private root for source builds. The packed `siftdiff` manifest is free of `workspace:` and `@sift-review/*` references. `pnpm typecheck` and `pnpm pack-check` passed after the correction.
+- The claimed v0.5.1 package proof missed three release-facing details: the repository README still embedded relative screenshot paths, the packed CLI manifest retained internal `@sift-review/core` and `@sift-review/claude-adapter` development dependencies, and the root `build` script still filtered for the old `@sift-review/cli` name. The first breaks npm-hosted image rendering; the second violates the sealed-package boundary even though tsup bundles the code; the third made `pnpm build` silently omit the renamed CLI in a clean clone.
+- Screenshot embeds now use absolute raw-GitHub URLs (with the documented `PLACEHOLDER_OWNER` token), the internal workspace references live only at the private root for source builds, and the build target is `siftdiff`. The packed `siftdiff` manifest is free of `workspace:` and `@sift-review/*` references. `pnpm typecheck` and `pnpm pack-check` passed after the correction.
 
 ## 2026-07-12 — v0.5.2 Preflight
 

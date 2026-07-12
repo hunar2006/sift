@@ -17,7 +17,7 @@ export function renderHumanReview(candidates: MechanicalSample[]): string {
     return lines.join("\n");
   }
   for (const sample of samples) {
-    lines.push(`### ${sample.repo} Â· ${sample.sha.slice(0, 8)} Â· ${sample.file}`);
+    lines.push(`### ${sample.repo} · ${sample.sha.slice(0, 8)} · ${sample.file}`);
     lines.push("");
     lines.push(`Sift verdict: mechanical / ${mechanicalSubtype(sample)} / ${sample.band} ${sample.risk}`);
     lines.push("```diff");
