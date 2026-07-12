@@ -20,6 +20,8 @@
     "typecheck": "tsc -b"
   },
   "devDependencies": {
+    "@sift-review/claude-adapter": "workspace:*",
+    "@sift-review/core": "workspace:*",
     "@eslint/js": "^9.20.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^22.13.4",

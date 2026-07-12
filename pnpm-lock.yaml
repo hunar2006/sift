@@ -11,6 +11,12 @@ importers:
       '@eslint/js':
         specifier: ^9.20.1
         version: 9.39.4
+      '@sift-review/claude-adapter':
+        specifier: workspace:*
+        version: link:packages/claude-adapter
+      '@sift-review/core':
+        specifier: workspace:*
+        version: link:packages/core
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@19.2.7))(react@18.3.1)
@@ -114,12 +120,6 @@ importers:
         specifier: ^3.24.2
         version: 3.25.76
     devDependencies:
-      '@sift-review/claude-adapter':
-        specifier: 0.1.0
-        version: link:../claude-adapter
-      '@sift-review/core':
-        specifier: 0.1.0
-        version: link:../core
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17

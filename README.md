@@ -4,7 +4,7 @@
 
 Sift is a local-first review cockpit for large AI-generated diffs. It turns a repository diff into an ordered queue: critical logic first, skim-safe mechanical bundles last, visible evidence on every risky hunk, and durable local review state. In live mode, the queue updates alongside an agent's work without deciding anything for you.
 
-![Sift workbench](docs/screenshots/workbench-dark.png)
+![Sift workbench](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/workbench-dark.png)
 
 ## Why
 
@@ -47,15 +47,15 @@ On Windows PowerShell, `Set-Location C:\path\to\sift` first. Or run the built bi
 
 | Workbench | Focus mode |
 |---|---|
-| ![Dark workbench](docs/screenshots/workbench-dark.png) | ![Focus mode](docs/screenshots/focus.png) |
+| ![Dark workbench](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/workbench-dark.png) | ![Focus mode](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/focus.png) |
 
 | Light workbench | Completion | Timeline |
 |---|---|---|
-| ![Light workbench](docs/screenshots/workbench-light.png) | ![Completion](docs/screenshots/completion.png) | ![Timeline](docs/screenshots/timeline.png) |
+| ![Light workbench](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/workbench-light.png) | ![Completion](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/completion.png) | ![Timeline](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/timeline.png) |
 
 | Queue close-up | Inspector close-up |
 |---|---|
-| ![Queue](docs/screenshots/queue.png) | ![Inspector](docs/screenshots/inspector.png) |
+| ![Queue](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/queue.png) | ![Inspector](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/inspector.png) |
 
 Regenerate the complete set with `pnpm shots`.
 
