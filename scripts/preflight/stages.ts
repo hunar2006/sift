@@ -74,21 +74,22 @@ async function stageGate(context: PreflightContext): Promise<StageResult> {
       return completed("A", started, "FAIL", `${label} failed`, [...details, commandFailure(result)]);
     }
     const output = commandText(result);
+    const plainOutput = output.replace(/\u001B\[[0-?]*[ -/]*[@-~]/gu, "");
     details.push(`PASS ${label}`);
     if (label === "test") {
-      const match = output.match(/Tests\s+(\d+) passed/u);
+      const match = plainOutput.match(/Tests\s+(\d+) passed/u);
       if (match) {
         metrics.tests = Number(match[1]);
         details[details.length - 1] = `PASS test (${match[1]} passing)`;
       }
-      const coverage = output.match(/All files\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|\s+([0-9.]+)/u);
+      const coverage = plainOutput.match(/All files\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|\s+([0-9.]+)/u);
       if (coverage) {
         metrics.coverageLines = Number(coverage[1]);
         details[details.length - 1] = `${details[details.length - 1]} · ${coverage[1]}% lines`;
       }
     }
     if (label === "perf") {
-      const match = output.match(/median ([0-9.]+) ms/u);
+      const match = plainOutput.match(/median ([0-9.]+) ms/u);
       if (match) {
         metrics.perfMedianMs = Number(match[1]);
         details[details.length - 1] = `PASS perf (median ${match[1]} ms)`;
