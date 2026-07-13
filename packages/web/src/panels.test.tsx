@@ -84,7 +84,7 @@ describe("CompletionScreen", () => {
     const html = renderToStaticMarkup(
       <CompletionScreen model={model} stats={stats} onCopyReport={() => undefined} onBackToQueue={() => undefined} />
     );
-    expect(html).toContain("Reviewed.");
+    expect(html).toContain("Reviewed:");
     expect(html).toContain("2,314 lines");
     expect(html).toContain("login()");
     expect(html).toContain("Needs tests");

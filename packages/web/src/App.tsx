@@ -21,6 +21,7 @@ import { sortReviewHunks, useReviewStore, visibleHunks } from "./store.js";
 import type { ApiMeta, ProvenanceTimelineSession, ReviewHunk, ReviewModel } from "./types.js";
 import { highlightDiffLines } from "./highlight.js";
 import { suppressionRuleFor } from "./suppression-rule.js";
+import { FIRST_RUN_OVERLAY_STEPS, HELP_OVERLAY_LINES } from "./copy.js";
 import "./styles.css";
 
 interface CommandAction {
@@ -160,7 +161,7 @@ export function App() {
     setTimelineLoading(true);
     void fetchTimeline()
       .then((sessions) => setTimeline(sessions))
-      .catch(() => setToast("Timeline is unavailable."))
+      .catch(() => setToast("Retry timeline."))
       .finally(() => setTimelineLoading(false));
   }, [setToast, timelineOpen]);
 
@@ -323,8 +324,8 @@ export function App() {
       }
       if (command.type === "open-editor" && selected) {
         void openHunkInEditor(selected.id)
-          .then(() => setToast("Opened in editor."))
-          .catch((error: unknown) => setToast(error instanceof Error ? error.message : "Editor could not be opened."));
+          .then(() => setToast("Opened editor."))
+          .catch(() => setToast("Open failed."));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -362,7 +363,7 @@ export function App() {
         setTimeline(await fetchTimeline());
       }
     } catch {
-      setToast("Server unavailable. Retry with r.");
+      setToast("Retry with r.");
     }
   }
 
@@ -375,7 +376,7 @@ export function App() {
     const previous = hunk.status;
     if (options.record !== false && status !== previous) {
       pushUndoEntry([{ hunkId: hunk.id, prevStatus: previous, prevNote: hunk.note }]);
-      setToast(`${statusVerb(status)} ${repoBasename(hunk.file)} — Z to undo`);
+      setToast(`${statusVerb(status)} \u2014 Z to undo`);
       if (focusMode && status === "approved") {
         showStamp("verified");
       } else if (focusMode && status === "flagged") {
@@ -391,14 +392,14 @@ export function App() {
       await refreshStatsOnly(setData, model, meta, setToast);
     } catch {
       setStatus(hunk.id, previous, hunk.note);
-      setToast("Status update failed. Retry when the server is reachable.");
+      setToast("Retry update.");
     }
   }
 
   async function performUndo(): Promise<void> {
     const result = popUndoEntry();
     if (result.message) {
-      setToast(result.message);
+      setToast("Undo unavailable.");
       return;
     }
     const hunksById = new Map((model?.hunks ?? []).map((hunk) => [hunk.id, hunk]));
@@ -424,11 +425,11 @@ export function App() {
       setGroupPreview(null);
       if (changed.length > 0) {
         pushUndoEntry(changed.map((hunk) => ({ hunkId: hunk.id, prevStatus: hunk.status, prevNote: hunk.note })));
-        setToast(`Approved ${changed.length} ${changed.length === 1 ? "hunk" : "hunks"} — Z to undo`);
+        setToast("Approved \u2014 Z to undo");
       }
       await refresh();
     } catch {
-      setToast("Group approval failed. Retry when the server is reachable.");
+      setToast("Retry approval.");
     }
   }
 
@@ -461,9 +462,9 @@ export function App() {
     try {
       const markdown = await fetchReport();
       await navigator.clipboard.writeText(markdown);
-      setToast("Report copied to clipboard");
+      setToast("Copied report.");
     } catch {
-      setToast("Could not copy the report.");
+      setToast("Copy failed.");
     }
   }
   const coverageSecondary =
@@ -656,7 +657,7 @@ export function App() {
           onOpenFile={(hunk) =>
             void fetchFile(hunk.file, "new")
               .then((text) => setFileModal({ path: hunk.file, text }))
-              .catch(() => setToast("Full file is unavailable."))
+              .catch(() => setToast("Open failed."))
           }
         />
 
@@ -668,14 +669,14 @@ export function App() {
           onToggleNits={toggleNits}
           onOpenEditor={(hunk) =>
             void openHunkInEditor(hunk.id)
-              .then(() => setToast("Opened in editor."))
-              .catch((error: unknown) => setToast(error instanceof Error ? error.message : "Editor could not be opened."))
+              .then(() => setToast("Opened editor."))
+              .catch(() => setToast("Open failed."))
           }
           onCopySuppression={(reason, hunk) =>
             void navigator.clipboard
               .writeText(suppressionRuleFor(reason.code, hunk.file, reason.label))
-              .then(() => setToast("Rule copied â€” paste into .sift/rules.yml"))
-              .catch(() => setToast("Could not copy the suppression rule."))
+              .then(() => setToast("Copied rule - paste into .sift/rules.yml"))
+              .catch(() => setToast("Copy failed."))
           }
           onStatus={(status, note) => selected && void updateStatus(selected, status, note)}
         />
@@ -778,13 +779,13 @@ export function App() {
           onExit={() => setFocusMode(false)}
           onOpenEditor={(hunk) =>
             void openHunkInEditor(hunk.id)
-              .then(() => setToast("Opened in editor."))
-              .catch((error: unknown) => setToast(error instanceof Error ? error.message : "Editor could not be opened."))
+              .then(() => setToast("Opened editor."))
+              .catch(() => setToast("Open failed."))
           }
           onOpenFile={(hunk) =>
             void fetchFile(hunk.file, "new")
               .then((text) => setFileModal({ path: hunk.file, text }))
-              .catch(() => setToast("Full file is unavailable."))
+              .catch(() => setToast("Open failed."))
           }
         />
       )}
@@ -1257,7 +1258,7 @@ function Inspector({
       <section>
         <h2>Reasons</h2>
         {hunk.reasons.length === 0 ? (
-          <p>No signals beyond category base score.</p>
+          <p>No extra signals.</p>
         ) : (
           <>
             {primaryReasons.map((reason) => (
@@ -1284,7 +1285,7 @@ function Inspector({
       </section>
       <section>
         <h2>Coverage</h2>
-        {hunk.coverage ? <CoverageBadge hunk={hunk} /> : <p>No coverage evidence for this hunk.</p>}
+        {hunk.coverage ? <CoverageBadge hunk={hunk} /> : <p>No coverage evidence.</p>}
       </section>
       <section>
         <h2>Provenance</h2>
@@ -1306,7 +1307,7 @@ function Inspector({
             </div>
           </div>
         ) : (
-          <p>No provenance found. Run `sift hooks install` or emit open JSONL records.</p>
+          <p>No provenance. Run `sift hooks install` or emit JSONL.</p>
         )}
       </section>
       {aiAnnotations.length > 0 && (
@@ -1571,17 +1572,14 @@ function HelpOverlay({ tour, onClose }: { tour: boolean; onClose(): void }) {
         <h1>Keys</h1>
         {tour && (
           <div className="tour-strip">
-            <span>Navigate</span>
-            <span>Approve or flag</span>
-            <span>Bulk skim groups</span>
-            <span>Open palette</span>
+            {FIRST_RUN_OVERLAY_STEPS.map((step) => (
+              <span key={step}>{step}</span>
+            ))}
           </div>
         )}
-        <p>j/k next/prev hunk | J/K next/prev file | g g first | G last</p>
-        <p>n/p next/prev unreviewed attention hunk | a approve | x flag | u unreviewed | i note</p>
-        <p>space collapse current hunk | o split | s sort | t timeline | T theme | Ctrl/Cmd+K palette</p>
-        <p>Ctrl/Cmd+F search changes | / filter files</p>
-        <p>/ filter | r refresh | e open editor | [ collapse all | ] expand all | ? help | Esc close</p>
+        {HELP_OVERLAY_LINES.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
       </div>
     </div>
   );
@@ -1701,7 +1699,7 @@ function buildCommandActions({
       if (hunk) {
         selectHunk(hunk.id);
       } else {
-        setToast("No matching hunk.");
+        setToast("Refine search.");
       }
     }
   });
@@ -1868,12 +1866,7 @@ function sourceLabel(source: string): string {
 }
 
 function statusVerb(status: ReviewHunk["status"]): string {
-  return status === "approved" ? "Approved" : status === "flagged" ? "Flagged" : "Unreviewed";
-}
-
-function repoBasename(file: string): string {
-  const parts = file.split("/");
-  return parts[parts.length - 1] || file;
+  return status === "approved" ? "Approved" : status === "flagged" ? "Flagged" : "Reset";
 }
 
 function timeRange(session: ProvenanceTimelineSession): string {
@@ -1902,7 +1895,7 @@ async function loadAll(
     const [model, stats, meta] = await Promise.all([fetchReview(), fetchStats(), fetchMeta()]);
     setData(model, stats, meta);
   } catch {
-    setToast("Server unavailable. Retry with r.");
+    setToast("Retry with r.");
   }
 }
 
@@ -1935,7 +1928,7 @@ async function refreshStatsOnly(
   try {
     setData(model, await fetchStats(), meta);
   } catch {
-    setToast("Stats refresh failed.");
+    setToast("Refresh failed.");
   }
 }
 

@@ -1,5 +1,7 @@
 # Troubleshooting
 
+Start with the shortest fix below. Sift stays local; retry after the change.
+
 ## “Not a git repository”
 
 Run Sift from a checkout, or change into one first:

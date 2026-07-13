@@ -33,6 +33,12 @@ describe("sift init", () => {
     expect(rules).toContain("BAN_LEGACY_AUTH");
     const second = await runInit(root);
     expect(second.every((line) => line.startsWith("exists"))).toBe(true);
-    expect(initQuickstart()).toContain("sift tui");
+    expect(initQuickstart().split("\n")).toEqual([
+      "Sift files are ready.",
+      "  sift          # review",
+      "  sift tui      # terminal",
+      "  sift --watch  # live",
+      "  ?             # keys"
+    ]);
   });
 });

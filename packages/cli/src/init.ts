@@ -69,10 +69,10 @@ export async function runInit(cwd = process.cwd()): Promise<string[]> {
 
 export function initQuickstart(): string {
   return [
-    "Quickstart:",
-    "  sift            # web cockpit",
-    "  sift tui         # terminal cockpit",
-    "  sift --watch     # live refresh",
-    "  ?                # help inside web/TUI"
+    "Sift files are ready.",
+    "  sift          # review",
+    "  sift tui      # terminal",
+    "  sift --watch  # live",
+    "  ?             # keys"
   ].join("\n");
 }

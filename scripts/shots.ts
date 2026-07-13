@@ -10,6 +10,7 @@ const demoRepo = path.join(demoRoot, "repo");
 const shotsDir = path.join(root, "docs", "screenshots");
 const cli = path.join(root, "packages", "cli", "dist", "index.js");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const copyOnly = process.argv.includes("--copy");
 const demoEnv = {
   ...process.env,
   SIFT_HOME: path.join(demoRoot, "home", ".sift"),
@@ -37,10 +38,14 @@ try {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.locator(".shell").waitFor({ state: "visible" });
     const helpClose = page.locator(".help button");
+    if (copyOnly && (await helpClose.count())) {
+      await page.screenshot({ path: path.join(shotsDir, "overlay.png") });
+    }
     if (await helpClose.count()) {
       await helpClose.click();
     }
     await page.waitForTimeout(400);
+    if (!copyOnly) {
     // Allow lazy Shiki themes to paint before capture.
     await page.waitForFunction(() => document.querySelectorAll(".diff-body code span").length > 0, null, {
       timeout: 5000
@@ -103,6 +108,7 @@ try {
     await page.locator(".timeline-empty, .timeline-session").waitFor({ state: "visible" });
     await page.screenshot({ path: path.join(shotsDir, "timeline.png") });
     await page.locator(".timeline-panel").getByRole("button", { name: "Close", exact: true }).click();
+    }
 
     const model = (await fetch(`${url}/api/review`).then((response) => response.json())) as {
       groups: Array<{ kind: string; hunkIds: string[] }>;

@@ -180,8 +180,7 @@ export function CompletionScreen({
   return (
     <section className="completion" aria-label="Review complete">
       <h1 className="completion-headline">
-        Reviewed. {model.totals.changedLines.toLocaleString()} lines ·{" "}
-        {model.totals.attentionLines.toLocaleString()} needed attention
+        Reviewed: {model.totals.changedLines.toLocaleString()} lines | {model.totals.attentionLines.toLocaleString()} attention
       </h1>
       <div className="completion-stats">
         <Stat label="Approved" value={`${approvedLines.toLocaleString()} lines`} />
@@ -195,7 +194,7 @@ export function CompletionScreen({
       <div className="completion-flagged">
         <h2>Flagged ({flagged.length})</h2>
         {flagged.length === 0 ? (
-          <p>Nothing flagged.</p>
+          <p>No flags.</p>
         ) : (
           <ul>
             {flagged.map((hunk) => (
