@@ -33,8 +33,11 @@ import { renderReviewBrief, type ReviewBriefMode } from "./review-brief.js";
 import { runTui } from "./tui.js";
 import { acquireLock, releaseLock } from "./lock.js";
 import { initQuickstart, runInit } from "./init.js";
+import { commandHelp, ROOT_HELP } from "./help.js";
 
 const program = new Command();
+
+program.helpInformation = () => ROOT_HELP;
 
 class WatchUsageError extends Error {}
 
@@ -376,6 +379,10 @@ program
       printFrame: options.printFrame
     });
   });
+
+for (const command of program.commands) {
+  command.helpInformation = () => commandHelp(command.name());
+}
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   if (error instanceof GitError || error instanceof WatchUsageError) {

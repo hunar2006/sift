@@ -19,8 +19,9 @@
     "fuzz": "tsx packages/eval/src/fuzz.ts",
     "health:knip": "knip --config knip.ts",
     "health:cycles": "pnpm --filter @sift-review/core build && madge --circular --extensions ts,tsx --ts-config tsconfig.base.json packages/core/src packages/claude-adapter/src packages/cli/src packages/web/src packages/eval/src",
+    "health:readme": "tsx scripts/readme-check.ts",
     "bundle:check": "pnpm --filter @sift-review/web build && tsx scripts/bundle-budget.ts",
-    "health": "pnpm health:knip && pnpm health:cycles && pnpm lint && pnpm typecheck && pnpm bundle:check",
+    "health": "pnpm health:readme && pnpm health:knip && pnpm health:cycles && pnpm lint && pnpm typecheck && pnpm bundle:check",
     "test": "vitest run --coverage",
     "test:soak": "tsx scripts/test-soak.ts",
     "typecheck": "tsc -b"

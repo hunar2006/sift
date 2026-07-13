@@ -1,47 +1,31 @@
 # Sift
 
-**Stop reading slop. Verify what matters—while the diff is still moving.**
+Sift orders repository diffs for review.
 
-Sift is a local-first review cockpit for large AI-generated diffs. It turns a repository diff into an ordered queue: critical logic first, skim-safe mechanical bundles last, visible evidence on every risky hunk, and durable local review state. In live mode, the queue updates alongside an agent's work without deciding anything for you.
+![Sift workbench][workbench]
 
-![Sift workbench](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/workbench-dark.png)
+## Install
 
-## Why
-
-AI agents can produce more code than a human can calmly review in one pass. Sift focuses on the human bottleneck: deterministic triage, structure, coverage evidence, provenance, and durable local decisions. Optional AI annotations can summarize, but never change score, category, order, grouping, or status.
-
-## Quickstart
-
-Run it without installing:
+Run:
 
 ```bash
 npx siftdiff
 ```
 
-Or install globally:
+Or install:
 
 ```bash
 npm i -g siftdiff
-sift
 ```
 
-> The package is `siftdiff`; the command it installs is `sift`. All examples below use `sift ...`.
+## 60-second tour
 
-Try the demo:
-
-```bash
-sift demo
-```
-
-### From a source checkout
-
-```bash
-pnpm i
-pnpm build
-pnpm sift
-```
-
-On Windows PowerShell, `Set-Location C:\path\to\sift` first. Or run the built binary directly with `node packages/cli/dist/index.js`.
+- `sift` — review current changes.
+- `sift last` — review the latest commit.
+- `sift --watch` — refresh as it changes.
+- `j` / `k` / `a` / `x` — move and decide.
+- `sift tui` — review in a terminal.
+- `sift demo` — try it without a repo.
 
 ## Screenshots
 
@@ -62,6 +46,8 @@ On Windows PowerShell, `Set-Location C:\path\to\sift` first. Or run the built bi
 | ![Diff search](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/search.png) | ![Static report](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/report.png) |
 
 Regenerate the complete set with `pnpm shots`.
+
+[workbench]: https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/workbench-dark.png
 
 ## How we test Sift
 
