@@ -14,6 +14,7 @@ import type { ApiMeta, ReviewModel, ReviewHunk } from "./types.js";
 const SORT_STORAGE_KEY = "sift.sortMode";
 const SPLIT_STORAGE_KEY = "sift.split";
 const THEME_STORAGE_KEY = "sift.theme";
+const NITS_STORAGE_KEY = "sift.nitsOpen";
 const HELP_DISMISSED_STORAGE_KEY = "sift.firstRunHelpDismissed";
 const FRESH_SESSION_STARTED_KEY = "sift.freshSessionStartedAt";
 const FRESH_VISITED_KEY = "sift.freshVisited";
@@ -131,7 +132,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   timelineOpen: false,
   statsOpen: false,
   theme: readStoredTheme(),
-  nitsOpen: false,
+  nitsOpen: readStoredNitsOpen(),
   meta: undefined,
   pushUndoEntry: (entry) => {
     session.pushUndoEntry(entry);
@@ -214,8 +215,16 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     session.toggleHunkCollapsed(id);
     set(syncFromSession());
   },
-  setNitsOpen: (nitsOpen) => set({ nitsOpen }),
-  toggleNits: () => set((state) => ({ nitsOpen: !state.nitsOpen })),
+  setNitsOpen: (nitsOpen) => {
+    writeStorage(NITS_STORAGE_KEY, String(nitsOpen));
+    set({ nitsOpen });
+  },
+  toggleNits: () =>
+    set((state) => {
+      const nitsOpen = !state.nitsOpen;
+      writeStorage(NITS_STORAGE_KEY, String(nitsOpen));
+      return { nitsOpen };
+    }),
   setToast: (toast) => {
     session.setToast(toast);
     set(syncFromSession());
@@ -286,6 +295,10 @@ function readStoredTheme(): ThemeMode {
     return "light";
   }
   return "dark";
+}
+
+function readStoredNitsOpen(): boolean {
+  return readStorage(NITS_STORAGE_KEY) === "true";
 }
 
 function shouldShowFirstRunHelp(): boolean {

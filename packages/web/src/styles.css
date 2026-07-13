@@ -387,6 +387,29 @@ button.ghost {
   background: var(--ink-1);
 }
 
+.queue,
+.inspector,
+.diff-body {
+  scrollbar-color: var(--line) transparent;
+  scrollbar-width: thin;
+}
+
+.queue::-webkit-scrollbar,
+.inspector::-webkit-scrollbar,
+.diff-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.queue::-webkit-scrollbar-thumb,
+.inspector::-webkit-scrollbar-thumb,
+.diff-body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: var(--line);
+  background-clip: padding-box;
+}
+
 .inspector {
   border-left: 1px solid var(--divider);
   border-right: none;
@@ -551,6 +574,17 @@ button.ghost {
   padding: 10px 8px 10px 10px;
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.hunk-row.same-file .hunk-row-body {
+  padding-left: 26px;
+}
+
+.hunk-row-indent {
+  width: 10px;
+  height: 1px;
+  flex: 0 0 10px;
+  background: var(--line);
 }
 
 .hunk-row-top {
@@ -750,6 +784,7 @@ button.ghost {
   min-width: 0;
   gap: 8px;
   background: var(--ink-0);
+  z-index: 2;
 }
 
 .diff-title {
@@ -1142,9 +1177,9 @@ button.ghost {
   order: 5;
   margin-left: auto;
   padding: 1px 5px;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: 4px;
-  background: transparent;
+  background: var(--ink-0);
   color: var(--text-lo);
   font-family: var(--mono);
   font-size: 10px;

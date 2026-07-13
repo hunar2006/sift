@@ -10,18 +10,21 @@ const demoRepo = path.join(demoRoot, "repo");
 const shotsDir = path.join(root, "docs", "screenshots");
 const cli = path.join(root, "packages", "cli", "dist", "index.js");
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const demoEnv = {
+  ...process.env,
+  SIFT_HOME: path.join(demoRoot, "home", ".sift"),
+  SIFT_CLAUDE_DIR: path.join(demoRoot, "home", ".claude")
+};
 
 await run(pnpm, ["build"], root);
 await run(pnpm, ["demo", "--", "--headless"], root);
 await fs.mkdir(shotsDir, { recursive: true });
+const reportPath = path.join(demoRoot, "sift-report.html");
+await run(process.execPath, [cli, "report", "--html", "-o", reportPath], demoRepo, demoEnv);
 
 const child = spawn(process.execPath, [cli, "--no-open", "--port", "4311"], {
   cwd: demoRepo,
-  env: {
-    ...process.env,
-    SIFT_HOME: path.join(demoRoot, "home", ".sift"),
-    SIFT_CLAUDE_DIR: path.join(demoRoot, "home", ".claude")
-  },
+  env: demoEnv,
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true
 });
@@ -43,6 +46,12 @@ try {
       timeout: 5000
     }).catch(() => undefined);
     await page.screenshot({ path: path.join(shotsDir, "workbench-dark.png") });
+
+    await page.keyboard.press("Control+F");
+    await page.locator(".diff-search input").fill("legacy");
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: path.join(shotsDir, "search.png") });
+    await page.keyboard.press("Escape");
 
     const queueBox = await page.locator(".queue").boundingBox();
     if (queueBox) {
@@ -83,6 +92,11 @@ try {
     await page.locator(".focus-exit").click();
     await page.locator(".focus-card").waitFor({ state: "hidden" });
 
+    const reportPage = await browser.newPage({ viewport: { width: 1200, height: 900 }, colorScheme: "light" });
+    await reportPage.setContent(await fs.readFile(reportPath, "utf8"));
+    await reportPage.screenshot({ path: path.join(shotsDir, "report.png") });
+    await reportPage.close();
+
     const timelineButton = page.getByRole("button", { name: "Timeline", exact: true });
     await timelineButton.click();
     await page.locator(".timeline-panel").waitFor({ state: "visible" });
@@ -116,13 +130,15 @@ try {
 
 console.log(`screenshots written to ${shotsDir}`);
 
-function run(command: string, args: string[], cwd: string): Promise<void> {
+function run(command: string, args: string[], cwd: string, env = process.env): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
+      env,
       stdio: "inherit",
       windowsHide: true,
-      shell: process.platform === "win32"
+      // pnpm.cmd needs a shell on Windows; node.exe must not be shell-split at Program Files.
+      shell: process.platform === "win32" && !command.toLowerCase().endsWith(".exe")
     });
     child.once("error", reject);
     child.once("exit", (code) => (code === 0 ? resolve() : reject(new Error(`${command} exited ${code ?? "null"}.`))));

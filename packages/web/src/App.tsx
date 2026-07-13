@@ -595,18 +595,25 @@ export function App() {
                 {!isCollapsed &&
                   groupHunks
                     .filter((hunk) => !filter || hunk.file.toLowerCase().includes(filter.toLowerCase()))
-                    .map((hunk) => {
+                    .map((hunk, index) => {
                       const band = visualBand(hunk);
+                      const firstForFile = groupHunks.findIndex((candidate) => candidate.file === hunk.file) === index;
                       return (
                         <button
                           key={hunk.id}
-                          className={`hunk-row ${band} ${selected?.id === hunk.id ? "selected" : ""}`}
+                          className={`hunk-row ${band} ${firstForFile ? "file-first" : "same-file"} ${selected?.id === hunk.id ? "selected" : ""}`}
                           onClick={() => setSelected(hunk.id)}
                         >
                           <span className={`risk-spine ${band}`} aria-hidden="true" />
                           <span className="hunk-row-body">
                             <span className="hunk-row-top">
-                              <span className="path">{hunk.file}</span>
+                              {firstForFile ? (
+                                <span className="path" title={hunk.file}>
+                                  {middleEllipsis(hunk.file, 44)}
+                                </span>
+                              ) : (
+                                <span className="hunk-row-indent" aria-hidden="true" />
+                              )}
                               {freshIds[hunk.id] && <span className="fresh-dot" aria-label="Fresh hunk" />}
                               {hunk.status === "approved" && <span className="mini-stamp verified">✓</span>}
                               {hunk.status === "flagged" && <span className="mini-stamp flagged">⚑</span>}
@@ -676,7 +683,7 @@ export function App() {
           <input
             ref={searchRef}
             value={searchQuery}
-            placeholder="Search files, digests, and diff text"
+            placeholder="Search changes â€” use / to filter files"
             onChange={(event) => setSearchQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
@@ -1556,6 +1563,7 @@ function HelpOverlay({ tour, onClose }: { tour: boolean; onClose(): void }) {
         <p>j/k next/prev hunk | J/K next/prev file | g g first | G last</p>
         <p>n/p next/prev unreviewed attention hunk | a approve | x flag | u unreviewed | i note</p>
         <p>space collapse current hunk | o split | s sort | t timeline | T theme | Ctrl/Cmd+K palette</p>
+        <p>Ctrl/Cmd+F search changes | / filter files</p>
         <p>/ filter | r refresh | e open editor | [ collapse all | ] expand all | ? help | Esc close</p>
       </div>
     </div>
