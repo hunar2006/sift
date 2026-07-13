@@ -1823,14 +1823,21 @@ code,
   font-family: var(--mono);
 }
 
-.toast {
+.toast-stack {
   position: fixed;
   right: 16px;
-  bottom: 36px;
+  bottom: 42px;
+  z-index: 30;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
+.toast {
   background: var(--ink-2);
   border: none;
   box-shadow: var(--raised-shadow);
-  z-index: 30;
   padding: 8px 12px;
   border-radius: 6px;
 }

@@ -22,6 +22,7 @@
     "bundle:check": "pnpm --filter @sift-review/web build && tsx scripts/bundle-budget.ts",
     "health": "pnpm health:knip && pnpm health:cycles && pnpm lint && pnpm typecheck && pnpm bundle:check",
     "test": "vitest run --coverage",
+    "test:soak": "tsx scripts/test-soak.ts",
     "typecheck": "tsc -b"
   },
   "devDependencies": {

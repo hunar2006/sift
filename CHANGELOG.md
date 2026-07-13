@@ -4,6 +4,20 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.6.0] - Refinery (Unreleased)
+
+### Added
+
+- Tool-enforced `pnpm health`: Knip, zero-cycle Madge analysis, lint, type checking, and an initial-JavaScript gzip budget; it blocks CI and preflight Stage A. `pnpm test:soak` runs the full suite ten times.
+- Deterministic, guarded word-level diff segments in the web cockpit, TUI, Markdown report, and a self-contained `sift report --html` output.
+- Literal, case-insensitive diff-wide search with Ctrl/Cmd+F, match navigation, viewer/minimap marking, and reduced-motion-safe focus treatment.
+- Read-only inspector actions for copying a scoped `.sift/rules.yml` adjustment, plus persistent inspector nits, refreshed screenshots, a three-toast FIFO cap, styled scrollbars, and less repetitive same-file queue rows.
+
+### Changed
+
+- Shiki is split into an on-demand runtime and language grammars; the prior Vite chunk warning is gone, and the build now enforces the initial bundle budget.
+- The CLI and surfaced Sift version are now `0.6.0`.
+
 ## [0.5.3] - Directive Comments (Unreleased)
 
 ### Added

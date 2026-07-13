@@ -93,6 +93,7 @@ export function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchIndex, setSearchIndex] = useState(0);
+  const [toastStack, setToastStack] = useState<string[]>([]);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const restoreSearchFocus = useRef<HTMLElement | null>(null);
@@ -194,6 +195,14 @@ export function App() {
     }
     searchRef.current?.focus();
   }, [searchOpen]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+    setToastStack((messages) => [...messages, toast].slice(-3));
+    setToast(undefined);
+  }, [setToast, toast]);
 
   useEffect(() => {
     setSearchIndex(0);
@@ -673,10 +682,18 @@ export function App() {
       </section>
 
       {shortcutsHint && <div className="shortcuts-hint">? shortcuts</div>}
-      {toast && (
-        <button className="toast" onClick={() => setToast(undefined)}>
-          {toast}
-        </button>
+      {toastStack.length > 0 && (
+        <div className="toast-stack" aria-live="polite" aria-label="Notifications">
+          {toastStack.map((message, index) => (
+            <button
+              className="toast"
+              key={`${message}-${index}`}
+              onClick={() => setToastStack((messages) => messages.filter((_, candidate) => candidate !== index))}
+            >
+              {message}
+            </button>
+          ))}
+        </div>
       )}
       {searchOpen && (
         <div className="diff-search" role="dialog" aria-label="Search diff">

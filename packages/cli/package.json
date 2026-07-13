@@ -1,6 +1,6 @@
 {
   "name": "siftdiff",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "description": "Local-first review cockpit for AI-generated diffs — deterministic triage, provenance, and verification.",
   "license": "MIT",

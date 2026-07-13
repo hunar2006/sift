@@ -1,3 +1,3 @@
 export const PRODUCT_NAME = "Sift";
 export const BINARY_NAME = "sift";
-export const SIFT_VERSION = "0.5.0";
+export const SIFT_VERSION = "0.6.0";

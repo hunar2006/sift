@@ -57,11 +57,15 @@ On Windows PowerShell, `Set-Location C:\path\to\sift` first. Or run the built bi
 |---|---|
 | ![Queue](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/queue.png) | ![Inspector](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/inspector.png) |
 
+| Diff search | Static report |
+|---|---|
+| ![Diff search](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/search.png) | ![Static report](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/report.png) |
+
 Regenerate the complete set with `pnpm shots`.
 
 ## How we test Sift
 
-Sift grades AI-written code, so the engine is graded too: a six-repo corpus (`pnpm eval`), hard invariants (including independent mechanical honesty), and a property fuzzer (`pnpm fuzz`). Run `pnpm preflight` for the complete release-readiness scorecard before shipping. Numbers and recommendations live in [docs/EVAL.md](docs/EVAL.md). Scoring weights stay frozen unless an invariant/spec bug is proven.
+Sift grades AI-written code, so the engine is graded too: a six-repo corpus (`pnpm eval`), hard invariants (including independent mechanical honesty), and a property fuzzer (`pnpm fuzz`). `pnpm health` additionally blocks unused code, circular imports, lint/type failures, and oversized initial JavaScript; `pnpm test:soak` repeats the full suite ten times. Run `pnpm preflight` for the complete release-readiness scorecard before shipping. Numbers and recommendations live in [docs/EVAL.md](docs/EVAL.md). Scoring weights stay frozen unless an invariant/spec bug is proven.
 
 ## Live mode and the fix loop
 
@@ -90,6 +94,8 @@ Use `sift brief` for flagged hunks, or `sift brief --unreviewed-high` for unrevi
 - **Coverage:** LCOV and Cobertura artifacts that you generated yourself.
 - **Provenance:** Claude Code hook logs and compatible open JSONL records.
 - **State:** approved, flagged, and unreviewed decisions stored locally under `.sift/`.
+- **Word diff:** changed words are tinted within paired added/removed lines without disturbing monospace alignment.
+- **Search:** Ctrl/Cmd+F finds literal text across paths, digests, and all diff lines.
 
 ### Risk signals
 
@@ -104,7 +110,7 @@ Directive comments are machine-read behavior changes, not bulk-approvable prose.
 | `sift --watch` | Keep the default worktree review live; it also works with `--staged`, not a ref range or PR. |
 | `sift pr <number-or-url>` | Analyze a GitHub PR diff through `gh`. |
 | `sift brief [--flagged\|--unreviewed-high] [-o file]` | Produce an agent-ready review handoff. |
-| `sift report [--md\|--json] [-o file]` | Emit a report and append a stats snapshot. |
+| `sift report [--md\|--json\|--html] [-o file]` | Emit a report and append a stats snapshot; `--html` is one self-contained static file. |
 | `sift print [--json]` | Print compact terminal triage without starting the server. |
 | `sift stats [--json]` | Print review debt, progress, flags, and line-match coverage. |
 | `sift check [--max-debt pct]` | Personal pre-push aid; not a team performance metric. |
@@ -136,6 +142,7 @@ Keys: `j`/`k` hunk · `g`/`G` first/last · `n`/`p` next/prev unreviewed attenti
 | Key | Action |
 |---|---|
 | `Ctrl/Cmd+K` | Open the command palette. |
+| `Ctrl/Cmd+F` | Search paths, digest text, and diff lines. |
 | `j` / `k`, `J` / `K` | Move by hunk, or by file. |
 | `n` / `p` | Next / previous unreviewed attention hunk. |
 | `a`, `x`, `u`, `z` | Approve, flag, unreview, or undo the last decision. |
