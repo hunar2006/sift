@@ -36,7 +36,7 @@ export async function runGit(args: string[], cwd: string, allowFailure = false):
 export async function discoverRepoRoot(cwd: string): Promise<string> {
   const root = (await runGit(["rev-parse", "--show-toplevel"], cwd, true)).trim();
   if (!root) {
-    throw new GitError("Not a git repository. Run sift inside a git checkout.");
+    throw new GitError("Not a git repository. Run sift inside a git checkout.\nTry: sift demo");
   }
   return path.resolve(root);
 }

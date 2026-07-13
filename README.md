@@ -92,6 +92,7 @@ Directive comments are machine-read behavior changes, not bulk-approvable prose.
 | Command | Purpose |
 |---|---|
 | `sift [range]` | Analyze the worktree or a ref/range and start the loopback UI. |
+| `sift last [n]` | Review `HEAD~n..HEAD` (default: 1). |
 | `sift --staged` | Analyze staged changes. |
 | `sift --watch` | Keep the default worktree review live; it also works with `--staged`, not a ref range or PR. |
 | `sift pr <number-or-url>` | Analyze a GitHub PR diff through `gh`. |

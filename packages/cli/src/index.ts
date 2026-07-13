@@ -34,6 +34,16 @@ import { runTui } from "./tui.js";
 import { acquireLock, releaseLock } from "./lock.js";
 import { initQuickstart, runInit } from "./init.js";
 import { commandHelp, ROOT_HELP } from "./help.js";
+import {
+  cleanWorktreePickerInfo,
+  emptyReviewMessage,
+  ensureLastHistory,
+  isInteractiveTerminal,
+  lastCount,
+  lastRange,
+  pickCleanWorktree,
+  pipelineTargetFor
+} from "./onboarding.js";
 
 const program = new Command();
 
@@ -46,7 +56,8 @@ program
   .description(`${PRODUCT_NAME}: local-first review cockpit for AI-generated diffs`)
   .version(SIFT_VERSION)
   .option("--json", "emit machine-readable output where supported")
-  .option("--no-color", "disable colored output");
+  .option("--no-color", "disable colored output")
+  .option("--no-input", "skip interactive prompts");
 
 program
   .argument("[range]", "git ref/range to diff against HEAD")
@@ -61,11 +72,35 @@ program
     assertWatchUsage(options.watch, range);
     const ai = parseAiOption(options.ai);
     const noAiCache = options.aiCache === false;
-    const pipelineOptions = { cwd: process.cwd(), staged: options.staged, range, ai, noAiCache, coverage: options.coverage };
+    let pipelineOptions = { cwd: process.cwd(), staged: options.staged, range, ai, noAiCache, coverage: options.coverage };
     let result = await runPipeline(pipelineOptions);
     if (result.model.hunks.length === 0 && !options.watch) {
-      console.log("Nothing to review.");
-      return;
+      const canPick = range === undefined && options.staged !== true && options.input !== false && isInteractiveTerminal();
+      if (!canPick) {
+        console.log(emptyReviewMessage());
+        return;
+      }
+      const selection = await pickCleanWorktree(await cleanWorktreePickerInfo(result.model.meta.repoRoot));
+      if (selection.kind === "quit") {
+        return;
+      }
+      if (selection.kind === "demo") {
+        await launchDemo({ port: options.port, open: options.open });
+        return;
+      }
+      if (selection.kind === "last") {
+        await ensureLastHistory(result.model.meta.repoRoot, 1);
+      }
+      const target = pipelineTargetFor(selection);
+      if (!target) {
+        return;
+      }
+      pipelineOptions = { ...pipelineOptions, ...target };
+      result = await runPipeline(pipelineOptions);
+      if (result.model.hunks.length === 0) {
+        console.log(emptyReviewMessage());
+        return;
+      }
     }
     const lockWarning = await acquireLock(result.model.meta.repoRoot, "web");
     if (lockWarning) {
@@ -104,6 +139,51 @@ program
     }
     await waitForShutdown(async () => {
       await watcher?.close();
+      await server.close();
+      await releaseLock(result.model.meta.repoRoot);
+    });
+  });
+
+program
+  .command("last")
+  .argument("[n]", "number of commits")
+  .option("--port <n>", "preferred localhost port", "4111")
+  .option("--no-open", "do not open a browser")
+  .option("--ai [provider]", "opt-in AI annotations")
+  .option("--no-ai-cache", "bypass cached AI brief")
+  .option("--coverage <path>", "parse coverage artifact")
+  .action(async (value: string | undefined, options: LastCommandOptions) => {
+    const count = lastCount(value);
+    const repoRoot = await discoverRepoRoot(process.cwd());
+    await ensureLastHistory(repoRoot, count);
+    const ai = parseAiOption(options.ai);
+    const noAiCache = options.aiCache === false;
+    const pipelineOptions = { cwd: process.cwd(), range: lastRange(count), ai, noAiCache, coverage: options.coverage };
+    let result = await runPipeline(pipelineOptions);
+    if (result.model.hunks.length === 0) {
+      console.log(emptyReviewMessage());
+      return;
+    }
+    const lockWarning = await acquireLock(result.model.meta.repoRoot, "web");
+    if (lockWarning) {
+      console.warn(lockWarning);
+    }
+    const server = await startServer(
+      {
+        ...result,
+        refresh: async () => {
+          result = await runPipeline(pipelineOptions);
+          return result;
+        }
+      },
+      Number.parseInt(options.port, 10)
+    );
+    printPortFallback(options.port, server.port);
+    console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention · ${result.model.groups.length} groups · sift v${SIFT_VERSION}`);
+    if (options.open) {
+      await open(server.url);
+    }
+    await waitForShutdown(async () => {
       await server.close();
       await releaseLock(result.model.meta.repoRoot);
     });
@@ -292,31 +372,7 @@ program
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
   .action(async (options: DemoCommandOptions) => {
-    let demo: Awaited<ReturnType<typeof createDemoRepo>>;
-    try {
-      demo = await createDemoRepo(options.dir ? { repoDir: options.dir } : undefined);
-    } catch {
-      throw new Error("Cannot create the demo in that directory. Choose a writable path and try again.");
-    }
-    process.env.SIFT_HOME = demo.siftHome;
-    process.env.SIFT_CLAUDE_DIR = demo.claudeDir;
-    console.log(demo.expectedSummary);
-    console.log(`Demo repo: ${demo.repoRoot}`);
-    const result = await runPipeline({ cwd: demo.repoRoot });
-    const lockWarning = await acquireLock(result.model.meta.repoRoot, "web");
-    if (lockWarning) {
-      console.warn(lockWarning);
-    }
-    const server = await startServer({ ...result, refresh: () => runPipeline({ cwd: demo.repoRoot }) }, Number.parseInt(options.port, 10));
-    printPortFallback(options.port, server.port);
-    console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention - sift v${SIFT_VERSION}`);
-    if (options.open) {
-      await open(server.url);
-    }
-    await waitForShutdown(async () => {
-      await server.close();
-      await releaseLock(result.model.meta.repoRoot);
-    });
+    await launchDemo(options);
   });
 
 program.command("hook-capture", { hidden: true }).action(async () => {
@@ -398,10 +454,19 @@ interface ReviewCommandOptions {
   staged?: boolean;
   port: string;
   open: boolean;
+  input?: boolean;
   ai?: true | string;
   aiCache?: boolean;
   coverage?: string;
   watch?: boolean;
+}
+
+interface LastCommandOptions {
+  port: string;
+  open: boolean;
+  ai?: true | string;
+  aiCache?: boolean;
+  coverage?: string;
 }
 
 interface ReportOptions {
@@ -439,6 +504,34 @@ interface DemoCommandOptions {
   dir?: string;
   port: string;
   open: boolean;
+}
+
+async function launchDemo(options: DemoCommandOptions): Promise<void> {
+  let demo: Awaited<ReturnType<typeof createDemoRepo>>;
+  try {
+    demo = await createDemoRepo(options.dir ? { repoDir: options.dir } : undefined);
+  } catch {
+    throw new Error("Cannot create the demo in that directory. Choose a writable path and try again.");
+  }
+  process.env.SIFT_HOME = demo.siftHome;
+  process.env.SIFT_CLAUDE_DIR = demo.claudeDir;
+  console.log(demo.expectedSummary);
+  console.log(`Demo repo: ${demo.repoRoot}`);
+  const result = await runPipeline({ cwd: demo.repoRoot });
+  const lockWarning = await acquireLock(result.model.meta.repoRoot, "web");
+  if (lockWarning) {
+    console.warn(lockWarning);
+  }
+  const server = await startServer({ ...result, refresh: () => runPipeline({ cwd: demo.repoRoot }) }, Number.parseInt(options.port, 10));
+  printPortFallback(options.port, server.port);
+  console.log(`${server.url}\n${result.model.totals.changedLines} lines changed -> ${result.model.totals.attentionLines} need attention - sift v${SIFT_VERSION}`);
+  if (options.open) {
+    await open(server.url);
+  }
+  await waitForShutdown(async () => {
+    await server.close();
+    await releaseLock(result.model.meta.repoRoot);
+  });
 }
 
 function assertWatchUsage(watch: boolean | undefined, range: string | undefined, isPr = false): void {
