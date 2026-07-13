@@ -59,6 +59,7 @@ describe("keyboardCommand", () => {
 
   it("opens the palette and toggles current hunk collapse", () => {
     expect(keyboardCommand(state, "k", { ctrlKey: true })).toEqual({ type: "toggle-palette" });
+    expect(keyboardCommand(state, "f", { metaKey: true })).toEqual({ type: "toggle-search" });
     expect(keyboardCommand(state, " ", {})).toEqual({ type: "toggle-current-collapse" });
   });
 

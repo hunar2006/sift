@@ -26,6 +26,7 @@ export type KeyboardCommand =
   | { type: "toggle-split" }
   | { type: "toggle-help" }
   | { type: "toggle-palette" }
+  | { type: "toggle-search" }
   | { type: "toggle-timeline" }
   | { type: "toggle-stats" }
   | { type: "toggle-theme" }
@@ -46,6 +47,9 @@ export function keyboardCommand(
 ): KeyboardCommand {
   if ((modifiers.ctrlKey || modifiers.metaKey) && key.toLowerCase() === "k") {
     return { type: "toggle-palette" };
+  }
+  if ((modifiers.ctrlKey || modifiers.metaKey) && key.toLowerCase() === "f") {
+    return { type: "toggle-search" };
   }
   if (state.paletteOpen) {
     return key === "Escape" ? { type: "toggle-palette" } : { type: "none" };

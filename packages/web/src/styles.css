@@ -860,6 +860,11 @@ button.ghost {
   box-shadow: inset 2px 0 var(--verdict);
 }
 
+.diff-line.search-hit {
+  outline: 1px solid color-mix(in srgb, var(--text) 56%, transparent);
+  animation: search-pulse 300ms ease-out;
+}
+
 .diff-line.add.marked {
   box-shadow: inset 2px 0 var(--verdict);
 }
@@ -899,6 +904,50 @@ button.ghost {
 
 :root[data-theme="light"] .diff-line.del .word-change {
   background: color-mix(in srgb, #e89a9a 50%, transparent);
+}
+
+.diff-search {
+  position: fixed;
+  z-index: 40;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 24%);
+}
+
+.diff-search input {
+  width: min(46vw, 360px);
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.diff-search button {
+  min-width: 26px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.minimap-marker.search-match {
+  background: var(--text-lo);
+}
+
+@keyframes search-pulse {
+  from { background-color: color-mix(in srgb, var(--text) 18%, transparent); }
+  to { background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diff-line.search-hit { animation: none; }
 }
 
 :root[data-theme="light"] .diff-line code {

@@ -29,6 +29,11 @@ interface CommandAction {
   run(): void;
 }
 
+interface SearchHit {
+  hunkId: string;
+  lineIndex?: number;
+}
+
 export function App() {
   const {
     model,
@@ -84,7 +89,12 @@ export function App() {
   const [stamp, setStamp] = useState<"verified" | "flagged" | null>(null);
   const [paneFade, setPaneFade] = useState(false);
   const [shortcutsHint, setShortcutsHint] = useState(() => !hasSeenShortcutsHint());
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchIndex, setSearchIndex] = useState(0);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const restoreSearchFocus = useRef<HTMLElement | null>(null);
   const paneFadeTriggered = useRef(false);
 
   function dismissShortcutsHint(): void {
@@ -157,6 +167,42 @@ export function App() {
     [model, filter, collapsed, sortMode, freshIds, freshOnly]
   );
   const selected = visible.find((hunk) => hunk.id === selectedId) ?? visible[0];
+  const searchHits = useMemo(() => findSearchHits(model, searchQuery), [model, searchQuery]);
+  const searchHitIds = useMemo(() => new Set(searchHits.map((hit) => hit.hunkId)), [searchHits]);
+  const activeSearchHit = searchHits.length > 0 ? searchHits[searchIndex % searchHits.length] : undefined;
+
+  function openSearch(): void {
+    restoreSearchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setSearchOpen(true);
+  }
+
+  function closeSearch(): void {
+    setSearchOpen(false);
+    restoreSearchFocus.current?.focus();
+  }
+
+  function cycleSearch(delta: 1 | -1): void {
+    if (searchHits.length > 0) {
+      setSearchIndex((index) => (index + delta + searchHits.length) % searchHits.length);
+    }
+  }
+
+  useEffect(() => {
+    if (!searchOpen) {
+      return;
+    }
+    searchRef.current?.focus();
+  }, [searchOpen]);
+
+  useEffect(() => {
+    setSearchIndex(0);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (searchOpen && activeSearchHit) {
+      setSelected(activeSearchHit.hunkId);
+    }
+  }, [activeSearchHit, searchOpen, setSelected]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -164,6 +210,14 @@ export function App() {
       const isInput =
         target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
       const isPaletteToggle = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+      const isSearchToggle = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f";
+      if (searchOpen) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeSearch();
+        }
+        return;
+      }
       if (isInput && event.key !== "Escape" && !isPaletteToggle) {
         return;
       }
@@ -221,6 +275,9 @@ export function App() {
         }
         setPaletteOpen(!paletteOpen);
       }
+      if (command.type === "toggle-search") {
+        openSearch();
+      }
       if (command.type === "toggle-timeline") {
         setTimelineOpen(!timelineOpen);
       }
@@ -269,6 +326,7 @@ export function App() {
     filterFocused,
     helpOpen,
     paletteOpen,
+    searchOpen,
     pendingG,
     selected,
     setHelp,
@@ -282,7 +340,8 @@ export function App() {
     timelineOpen,
     toggleHunkCollapsed,
     toggleTheme,
-    visible
+    visible,
+    activeSearchHit
   ]);
 
   async function refresh(): Promise<void> {
@@ -428,6 +487,7 @@ export function App() {
       dismissShortcutsHint();
       setHelp(true);
     },
+    openSearch,
     setToast
   });
 
@@ -569,6 +629,8 @@ export function App() {
           hunk={selected}
           hunks={visible}
           selectedId={selected?.id}
+          searchLineIndex={selected?.id === activeSearchHit?.hunkId ? activeSearchHit?.lineIndex : undefined}
+          searchHunkIds={searchHitIds}
           split={split}
           collapsed={Boolean(selected && hunkCollapsed[selected.id])}
           theme={theme}
@@ -602,6 +664,30 @@ export function App() {
         <button className="toast" onClick={() => setToast(undefined)}>
           {toast}
         </button>
+      )}
+      {searchOpen && (
+        <div className="diff-search" role="dialog" aria-label="Search diff">
+          <input
+            ref={searchRef}
+            value={searchQuery}
+            placeholder="Search files, digests, and diff text"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                closeSearch();
+              }
+              if (event.key === "Enter") {
+                event.preventDefault();
+                cycleSearch(event.shiftKey ? -1 : 1);
+              }
+            }}
+          />
+          <span>{searchQuery.trim().length === 0 ? "0/0" : `${searchHits.length === 0 ? 0 : (searchIndex % searchHits.length) + 1}/${searchHits.length}`}</span>
+          <button aria-label="Previous search match" onClick={() => cycleSearch(-1)}>‹</button>
+          <button aria-label="Next search match" onClick={() => cycleSearch(1)}>›</button>
+          <button aria-label="Close search" onClick={closeSearch}>Esc</button>
+        </div>
       )}
       {paletteOpen && <CommandPalette actions={actions} onClose={() => setPaletteOpen(false)} />}
       {timelineOpen && (
@@ -728,6 +814,8 @@ function DiffViewer({
   onToggleSplit,
   onToggleCollapsed,
   onOpenFile,
+  searchLineIndex,
+  searchHunkIds,
   theme = "dark"
 }: {
   hunk?: ReviewHunk;
@@ -739,6 +827,8 @@ function DiffViewer({
   onToggleSplit(): void;
   onToggleCollapsed(): void;
   onOpenFile(hunk: ReviewHunk): void;
+  searchLineIndex?: number;
+  searchHunkIds?: Set<string>;
   theme?: "dark" | "light";
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
@@ -777,6 +867,11 @@ function DiffViewer({
       cancelled = true;
     };
   }, [collapsed, hunk, theme]);
+  useEffect(() => {
+    if (searchLineIndex !== undefined && !collapsed) {
+      rowVirtualizer.scrollToIndex(searchLineIndex, { align: "center" });
+    }
+  }, [collapsed, rowVirtualizer, searchLineIndex]);
   if (!hunk) {
     return <section className="diff">No hunk selected</section>;
   }
@@ -824,7 +919,7 @@ function DiffViewer({
               return (
                 <div
                   key={virtualRow.key}
-                  className={`diff-line ${line.kind} ${marked ? "marked" : ""}`}
+                  className={`diff-line ${line.kind} ${marked ? "marked" : ""} ${searchLineIndex === virtualRow.index ? "search-hit" : ""}`}
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                 >
                   <span className="oldno">{line.oldLine ?? ""}</span>
@@ -848,7 +943,7 @@ function DiffViewer({
           </div>
         </div>
       )}
-      <MiniMap hunks={hunks} selectedId={selectedId} onSelect={onSelect} />
+      <MiniMap hunks={hunks} selectedId={selectedId} onSelect={onSelect} searchHunkIds={searchHunkIds} />
     </section>
   );
 }
@@ -1399,11 +1494,13 @@ function StatsPanel({ stats, model, onClose }: { stats: StatsSnapshot; model: Re
 function MiniMap({
   hunks,
   selectedId,
-  onSelect
+  onSelect,
+  searchHunkIds
 }: {
   hunks: ReviewHunk[];
   selectedId?: string;
   onSelect(id?: string): void;
+  searchHunkIds?: Set<string>;
 }) {
   if (hunks.length === 0) {
     return null;
@@ -1415,7 +1512,7 @@ function MiniMap({
         return (
           <button
             key={hunk.id}
-            className={`minimap-marker ${visualBand(hunk)} ${selectedId === hunk.id ? "current" : ""}`}
+            className={`minimap-marker ${visualBand(hunk)} ${selectedId === hunk.id ? "current" : ""} ${searchHunkIds?.has(hunk.id) ? "search-match" : ""}`}
             style={{ top: `${top}%` }}
             title={`${hunk.file} risk ${hunk.risk}`}
             onClick={() => onSelect(hunk.id)}
@@ -1520,6 +1617,7 @@ function buildCommandActions({
   openTimeline,
   openStats,
   openHelp,
+  openSearch,
   enterFocus,
   setToast
 }: {
@@ -1540,6 +1638,7 @@ function buildCommandActions({
   openTimeline(): void;
   openStats(): void;
   openHelp(): void;
+  openSearch(): void;
   setToast(message?: string): void;
 }): CommandAction[] {
   const selectRelative = (title: string, id: string, predicate: (hunk: ReviewHunk) => boolean, delta: 1 | -1) => ({
@@ -1607,7 +1706,8 @@ function buildCommandActions({
     { id: "toggle-nits", title: nitsOpen ? "Collapse nits" : "Expand nits", run: toggleNits },
     { id: "timeline", title: "Open timeline", run: openTimeline },
     { id: "stats", title: `Open stats (${(stats.debt * 100).toFixed(0)}% debt)`, run: openStats },
-    { id: "help", title: "Open help", run: openHelp }
+    { id: "help", title: "Open help", run: openHelp },
+    { id: "search", title: "Search diff text", keywords: "find Ctrl Cmd F", run: openSearch }
   ];
   for (const file of model.files) {
     const firstHunk = visible.find((hunk) => hunk.file === file.path);
@@ -1622,6 +1722,26 @@ function buildCommandActions({
     });
   }
   return actions;
+}
+
+function findSearchHits(model: ReviewModel | undefined, query: string): SearchHit[] {
+  const needle = query.trim().toLocaleLowerCase();
+  if (!model || needle.length === 0) {
+    return [];
+  }
+  return model.hunks.flatMap((hunk) => {
+    const hits: SearchHit[] = [];
+    const summary = `${hunk.file}\n${hunk.digest.headline}\n${hunk.digest.details.join("\n")}`.toLocaleLowerCase();
+    if (summary.includes(needle)) {
+      hits.push({ hunkId: hunk.id });
+    }
+    hunk.lines.forEach((line, lineIndex) => {
+      if (line.text.toLocaleLowerCase().includes(needle)) {
+        hits.push({ hunkId: hunk.id, lineIndex });
+      }
+    });
+    return hits;
+  });
 }
 
 function matchesAction(action: CommandAction, query: string): boolean {
