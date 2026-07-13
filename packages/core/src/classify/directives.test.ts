@@ -34,11 +34,14 @@ const directiveCases = [
   ["pkg/check.go", "//nolint:revive", "//nolint"],
   ["pkg/check.go", "//go:build linux", "//go:build"],
   ["pkg/check.go", "//go:generate go run ./tools", "//go:generate"],
+  ["middleware/realip.go", "// Deprecated: Use ClientIPFromHeader instead.", "// Deprecated:"],
   ["src/format.rs", "// rustfmt::skip", "// rustfmt::skip"],
   ["src/Service.java", "// noinspection SpellCheckingInspection", "// noinspection"],
   ["src/Service.kt", "// NOSONAR", "NOSONAR"],
   ["src/coverage.ts", "// coverage:ignore", "coverage:ignore"],
   ["src/coverage.py", "# codecov ignore", "codecov ignore"],
+  ["src/compat.ts", "/** @deprecated Use the replacement. */", "@deprecated"],
+  ["src/compat.js", "/** @internal */", "@internal"],
   ["types/reply.d.ts", " * @deprecated use send", "@deprecated"],
   ["types/reply.d.ts", " * @internal", "@internal"],
   ["types/reply.pyi", "# @deprecated", "@deprecated"],
@@ -62,6 +65,7 @@ describe("directive comments", () => {
     const nearMisses = [
       ["src/compat.ts", "const note = '@ts-ignore';"],
       ["src/compat.ts", "// This workaround is deprecated but harmless."],
+      ["src/compat.ts", "// @deprecated This is not a JSDoc comment."],
       ["src/app.py", "message = '# noqa'"],
       ["types/reply.ts", "/** This deprecated API is kept for now. */"]
     ] as const;
@@ -83,12 +87,12 @@ describe("directive comments", () => {
     expect(model.groups.find((group) => group.kind === "skim")?.hunkIds ?? []).not.toContain(model.hunks[0]?.id);
   });
 
-  it("signals removed directives because removal can break the build", () => {
-    const reasonForRemoval = reason(
-      computeRiskSignals(hunk("src/compat.ts", [], ["// @ts-expect-error"]), "logic"),
-      "LINT_SUPPRESSED"
-    );
-    expect(reasonForRemoval).toMatchObject({ evidence: "removed: @ts-expect-error", weight: 25 });
+  it.each([
+    ["src/compat.ts", "// @ts-expect-error", "@ts-expect-error"],
+    ["middleware/realip.go", "// Deprecated: Use ClientIPFromHeader instead.", "// Deprecated:"]
+  ])("signals removed directives because removal can break the build", (file, line, token) => {
+    const reasonForRemoval = reason(computeRiskSignals(hunk(file, [], [line]), "logic"), "LINT_SUPPRESSED");
+    expect(reasonForRemoval).toMatchObject({ evidence: `removed: ${token}`, weight: 25 });
   });
 
   it("keeps the named fastify declaration fixture out of mechanical skim", () => {
@@ -100,6 +104,17 @@ describe("directive comments", () => {
     });
     expect(model.hunks[0]).toMatchObject({ file: "types/reply.d.ts", category: "logic", band: "medium" });
     expect(reason(model.hunks[0]?.reasons ?? [], "LINT_SUPPRESSED").evidence).toBe("added: @deprecated");
+  });
+
+  it("keeps the named chi realip deprecation fixture out of mechanical skim", () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "3b171578ca44dfd75ca3c5cbddc7b44c600a7b49",
+      git: { headSha: "3b171578ca44dfd75ca3c5cbddc7b44c600a7b49", branch: "master" },
+      patch: readFileSync(path.join(fixtureRoot, "chi-realip-deprecated.patch"), "utf8")
+    });
+    expect(model.hunks[0]).toMatchObject({ file: "middleware/realip.go", category: "logic", band: "medium" });
+    expect(reason(model.hunks[0]?.reasons ?? [], "LINT_SUPPRESSED").evidence).toBe("added: // Deprecated:");
   });
 });
 

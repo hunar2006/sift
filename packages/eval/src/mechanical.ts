@@ -142,11 +142,12 @@ function independentDirectiveComment(file: string, line: string): boolean {
         content
       )) ||
     (python && /\bnoqa\b|\btype:\s*ignore\b|\bpragma:\s*no cover\b|\bmypy:|\bruff:\s*noqa\b|\bfmt:\s*(?:off|on)\b/.test(content)) ||
-    (go && /\bnolint\b|\bgo:[A-Za-z0-9_-]+\b|\+build\b/.test(content)) ||
+    (go && (/^\s*\/\/\s*Deprecated:/.test(line) || /\bnolint\b|\bgo:[A-Za-z0-9_-]+\b|\+build\b/.test(content))) ||
     (rust && /\brustfmt::skip\b/.test(content)) ||
     (jvm && /\bnoinspection\b|\bNOSONAR\b/.test(content)) ||
     /\bcoverage:ignore\b|\bcodecov ignore\b/.test(content) ||
-    (DECLARATION_FILE_RE.test(file) && /@(?:deprecated|internal)\b/.test(content))
+    (DECLARATION_FILE_RE.test(file) && /@(?:deprecated|internal)\b/.test(content)) ||
+    (tsOrJs && /^\s*\/\*\*|^\s*\*/.test(line) && /@(?:deprecated|internal)\b/.test(content))
   );
 }
 

@@ -2,6 +2,7 @@ import type { LanguageInfo } from "./languages.js";
 
 interface CommentSegment {
   content: string;
+  isDocComment: boolean;
 }
 
 const TS_JS_LANGUAGES = new Set(["typescript", "tsx", "javascript", "jsx"]);
@@ -15,6 +16,9 @@ const TS_JS_LANGUAGES = new Set(["typescript", "tsx", "javascript", "jsx"]);
  * best-effort by design.
  */
 export function directiveCommentToken(line: string, language: LanguageInfo): string | null {
+  if (language.name === "go" && /^\s*\/\/\s*Deprecated:/.test(line)) {
+    return "// Deprecated:";
+  }
   for (const segment of commentSegments(line, language)) {
     const content = segment.content;
 
@@ -76,7 +80,7 @@ export function directiveCommentToken(line: string, language: LanguageInfo): str
       return generic;
     }
 
-    if (language.declarationTags) {
+    if (language.declarationTags || (TS_JS_LANGUAGES.has(language.name) && segment.isDocComment)) {
       const token = matchToken(content, [/@deprecated\b/, /@internal\b/]);
       if (token) {
         return token;
@@ -105,19 +109,22 @@ function commentSegments(line: string, language: LanguageInfo): CommentSegment[]
   for (const marker of language.lineComments) {
     const start = indexOfOutsideQuotes(line, marker);
     if (start >= 0) {
-      segments.push({ content: line.slice(start + marker.length) });
+      segments.push({ content: line.slice(start + marker.length), isDocComment: false });
     }
   }
   for (const [startMarker, endMarker] of language.blockComments) {
     const start = indexOfOutsideQuotes(line, startMarker);
     if (start >= 0) {
       const end = line.indexOf(endMarker, start + startMarker.length);
-      segments.push({ content: line.slice(start + startMarker.length, end >= 0 ? end : undefined) });
+      segments.push({
+        content: line.slice(start + startMarker.length, end >= 0 ? end : undefined),
+        isDocComment: line.slice(start).startsWith("/**")
+      });
     }
   }
   const trimmed = line.trim();
   if (language.blockComments.length > 0 && trimmed.startsWith("*")) {
-    segments.push({ content: trimmed.slice(1) });
+    segments.push({ content: trimmed.slice(1), isDocComment: true });
   }
   return segments;
 }

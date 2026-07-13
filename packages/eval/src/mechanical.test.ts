@@ -10,6 +10,10 @@ describe("independent mechanical checker", () => {
   it("accepts a one-sided blank-line removal as whitespace-only", () => {
     expect(verifyMechanicalHonesty(blankLineRemoval())).toBeNull();
   });
+
+  it("rejects a Go doc-comment deprecation misclassified as mechanical", () => {
+    expect(verifyMechanicalHonesty(goDocDeprecation())).toContain("Directive comment must not be mechanical");
+  });
 });
 
 function mechanicalDirective(): Hunk {
@@ -41,5 +45,15 @@ function blankLineRemoval(): Hunk {
     addedLines: 0,
     removedLines: 1,
     categoryReason: "WHITESPACE_ONLY"
+  };
+}
+
+function goDocDeprecation(): Hunk {
+  return {
+    ...mechanicalDirective(),
+    id: "go-deprecated",
+    file: "middleware/realip.go",
+    language: "go",
+    lines: [{ kind: "add", text: "// Deprecated: Use ClientIPFromHeader instead.", newLine: 1 }]
   };
 }
