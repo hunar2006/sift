@@ -210,7 +210,6 @@ export function App() {
       const isInput =
         target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
       const isPaletteToggle = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
-      const isSearchToggle = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f";
       if (searchOpen) {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -218,7 +217,7 @@ export function App() {
         }
         return;
       }
-      if (isInput && event.key !== "Escape" && !isPaletteToggle) {
+      if (isInput && event.key !== "Escape" && !isPaletteToggle && !((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f")) {
         return;
       }
       // While a modal owns the keyboard, let it handle its own keys.

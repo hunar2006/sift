@@ -32,6 +32,7 @@ if (!parsed.model || parsed.model.hunks.length <= 0 || parsed.model.groups.lengt
 
 assertDemoSignals(parsed.model);
 await assertWordDiffApi();
+await assertHtmlReport();
 await assertPrint();
 await assertTuiFrame();
 await assertRulesLint();
@@ -106,6 +107,23 @@ function assertDemoSignals(model) {
     if (!headlines.some((headline) => pattern.test(headline))) {
       throw new Error(`Smoke failed: demo digests missing the ${label} template row.`);
     }
+  }
+}
+
+async function assertHtmlReport() {
+  const output = path.join(root, ".demo", "sift-report.html");
+  await fs.rm(output, { force: true });
+  await execFileAsync(process.execPath, [cliPath, "report", "--html", "-o", output], {
+    cwd: repo,
+    windowsHide: true,
+    env: demoEnv
+  });
+  const html = await fs.readFile(output, "utf8");
+  if (Buffer.byteLength(html) >= 1_500_000 || !html.includes("Attention hunks") || !html.includes("<details")) {
+    throw new Error("Smoke failed: static HTML report is missing expected content or exceeds 1.5 MB.");
+  }
+  if (/\b(?:src|href)=["']https?:/iu.test(html)) {
+    throw new Error("Smoke failed: static HTML report references an external asset.");
   }
 }
 

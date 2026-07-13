@@ -24,7 +24,8 @@ export function wordDiffLines(lines: DiffLine[]): DiffLine[] {
   if (lines.filter((line) => line.kind === "add" || line.kind === "del").length > MAX_CHANGED_LINES) {
     return lines;
   }
-  const next: DiffLine[] = lines.map(({ segments: _segments, ...line }) => line);
+  const next: DiffLine[] = lines.map((line) => ({ ...line }));
+  next.forEach((line) => delete line.segments);
   for (let start = 0; start < lines.length; ) {
     if (lines[start]?.kind !== "add" && lines[start]?.kind !== "del") {
       start += 1;

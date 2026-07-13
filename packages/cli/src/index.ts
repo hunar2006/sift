@@ -14,6 +14,7 @@ import {
   mergeReviewState,
   readHistory,
   readReviewState,
+  renderHtmlReport,
   renderMarkdownReport,
   renderStats,
   createDemoRepo,
@@ -138,6 +139,7 @@ program
 program
   .command("report")
   .option("--md", "emit markdown", true)
+  .option("--html", "emit a static HTML report")
   .option("--json", "emit JSON")
   .option("-o, --output <file>", "write report to file")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
@@ -151,6 +153,8 @@ program
     const wantsJson = options.json === true || process.argv.includes("--json");
     const output = wantsJson
       ? JSON.stringify({ model: mergeReviewState(result.model, state), stats }, null, 2)
+      : options.html === true
+        ? renderHtmlReport(result.model, state, stats)
       : renderMarkdownReport(result.model, state, stats);
     if (options.output) {
       await fs.writeFile(options.output, output, "utf8");
@@ -395,6 +399,7 @@ interface ReviewCommandOptions {
 
 interface ReportOptions {
   md?: boolean;
+  html?: boolean;
   json?: boolean;
   output?: string;
   coverage?: string;
