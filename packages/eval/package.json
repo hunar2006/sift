@@ -10,8 +10,7 @@
   },
   "dependencies": {
     "@sift-review/core": "0.1.0",
-    "tree-sitter-wasms": "^0.1.13",
-    "web-tree-sitter": "0.20.8"
+    "tree-sitter-wasms": "^0.1.13"
   },
   "devDependencies": {
     "fast-check": "^4.3.0"

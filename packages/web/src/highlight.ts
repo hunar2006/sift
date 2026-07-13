@@ -5,12 +5,19 @@ interface ShikiHighlighter {
   codeToHtml(code: string, options: { lang: string; theme: string }): string;
 }
 
-interface ShikiModule {
-  createHighlighter(options: {
+interface ShikiCoreModule {
+  createHighlighterCore(options: {
+    engine: () => unknown;
     themes: Array<typeof assayDark | typeof assayLight>;
-    langs: string[];
+    langs: unknown[];
   }): Promise<ShikiHighlighter>;
 }
+
+interface ShikiEngineModule {
+  createJavaScriptRegexEngine(options: { forgiving: boolean }): unknown;
+}
+
+type LanguageModule = { default: unknown };
 
 const cache = new Map<string, Promise<string[] | null>>();
 const highlighters = new Map<string, Promise<ShikiHighlighter | null>>();
@@ -39,6 +46,30 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   yaml: "yaml",
   toml: "toml",
   ini: "ini"
+};
+
+const languageLoaders: Record<string, () => Promise<LanguageModule>> = {
+  typescript: () => import("shiki/dist/langs/typescript.mjs"),
+  tsx: () => import("shiki/dist/langs/tsx.mjs"),
+  javascript: () => import("shiki/dist/langs/javascript.mjs"),
+  jsx: () => import("shiki/dist/langs/jsx.mjs"),
+  python: () => import("shiki/dist/langs/python.mjs"),
+  go: () => import("shiki/dist/langs/go.mjs"),
+  rust: () => import("shiki/dist/langs/rust.mjs"),
+  java: () => import("shiki/dist/langs/java.mjs"),
+  kotlin: () => import("shiki/dist/langs/kotlin.mjs"),
+  c: () => import("shiki/dist/langs/c.mjs"),
+  cpp: () => import("shiki/dist/langs/cpp.mjs"),
+  csharp: () => import("shiki/dist/langs/csharp.mjs"),
+  ruby: () => import("shiki/dist/langs/ruby.mjs"),
+  bash: () => import("shiki/dist/langs/bash.mjs"),
+  sql: () => import("shiki/dist/langs/sql.mjs"),
+  html: () => import("shiki/dist/langs/html.mjs"),
+  xml: () => import("shiki/dist/langs/xml.mjs"),
+  css: () => import("shiki/dist/langs/css.mjs"),
+  yaml: () => import("shiki/dist/langs/yaml.mjs"),
+  toml: () => import("shiki/dist/langs/toml.mjs"),
+  ini: () => import("shiki/dist/langs/ini.mjs")
 };
 
 export function highlightDiffLines(
@@ -74,11 +105,16 @@ function highlighterFor(lang: string): Promise<ShikiHighlighter | null> {
   if (existing) {
     return existing;
   }
-  const promise = import("shiki")
-    .then((module) =>
-      (module as unknown as ShikiModule).createHighlighter({
+  const loader = languageLoaders[lang];
+  if (!loader) {
+    return Promise.resolve(null);
+  }
+  const promise = Promise.all([import("shiki/core"), import("shiki/engine/javascript"), loader()])
+    .then(([core, engine, language]) =>
+      (core as unknown as ShikiCoreModule).createHighlighterCore({
+        engine: () => (engine as unknown as ShikiEngineModule).createJavaScriptRegexEngine({ forgiving: true }),
         themes: [assayDark, assayLight],
-        langs: [lang]
+        langs: [language.default]
       })
     )
     .catch(() => null);

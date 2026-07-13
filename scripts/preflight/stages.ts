@@ -23,7 +23,7 @@ import {
 const STAGE_NAMES: Record<StageId, string> = {
   A: "Gate",
   B: "Evidence",
-  C: "v0.5.1 conformance",
+  C: "v0.6 conformance",
   D: "Fresh-user simulation",
   E: "Installed-package simulation",
   F: "Audits",
@@ -58,6 +58,7 @@ export function createStages(): Record<StageId, Stage> {
 async function stageGate(context: PreflightContext): Promise<StageResult> {
   const started = performance.now();
   const commands = [
+    ["health", ["health"]],
     ["lint", ["lint"]],
     ["typecheck", ["typecheck"]],
     ["test", ["test"]],
@@ -101,7 +102,7 @@ async function stageGate(context: PreflightContext): Promise<StageResult> {
     typeof metrics.coverageLines === "number" ? `${metrics.coverageLines}% lines` : undefined,
     typeof metrics.perfMedianMs === "number" ? `${metrics.perfMedianMs} ms median` : undefined
   ].filter(Boolean);
-  return completed("A", started, "PASS", `all seven project gates passed${measured.length ? ` (${measured.join(", ")})` : ""}`, details, metrics);
+  return completed("A", started, "PASS", `all eight project gates passed${measured.length ? ` (${measured.join(", ")})` : ""}`, details, metrics);
 }
 
 async function stageEvidence(context: PreflightContext): Promise<StageResult> {
@@ -146,7 +147,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
   const rootManifest = await readJson<{ scripts?: Record<string, unknown> }>(path.join(context.root, "package.json"));
   const packageChecks: Array<[boolean, string]> = [
     [manifest.name === "siftdiff", "cli name is siftdiff"],
-    [manifest.version === "0.5.0", "cli version is 0.5.0"],
+    [manifest.version === "0.6.0", "cli version is 0.6.0"],
     [!("private" in manifest), "cli private field is absent"],
     [JSON.stringify(manifest.bin) === JSON.stringify({ sift: "./dist/index.js" }), "cli bin is sift"],
     [JSON.stringify(manifest.publishConfig) === JSON.stringify({ access: "public", provenance: true }), "publishConfig is public + provenance"],
@@ -221,7 +222,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
     details.push("PASS release/pages YAML and guarded publish flow");
   }
   const changelog = await fs.readFile(path.join(context.root, "CHANGELOG.md"), "utf8");
-  for (const version of ["0.5.1", "0.5.2"]) {
+  for (const version of ["0.6.0"]) {
     const passed = changelog.includes(version);
     (passed ? details : failures).push(`${passed ? "PASS" : "FAIL"} CHANGELOG includes ${version}`);
   }
@@ -229,7 +230,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
     "C",
     started,
     failures.length === 0 ? "PASS" : "FAIL",
-    failures.length === 0 ? "v0.5.1 release claims conform" : `${failures.length} conformance check(s) failed`,
+    failures.length === 0 ? "v0.6 release claims conform" : `${failures.length} conformance check(s) failed`,
     [...details, ...failures]
   );
 }

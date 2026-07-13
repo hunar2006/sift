@@ -17,7 +17,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@sift-review/core": "workspace:*",
-    "zod": "^3.24.2"
+    "@sift-review/core": "workspace:*"
   }
 }

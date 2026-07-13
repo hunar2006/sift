@@ -30,7 +30,13 @@ export default tseslint.config(
       },
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["*.js", "vitest.config.ts", "packages/web/vite.config.ts", "packages/cli/tsup.config.ts"]
+          allowDefaultProject: [
+            "*.js",
+            "knip.ts",
+            "vitest.config.ts",
+            "packages/web/vite.config.ts",
+            "packages/cli/tsup.config.ts"
+          ]
         },
         tsconfigRootDir: import.meta.dirname
       }

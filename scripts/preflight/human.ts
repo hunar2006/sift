@@ -50,8 +50,8 @@ export function renderShipIt(): string {
 #    Description: Local-first review cockpit for AI-generated diffs — deterministic triage, provenance, and verification.
 #    Topics: code-review, diff, ai, claude-code, triage, cli, mcp, local-first
 # 4. Replace PLACEHOLDER_OWNER in the tracked release metadata, commit that change, then tag the verified commit:
-git tag v0.5.0
-git push origin v0.5.0
+git tag v0.6.0
+git push origin v0.6.0
 # 5. GitHub -> Actions -> release: watch the preflight-fast gate, then the guarded publish job.
 # 6. Cold verify from a fresh temporary directory:
 $cold = Join-Path $env:TEMP ("sift-cold-" + [guid]::NewGuid())

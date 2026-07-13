@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { EffectiveRules } from "./rules.js";
-import type { CoverageData } from "./coverage.js";
+import type { CoverageData } from "./coverage-types.js";
+import type { EffectiveRules } from "./rules-types.js";
 
 export type HunkCategory =
   | "logic"

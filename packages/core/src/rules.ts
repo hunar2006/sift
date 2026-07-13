@@ -3,46 +3,25 @@ import os from "node:os";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
+import type {
+  EffectiveRules,
+  LoadedRules,
+  RuleAdjustment,
+  RuleFileReport,
+  RuleScope,
+  UserRule
+} from "./rules-types.js";
 import type { ParsedHunk, RiskReason } from "./types.js";
 import { normalizeRepoRelative, safeEvidence } from "./path-utils.js";
 
-export type RuleScope = "global" | "repo";
-
-export interface UserRule {
-  id: string;
-  message: string;
-  paths: string[];
-  exclude: string[];
-  pattern?: string;
-  weight: number;
-  tier: "primary" | "nit";
-  source: string;
-}
-
-export interface RuleAdjustment {
-  code: string;
-  paths?: string[];
-  exclude: string[];
-  weight: number;
-  source: string;
-}
-
-export interface EffectiveRules {
-  rules: UserRule[];
-  adjust: RuleAdjustment[];
-}
-
-export interface RuleFileReport {
-  scope: RuleScope;
-  path: string;
-  status: "ok" | "missing" | "error";
-  error?: string;
-}
-
-export interface LoadedRules {
-  rules: EffectiveRules;
-  reports: RuleFileReport[];
-}
+export type {
+  EffectiveRules,
+  LoadedRules,
+  RuleAdjustment,
+  RuleFileReport,
+  RuleScope,
+  UserRule
+} from "./rules-types.js";
 
 interface RuleFileSpec {
   scope: RuleScope;

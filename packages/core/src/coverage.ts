@@ -1,15 +1,11 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { XMLParser } from "fast-xml-parser";
+import type { CoverageData } from "./coverage-types.js";
 import type { FileChange, ParsedHunk } from "./types.js";
 import { normalizeRepoRelative } from "./path-utils.js";
 
-export interface CoverageData {
-  artifactPath: string;
-  format: "lcov" | "cobertura";
-  stale: boolean;
-  files: Map<string, Map<number, number>>;
-}
+export type { CoverageData } from "./coverage-types.js";
 
 export interface CoverageLoadResult {
   coverage?: CoverageData;
