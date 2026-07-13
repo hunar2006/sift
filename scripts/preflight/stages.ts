@@ -23,7 +23,7 @@ import {
 const STAGE_NAMES: Record<StageId, string> = {
   A: "Gate",
   B: "Evidence",
-  C: "v0.6 conformance",
+  C: "v0.6.1 conformance",
   D: "Fresh-user simulation",
   E: "Installed-package simulation",
   F: "Audits",
@@ -147,7 +147,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
   const rootManifest = await readJson<{ scripts?: Record<string, unknown> }>(path.join(context.root, "package.json"));
   const packageChecks: Array<[boolean, string]> = [
     [manifest.name === "siftdiff", "cli name is siftdiff"],
-    [manifest.version === "0.6.0", "cli version is 0.6.0"],
+    [manifest.version === "0.6.1", "cli version is 0.6.1"],
     [!("private" in manifest), "cli private field is absent"],
     [JSON.stringify(manifest.bin) === JSON.stringify({ sift: "./dist/index.js" }), "cli bin is sift"],
     [JSON.stringify(manifest.publishConfig) === JSON.stringify({ access: "public", provenance: true }), "publishConfig is public + provenance"],
@@ -222,7 +222,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
     details.push("PASS release/pages YAML and guarded publish flow");
   }
   const changelog = await fs.readFile(path.join(context.root, "CHANGELOG.md"), "utf8");
-  for (const version of ["0.6.0"]) {
+  for (const version of ["0.6.1"]) {
     const passed = changelog.includes(version);
     (passed ? details : failures).push(`${passed ? "PASS" : "FAIL"} CHANGELOG includes ${version}`);
   }
@@ -230,7 +230,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
     "C",
     started,
     failures.length === 0 ? "PASS" : "FAIL",
-    failures.length === 0 ? "v0.6 release claims conform" : `${failures.length} conformance check(s) failed`,
+    failures.length === 0 ? "v0.6.1 release claims conform" : `${failures.length} conformance check(s) failed`,
     [...details, ...failures]
   );
 }

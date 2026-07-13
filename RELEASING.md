@@ -22,8 +22,8 @@ The npm package is **`siftdiff`** and its installed command is **`sift`**. Only 
 # Set topics: code-review, diff, ai, claude-code, triage, cli, mcp, local-first
 
 # Replace PLACEHOLDER_OWNER in the tracked release metadata and commit that change.
-git tag v0.6.0
-git push origin v0.6.0
+git tag v0.6.1
+git push origin v0.6.1
 
 # GitHub -> Actions -> release: watch preflight-fast pass, then the guarded publish job.
 
@@ -35,7 +35,7 @@ Pop-Location
 Remove-Item -LiteralPath $cold -Recurse -Force
 ```
 
-Run `pnpm sift -- --watch` during one real agent session; if refreshes feel jittery rather than calm, file it before shipping.
+Run `pnpm watch` during one real agent session; if refreshes feel jittery rather than calm, file it before shipping.
 
 ## Superseded manual path
 

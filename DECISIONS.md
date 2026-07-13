@@ -273,3 +273,12 @@ pnpm sift -- init         # starter config/rules
 ## 2026-07-13 — v0.6 final verification
 
 - Full `pnpm preflight` is **PASS**: Stage A passed all eight project gates (291 tests, 84.66% lines, 868.7 ms median), Stage B eval/fuzz evidence passed, Stage C v0.6 conformance passed, fresh-user and installed-package simulations passed, and runtime/static audits passed. Stage G is the already-documented manual demo-recording `SKIP`; the human review and `v0.6.0` ship checklist rendered in Stage H.
+
+## 2026-07-13 - v0.6.1 Approachable
+
+- The README opening is deliberately reduced from 154 to 81 words in its first 30 lines. It retains only the description, image, install paths, and six-tour-line first action path; source-checkout instructions remain in CONTRIBUTING.
+- Root help is a 33-row static, examples-first contract with compact subcommand help. A snapshot protects its grouping and prevents wordiness from returning.
+- A clean bare invocation chooses a normal review target through Node readline only when both streams are TTYs. Non-interactive use stays non-blocking and adds the `sift last` / help hint; `sift last [n]` rejects histories too short for `HEAD~n`.
+- PR references normalize before `gh pr diff`. Missing GitHub CLI and missing authentication have separate one-line recovery messages. Sift only prints the self-post suggestion; it never calls `gh pr comment`.
+- Copy changes are limited to text. The first-run overlay is tested at 28 words, completion text is terse, product-copy words are scanned by health, and only overlay/completion screenshots were recaptured.
+- pnpm 11 forwards a literal nested `pnpm sift -- --watch` separator to Commander as an argument. The documented `pnpm watch` script therefore uses the equivalent working `pnpm sift --watch`; `pnpm tui` uses `pnpm sift tui`.

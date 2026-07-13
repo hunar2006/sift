@@ -4,6 +4,19 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.6.1] - Approachable (Unreleased)
+
+### Added
+
+- Bare `sift` offers a TTY picker for the last commit, a range, or the demo when the worktree is clean. `sift last [n]` reviews `HEAD~n..HEAD` with a short-history check.
+- `sift pr` accepts a number, GitHub URL, or `owner/repo#number`; it can list and choose open PRs. Markdown PR reports print a self-post command but never post.
+
+### Changed
+
+- The README opens with install and a six-line tour. Help is examples-first, grouped, snapshot-tested, and 33 rows.
+- Product copy is shorter across the overlay, completion view, empty states, toasts, init output, and troubleshooting. Health checks README onboarding and banned product words.
+- The CLI and surfaced Sift version are now `0.6.1`.
+
 ## [0.6.0] - Refinery (Unreleased)
 
 ### Added
