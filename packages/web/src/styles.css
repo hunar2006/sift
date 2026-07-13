@@ -1138,6 +1138,26 @@ button.ghost {
   color: var(--green-text);
 }
 
+.copy-suppression {
+  order: 5;
+  margin-left: auto;
+  padding: 1px 5px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-lo);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.copy-suppression:hover,
+.copy-suppression:focus-visible {
+  border-color: var(--line);
+  background: var(--ink-2);
+  color: var(--text-hi);
+}
+
 .reason-detail p {
   margin: 4px 0 0 18px;
   color: var(--text-lo);

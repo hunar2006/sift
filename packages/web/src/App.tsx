@@ -20,6 +20,7 @@ import { CompletionScreen, GroupApprovePreview, QuickFlagPicker, renderInlineCod
 import { sortReviewHunks, useReviewStore, visibleHunks } from "./store.js";
 import type { ApiMeta, ProvenanceTimelineSession, ReviewHunk, ReviewModel } from "./types.js";
 import { highlightDiffLines } from "./highlight.js";
+import { suppressionRuleFor } from "./suppression-rule.js";
 import "./styles.css";
 
 interface CommandAction {
@@ -654,6 +655,12 @@ export function App() {
               .then(() => setToast("Opened in editor."))
               .catch((error: unknown) => setToast(error instanceof Error ? error.message : "Editor could not be opened."))
           }
+          onCopySuppression={(reason, hunk) =>
+            void navigator.clipboard
+              .writeText(suppressionRuleFor(reason.code, hunk.file, reason.label))
+              .then(() => setToast("Rule copied â€” paste into .sift/rules.yml"))
+              .catch(() => setToast("Could not copy the suppression rule."))
+          }
           onStatus={(status, note) => selected && void updateStatus(selected, status, note)}
         />
       </section>
@@ -1187,6 +1194,7 @@ function Inspector({
   nitsOpen,
   onToggleNits,
   onOpenEditor,
+  onCopySuppression,
   onStatus
 }: {
   hunk?: ReviewHunk;
@@ -1195,6 +1203,7 @@ function Inspector({
   nitsOpen: boolean;
   onToggleNits(): void;
   onOpenEditor(hunk: ReviewHunk): void;
+  onCopySuppression(reason: ReviewHunk["reasons"][number], hunk: ReviewHunk): void;
   onStatus(status: ReviewHunk["status"], note?: string): void;
 }) {
   const [note, setNote] = useState("");
@@ -1228,13 +1237,21 @@ function Inspector({
         ) : (
           <>
             {primaryReasons.map((reason) => (
-              <ReasonDetail key={`${reason.code}-${reason.line ?? ""}`} reason={reason} />
+              <ReasonDetail
+                key={`${reason.code}-${reason.line ?? ""}`}
+                reason={reason}
+                onCopy={() => onCopySuppression(reason, hunk)}
+              />
             ))}
             {nitReasons.length > 0 && (
               <details className="nit-section" open={nitsOpen} onToggle={onToggleNits}>
                 <summary>Nits ({nitReasons.length})</summary>
                 {nitReasons.map((reason) => (
-                  <ReasonDetail key={`${reason.code}-${reason.line ?? ""}`} reason={reason} />
+                  <ReasonDetail
+                    key={`${reason.code}-${reason.line ?? ""}`}
+                    reason={reason}
+                    onCopy={() => onCopySuppression(reason, hunk)}
+                  />
                 ))}
               </details>
             )}
@@ -1575,10 +1592,21 @@ function ReasonChips({ hunk }: { hunk: ReviewHunk }) {
   );
 }
 
-function ReasonDetail({ reason }: { reason: ReviewHunk["reasons"][number] }) {
+function ReasonDetail({ reason, onCopy }: { reason: ReviewHunk["reasons"][number]; onCopy(): void }) {
   return (
     <details className={`reason-detail ${reason.weight < 0 ? "reducer" : ""}`}>
       <summary>
+        <button
+          className="copy-suppression"
+          type="button"
+          aria-label={`Copy suppression rule for ${reason.code}`}
+          onClick={(event) => {
+            event.preventDefault();
+            onCopy();
+          }}
+        >
+          Copy rule
+        </button>
         <span className="reason-label">{reason.weight < 0 ? `− ${reason.label}` : reason.label}</span>
         <span className="reason-meta">
           {reason.code} · {formatWeight(reason.weight)}
