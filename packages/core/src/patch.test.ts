@@ -23,4 +23,17 @@ describe("rename patch rendering", () => {
     expect(renderHunkPatch(model.hunks[0]!)).toBe(expected);
     expect(renderMarkdownReport(model, state, computeStats(model, state))).toContain(expected);
   });
+
+  it("adds a post-it-yourself footer for PR reports", () => {
+    const model = analyzeDiff({
+      repoRoot: "/repo",
+      diffSpec: "pr/acme/sift#123",
+      git: { headSha: "abc", branch: "main" },
+      patch: readFileSync(path.join(fixtureRoot, "rename.patch"), "utf8")
+    });
+    const state = emptyState();
+    expect(renderMarkdownReport(model, state, computeStats(model, state))).toContain(
+      "Post it yourself: sift report --md | gh pr comment 123 --body-file -"
+    );
+  });
 });

@@ -10,8 +10,10 @@ import {
   formatRuleFileProblem,
   GitError,
   lintRuleFiles,
+  listPullRequests,
   loadRules,
   mergeReviewState,
+  normalizePrReference,
   readHistory,
   readReviewState,
   renderHtmlReport,
@@ -34,6 +36,7 @@ import { runTui } from "./tui.js";
 import { acquireLock, releaseLock } from "./lock.js";
 import { initQuickstart, runInit } from "./init.js";
 import { commandHelp, ROOT_HELP } from "./help.js";
+import { pickPullRequest, pullRequestPickerLines } from "./github.js";
 import {
   cleanWorktreePickerInfo,
   emptyReviewMessage,
@@ -191,15 +194,34 @@ program
 
 program
   .command("pr")
-  .argument("<numberOrUrl>")
+  .argument("[numberOrUrl]")
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
   .option("--ai [provider]", "opt-in AI annotations: anthropic, openai, same, cross, or both")
   .option("--no-ai-cache", "bypass the cached AI Review Brief and regenerate it")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .option("--watch", "watch working-tree changes and stream review updates")
-  .action(async (pr: string, options: ReviewCommandOptions) => {
+  .action(async (input: string | undefined, options: ReviewCommandOptions) => {
     assertWatchUsage(options.watch, undefined, true);
+    let pr = input;
+    if (!pr) {
+      const repoRoot = await discoverRepoRoot(process.cwd());
+      const pullRequests = await listPullRequests(repoRoot);
+      if (pullRequests.length === 0) {
+        console.log("No open pull requests.");
+        return;
+      }
+      if (!isInteractiveTerminal()) {
+        console.log(pullRequestPickerLines(pullRequests).join("\n"));
+        console.log("Choose: sift pr <number>");
+        return;
+      }
+      pr = await pickPullRequest(pullRequests);
+      if (!pr) {
+        return;
+      }
+    }
+    pr = normalizePrReference(pr);
     const ai = parseAiOption(options.ai);
     const noAiCache = options.aiCache === false;
     const result = await runPipeline({ cwd: process.cwd(), pr, ai, noAiCache, coverage: options.coverage });
@@ -225,9 +247,11 @@ program
   .option("--html", "emit a static HTML report")
   .option("--json", "emit JSON")
   .option("-o, --output <file>", "write report to file")
+  .option("--pr <numberOrUrl>", "use pull request diff")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (options: ReportOptions) => {
-    const result = await runPipeline({ cwd: process.cwd(), coverage: options.coverage });
+    const pr = options.pr ? normalizePrReference(options.pr) : undefined;
+    const result = await runPipeline({ cwd: process.cwd(), pr, coverage: options.coverage });
     const { state, warning } = await readReviewState(result.model.meta.repoRoot);
     if (warning) {
       console.error(warning);
@@ -474,6 +498,7 @@ interface ReportOptions {
   html?: boolean;
   json?: boolean;
   output?: string;
+  pr?: string;
   coverage?: string;
 }
 

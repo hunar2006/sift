@@ -95,7 +95,7 @@ Directive comments are machine-read behavior changes, not bulk-approvable prose.
 | `sift last [n]` | Review `HEAD~n..HEAD` (default: 1). |
 | `sift --staged` | Analyze staged changes. |
 | `sift --watch` | Keep the default worktree review live; it also works with `--staged`, not a ref range or PR. |
-| `sift pr <number-or-url>` | Analyze a GitHub PR diff through `gh`. |
+| `sift pr [number, URL, or owner/repo#number]` | Analyze a GitHub PR diff through `gh`. |
 | `sift brief [--flagged\|--unreviewed-high] [-o file]` | Produce an agent-ready review handoff. |
 | `sift report [--md\|--json\|--html] [-o file]` | Emit a report and append a stats snapshot; `--html` is one self-contained static file. |
 | `sift print [--json]` | Print compact terminal triage without starting the server. |
@@ -108,6 +108,10 @@ Directive comments are machine-read behavior changes, not bulk-approvable prose.
 | `sift tui [range]` | Full-screen terminal review cockpit (Ink); same pipeline and `state.json` as the web UI. |
 | `sift hooks install [--project]` | Install the Claude Code PostToolUse capture hook. |
 | `pnpm shots` / `pnpm perf` / `pnpm pack-check` / `pnpm eval` / `pnpm fuzz` | Reproduce visual evidence, check the pipeline budget, verify an installed tarball, run the corpus eval, or property-fuzz the parser/pipeline. |
+
+## Pull requests
+
+Run `sift pr` to choose an open pull request, or pass its number, URL, or `owner/repo#number`. Use `sift report --pr 123 --md` for a PR report. Sift never posts; any `gh pr comment` command is yours to run.
 
 ## Terminal cockpit (`sift tui`)
 

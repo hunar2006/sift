@@ -74,8 +74,14 @@ export function renderMarkdownReport(model: ReviewModel, state: ReviewStateFile,
           "## Coverage",
           `${(stats.coverageOnChangedLines * 100).toFixed(0)}% of changed executable lines were covered by parsed artifacts.`
         ]),
+    ...prReportFooter(model.meta.diffSpec),
     ""
   ].join("\n");
+}
+
+function prReportFooter(diffSpec: string): string[] {
+  const number = diffSpec.match(/^pr\/(?:[^#]+#)?(\d+)$/u)?.[1];
+  return number ? ["", `Post it yourself: sift report --md | gh pr comment ${number} --body-file -`] : [];
 }
 
 export function renderHtmlReport(model: ReviewModel, state: ReviewStateFile, stats: StatsSnapshot): string {
