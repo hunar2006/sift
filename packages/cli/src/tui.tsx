@@ -8,6 +8,7 @@ import {
   mergeReviewState,
   readReviewState,
   updateHunkStatus,
+  wordDiffLines,
   type HunkWithState,
   type ReviewModel,
   type StatsSnapshot
@@ -52,10 +53,10 @@ function truncate(value: string, width: number): string {
   return `${value.slice(0, Math.max(0, width - 1))}…`;
 }
 
-function patchLines(hunk: HunkWithState): string[] {
-  return hunk.lines.map((line) => {
+function patchLines(hunk: HunkWithState): Array<{ prefix: string; text: string; kind: HunkWithState["lines"][number]["kind"]; segments?: HunkWithState["lines"][number]["segments"] }> {
+  return wordDiffLines(hunk.lines).map((line) => {
     const prefix = line.kind === "add" ? "+" : line.kind === "del" ? "-" : " ";
-    return `${prefix}${line.text}`;
+    return { prefix, text: line.text, kind: line.kind, segments: line.segments };
   });
 }
 
@@ -430,10 +431,19 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
               <Box flexDirection="column" marginTop={1}>
                 {shownPatch.map((line, index) => (
                   <Text
-                    key={`${index}-${line.slice(0, 24)}`}
-                    color={line.startsWith("+") ? "green" : line.startsWith("-") ? "red" : undefined}
+                    key={`${index}-${line.text.slice(0, 24)}`}
+                    color={line.kind === "add" ? "green" : line.kind === "del" ? "red" : undefined}
                   >
-                    {truncate(line, Math.max(20, columns - railWidth - 4))}
+                    {line.prefix}
+                    {line.segments ? (
+                      line.segments.map((segment, segmentIndex) => (
+                        <Text key={`${segmentIndex}-${segment.text}`} bold={segment.changed}>
+                          {segment.text}
+                        </Text>
+                      ))
+                    ) : (
+                      truncate(line.text, Math.max(20, columns - railWidth - 4))
+                    )}
                   </Text>
                 ))}
                 {!expanded && patch.length > PATCH_COLLAPSE ? (

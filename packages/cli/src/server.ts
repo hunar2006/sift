@@ -21,6 +21,7 @@ import {
   renderStats,
   statusUpdateSchema,
   updateHunkStatus,
+  withWordDiffSegments,
   type ReviewBrief,
   type ReviewModel
 } from "@sift-review/core";
@@ -79,7 +80,7 @@ export function createSiftApp(context: ServerContext | SiftServerState): Hono {
 
   app.get("/api/review", async (c) => {
     const { state: reviewState } = await readReviewState(state.current.model.meta.repoRoot);
-    return c.json(mergeReviewState(state.current.model, reviewState));
+    return c.json(withWordDiffSegments(mergeReviewState(state.current.model, reviewState)));
   });
 
   app.get("/api/events", (c) => {
@@ -180,7 +181,7 @@ export function createSiftApp(context: ServerContext | SiftServerState): Hono {
   app.post("/api/refresh", async (c) => {
     await state.refresh();
     const { state: reviewState } = await readReviewState(state.current.model.meta.repoRoot);
-    return c.json(mergeReviewState(state.current.model, reviewState));
+    return c.json(withWordDiffSegments(mergeReviewState(state.current.model, reviewState)));
   });
 
   app.get("/api/stats", async (c) => {

@@ -885,6 +885,22 @@ button.ghost {
   line-height: 1.55;
 }
 
+.diff-line.add .word-change {
+  background: color-mix(in srgb, #18794e 62%, transparent);
+}
+
+.diff-line.del .word-change {
+  background: color-mix(in srgb, #9f2f2f 58%, transparent);
+}
+
+:root[data-theme="light"] .diff-line.add .word-change {
+  background: color-mix(in srgb, #78c694 50%, transparent);
+}
+
+:root[data-theme="light"] .diff-line.del .word-change {
+  background: color-mix(in srgb, #e89a9a 50%, transparent);
+}
+
 :root[data-theme="light"] .diff-line code {
   color: #2a3344;
 }

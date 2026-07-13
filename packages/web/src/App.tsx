@@ -829,7 +829,15 @@ function DiffViewer({
                 >
                   <span className="oldno">{line.oldLine ?? ""}</span>
                   <span className="newno">{line.newLine ?? ""}</span>
-                  {highlightedLines?.[virtualRow.index] ? (
+                  {line.segments ? (
+                    <code>
+                      {line.segments.map((segment, index) => (
+                        <span key={`${index}-${segment.text}`} className={segment.changed ? "word-change" : undefined}>
+                          {segment.text}
+                        </span>
+                      ))}
+                    </code>
+                  ) : highlightedLines?.[virtualRow.index] ? (
                     <code dangerouslySetInnerHTML={{ __html: highlightedLines[virtualRow.index] ?? "" }} />
                   ) : (
                     <code>{line.text}</code>

@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -31,6 +31,7 @@ if (!parsed.model || parsed.model.hunks.length <= 0 || parsed.model.groups.lengt
 }
 
 assertDemoSignals(parsed.model);
+await assertWordDiffApi();
 await assertPrint();
 await assertTuiFrame();
 await assertRulesLint();
@@ -105,6 +106,42 @@ function assertDemoSignals(model) {
     if (!headlines.some((headline) => pattern.test(headline))) {
       throw new Error(`Smoke failed: demo digests missing the ${label} template row.`);
     }
+  }
+}
+
+async function assertWordDiffApi() {
+  const child = spawn(process.execPath, [cliPath, "--no-open", "--port", "4311"], {
+    cwd: repo,
+    env: demoEnv,
+    windowsHide: true
+  });
+  let output = "";
+  try {
+    const url = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error(`Smoke failed: web server did not start: ${output.slice(-500)}`)), 15_000);
+      const onData = (chunk) => {
+        output += chunk.toString();
+        const found = output.match(/http:\/\/127\.0\.0\.1:\d+/u)?.[0];
+        if (found) {
+          clearTimeout(timeout);
+          resolve(found);
+        }
+      };
+      child.stdout.on("data", onData);
+      child.stderr.on("data", onData);
+      child.once("error", (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+    const response = await fetch(`${url}/api/review`);
+    const model = await response.json();
+    const segments = model.hunks.flatMap((hunk) => hunk.lines.flatMap((line) => line.segments ?? []));
+    if (segments.length < 5) {
+      throw new Error(`Smoke failed: expected at least five word-diff segments, received ${segments.length}.`);
+    }
+  } finally {
+    child.kill();
   }
 }
 

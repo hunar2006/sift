@@ -30,6 +30,7 @@ export interface DiffLine {
   text: string;
   oldLine?: number;
   newLine?: number;
+  segments?: Array<{ text: string; changed: boolean }>;
 }
 
 export interface ProvenanceRef {
@@ -277,7 +278,8 @@ export const diffLineSchema: z.ZodType<DiffLine> = z.object({
   kind: z.union([z.literal("add"), z.literal("del"), z.literal("context")]),
   text: z.string(),
   oldLine: z.number().optional(),
-  newLine: z.number().optional()
+  newLine: z.number().optional(),
+  segments: z.array(z.object({ text: z.string(), changed: z.boolean() })).optional()
 });
 
 export const hunkDigestSchema: z.ZodType<HunkDigest> = z.object({
