@@ -8,6 +8,8 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm watch       # runs Sift live
+pnpm tui         # runs terminal Sift
 pnpm smoke
 pnpm perf        # timing budget on a synthetic large diff
 pnpm pack-check  # packs the CLI and verifies installed assets resolve
