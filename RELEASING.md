@@ -35,7 +35,7 @@ Pop-Location
 Remove-Item -LiteralPath $cold -Recurse -Force
 ```
 
-Run `pnpm watch` during one real agent session; if refreshes feel jittery rather than calm, file it before shipping.
+Run `sift --watch` during one real agent session; if refreshes feel jittery rather than calm, file it before shipping.
 
 ## Superseded manual path
 
