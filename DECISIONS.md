@@ -269,3 +269,7 @@ pnpm sift -- init         # starter config/rules
 - Kept: the optional regex search toggle is a documented v0.6 cut; literal search is the shipped contract. TUI diff-wide search remains intentionally out of scope.
 - Kept: `TODO`/`FIXME` words in the historical changelog and the detector implementation describe Sift's review surface, not unfinished runtime work.
 - Kept: `TODO`/`FIXME` and `console.log` strings in core signal tests and eval fuzz inputs are deliberate fixture data. No production TODO/FIXME item required deletion or repair in this pass.
+
+## 2026-07-13 — v0.6 final verification
+
+- Full `pnpm preflight` is **PASS**: Stage A passed all eight project gates (291 tests, 84.66% lines, 868.7 ms median), Stage B eval/fuzz evidence passed, Stage C v0.6 conformance passed, fresh-user and installed-package simulations passed, and runtime/static audits passed. Stage G is the already-documented manual demo-recording `SKIP`; the human review and `v0.6.0` ship checklist rendered in Stage H.
