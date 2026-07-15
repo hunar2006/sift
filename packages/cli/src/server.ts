@@ -8,9 +8,14 @@ import { fileURLToPath } from "node:url";
 import {
   BulkApproveBlockedError,
   approveGroup,
+  appendJournal,
   buildProvenanceTimeline,
   computeStats,
+  createJournalId,
+  FileChangedSinceRevertError,
   loadFlagReasons,
+  makeJournalEntry,
+  readJournal,
   mergeReviewState,
   openHunkSchema,
   readGitFile,
@@ -19,6 +24,9 @@ import {
   readWorktreeFile,
   renderMarkdownReport,
   renderStats,
+  RevertUnavailableError,
+  snapshotAndRevert,
+  undoRevert,
   statusUpdateSchema,
   updateHunkStatus,
   withWordDiffSegments,
@@ -138,13 +146,130 @@ export function createSiftApp(context: ServerContext | SiftServerState): Hono {
     if (!parsed.success) {
       return c.json({ error: "Invalid status body." }, 400);
     }
+    const hunk = state.current.model.hunks.find((candidate) => candidate.id === c.req.param("id"));
+    if (!hunk) {
+      return c.json({ error: "Unknown hunk." }, 404);
+    }
     const reviewState = await updateHunkStatus(
       state.current.model.meta.repoRoot,
       c.req.param("id"),
       parsed.data.status,
-      parsed.data.note
+      parsed.data.note,
+      { file: hunk.file, via: parsed.data.via ?? "single" }
     );
     return c.json(reviewState);
+  });
+
+  app.post("/api/hunks/:id/revert", async (c) => {
+    const hunk = state.current.model.hunks.find((candidate) => candidate.id === c.req.param("id"));
+    if (!hunk) {
+      return c.json({ error: "Unknown hunk." }, 404);
+    }
+    try {
+      const fileHunks = state.current.model.hunks.filter((candidate) => candidate.file === hunk.file);
+      const { state: reviewState } = await readReviewState(state.current.model.meta.repoRoot);
+      const revert = await snapshotAndRevert({
+        repoRoot: state.current.model.meta.repoRoot,
+        filePath: hunk.file,
+        diffSpec: state.current.model.meta.diffSpec,
+        hunkStates: fileHunks.map((candidate) => {
+          const stored = reviewState.hunks[candidate.id] ?? { status: "unreviewed" as const };
+          return { hunkId: candidate.id, status: stored.status, note: stored.note };
+        })
+      });
+      await appendJournal(
+        state.current.model.meta.repoRoot,
+        makeJournalEntry({
+          id: revert.id,
+          hunkId: hunk.id,
+          file: hunk.file,
+          via: "single",
+          kind: "revert",
+          action: "Reverted",
+          fromStatus: reviewState.hunks[hunk.id]?.status ?? "unreviewed",
+          fromNote: reviewState.hunks[hunk.id]?.note,
+          toStatus: "unreviewed"
+        })
+      );
+      await state.refresh();
+      return c.json({ id: revert.id, path: revert.path, hunkIds: revert.hunkStates.map((item) => item.hunkId) });
+    } catch (error) {
+      if (error instanceof RevertUnavailableError) {
+        return c.json({ error: error.message }, 409);
+      }
+      throw error;
+    }
+  });
+
+  app.get("/api/journal", async (c) => {
+    const entries = await readJournal(state.current.model.meta.repoRoot);
+    return c.json(entries.slice(-50).reverse());
+  });
+
+  app.post("/api/journal/:id/undo", async (c) => {
+    const entries = await readJournal(state.current.model.meta.repoRoot);
+    const target = entries.find((entry) => entry.id === c.req.param("id"));
+    if (!target) {
+      return c.json({ error: "Decision no longer exists." }, 404);
+    }
+    if (target.kind === "revert") {
+      try {
+        const reverted = await undoRevert(state.current.model.meta.repoRoot, target.id);
+        for (const hunkState of reverted.hunkStates) {
+          await updateHunkStatus(state.current.model.meta.repoRoot, hunkState.hunkId, hunkState.status, hunkState.note, {
+            file: reverted.path,
+            via: "targeted-undo",
+            journal: false
+          });
+        }
+        await appendJournal(
+          state.current.model.meta.repoRoot,
+          makeJournalEntry({
+            hunkId: target.hunkId,
+            file: reverted.path,
+            via: "targeted-undo",
+            kind: "revert",
+            action: "Undid revert",
+            fromStatus: "unreviewed",
+            toStatus: target.fromStatus
+          })
+        );
+        await state.refresh();
+        return c.json({ hunkIds: reverted.hunkStates.map((item) => item.hunkId), compound: true, reverted: true });
+      } catch (error) {
+        if (error instanceof FileChangedSinceRevertError) {
+          return c.json({ error: "File changed since." }, 409);
+        }
+        throw error;
+      }
+    }
+    const changes = target.compoundId
+      ? entries.filter((entry) => entry.compoundId === target.compoundId)
+      : [target];
+    const hunksById = new Map(state.current.model.hunks.map((hunk) => [hunk.id, hunk]));
+    const missing = changes.find((entry) => !hunksById.has(entry.hunkId));
+    if (missing) {
+      return c.json({ error: "A changed hunk is no longer in this review." }, 409);
+    }
+    const { state: reviewState } = await readReviewState(state.current.model.meta.repoRoot);
+    const stale = changes.find((entry) => {
+      const current = reviewState.hunks[entry.hunkId] ?? { status: "unreviewed" as const };
+      return current.status !== entry.toStatus || current.note !== entry.toNote;
+    });
+    if (stale) {
+      return c.json({ error: "Decision changed since." }, 409);
+    }
+    const undoCompoundId = target.compoundId ? createJournalId() : undefined;
+    for (const entry of changes) {
+      const hunk = hunksById.get(entry.hunkId)!;
+      await updateHunkStatus(state.current.model.meta.repoRoot, entry.hunkId, entry.fromStatus, entry.fromNote, {
+        file: hunk.file,
+        via: "targeted-undo",
+        kind: "status",
+        compoundId: undoCompoundId
+      });
+    }
+    return c.json({ hunkIds: changes.map((entry) => entry.hunkId), compound: Boolean(target.compoundId) });
   });
 
   app.post("/api/open", async (c) => {

@@ -18,8 +18,9 @@ function block(selector: string): Record<string, string> {
   return map;
 }
 
-const dark = block(":root {");
-const light = { ...dark, ...block(':root[data-theme="light"] {') };
+const graphite = block(":root {");
+const assay = { ...graphite, ...block(':root[data-theme="assay"] {') };
+const paper = { ...graphite, ...block(':root[data-theme="paper"] {') };
 
 function channel(value: number): number {
   const c = value / 255;
@@ -40,36 +41,26 @@ function contrast(a: string, b: string): number {
 }
 
 const BODY_PAIRS: Array<[string, string]> = [
-  ["--text-hi", "--ink-0"],
-  ["--text-hi", "--ink-1"],
-  ["--text-hi", "--ink-2"],
-  ["--text-lo", "--ink-0"],
-  ["--text-lo", "--ink-1"],
-  ["--text-lo", "--ink-2"]
+  ["--text-hi", "--ink-0"], ["--text-hi", "--ink-1"], ["--text-hi", "--ink-2"],
+  ["--text-lo", "--ink-0"], ["--text-lo", "--ink-1"], ["--text-lo", "--ink-2"]
 ];
 
 const LARGE_PAIRS: Array<[string, string]> = [
-  ["--verdict", "--ink-0"],
-  ["--verdict", "--ink-1"],
-  ["--critical", "--ink-0"],
-  ["--critical", "--ink-1"],
-  ["--high", "--ink-1"],
-  ["--medium", "--ink-1"],
-  ["--low", "--ink-1"],
-  ["--green-text", "--ink-1"],
-  ["--high-text", "--ink-1"],
-  ["--medium-text", "--ink-1"],
-  ["--low-text", "--ink-1"],
-  ["--skim-text", "--ink-1"]
+  ["--verdict", "--ink-0"], ["--verdict", "--ink-1"], ["--critical", "--ink-0"], ["--critical", "--ink-1"],
+  ["--high", "--ink-1"], ["--medium", "--ink-1"], ["--low", "--ink-1"], ["--green-text", "--ink-1"],
+  ["--high-text", "--ink-1"], ["--medium-text", "--ink-1"], ["--low-text", "--ink-1"], ["--skim-text", "--ink-1"]
 ];
 
-/** Band-colored chip text on 12% tinted chip backgrounds (large text ≥ 3:1). */
 const CHIP_PAIRS: Array<[string, string]> = [
-  ["--critical", "--critical-chip-bg"],
-  ["--high-text", "--high-chip-bg"],
-  ["--medium-text", "--medium-chip-bg"],
-  ["--low-text", "--low-chip-bg"],
-  ["--green-text", "--verdict-chip-bg"]
+  ["--critical", "--critical-chip-bg"], ["--high-text", "--high-chip-bg"], ["--medium-text", "--medium-chip-bg"],
+  ["--low-text", "--low-chip-bg"], ["--green-text", "--verdict-chip-bg"]
+];
+
+const PAPER_SECONDARY_PAIRS: Array<[string, string]> = [
+  // SEC_PATH/reason metadata and line-match use --text-lo; copy-rule is the
+  // visible suppression-control outline on Paper's light surface.
+  ["--text-lo", "--ink-1"],
+  ["--copy-rule", "--ink-1"]
 ];
 
 function check(theme: Record<string, string>, fg: string, bg: string): number {
@@ -80,19 +71,19 @@ function check(theme: Record<string, string>, fg: string, bg: string): number {
   return contrast(fgHex!, bgHex!);
 }
 
-describe.each([
-  ["dark", dark],
-  ["light", light]
-])("contrast — %s theme", (_name, theme) => {
-  it.each(BODY_PAIRS)("body text %s on %s ≥ 4.5:1", (fg, bg) => {
+describe.each([["graphite", graphite], ["assay", assay], ["paper", paper]])("contrast: %s theme", (_name, theme) => {
+  it.each(BODY_PAIRS)("body text %s on %s meets 4.5:1", (fg, bg) => {
     expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(4.5);
   });
-
-  it.each(LARGE_PAIRS)("large/accent text %s on %s ≥ 3:1", (fg, bg) => {
+  it.each(LARGE_PAIRS)("large/accent text %s on %s meets 3:1", (fg, bg) => {
     expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(3);
   });
-
-  it.each(CHIP_PAIRS)("chip text %s on %s ≥ 3:1", (fg, bg) => {
+  if (_name === "paper") {
+    it.each(PAPER_SECONDARY_PAIRS)("Paper secondary element %s on %s meets 4.5:1", (fg, bg) => {
+      expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+  it.each(CHIP_PAIRS)("chip text %s on %s meets 3:1", (fg, bg) => {
     expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(3);
   });
 });

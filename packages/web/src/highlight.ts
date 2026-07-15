@@ -1,5 +1,5 @@
 import type { DiffLine } from "@sift-review/core";
-import { assayDark, assayLight, type AssayThemeName } from "./assay-themes.js";
+import { assay, graphite, paper, type SightlineThemeName } from "./assay-themes.js";
 
 interface ShikiHighlighter {
   codeToHtml(code: string, options: { lang: string; theme: string }): string;
@@ -7,8 +7,8 @@ interface ShikiHighlighter {
 
 interface ShikiCoreModule {
   createHighlighterCore(options: {
-    engine: () => unknown;
-    themes: Array<typeof assayDark | typeof assayLight>;
+    engine: unknown;
+    themes: Array<typeof graphite | typeof assay | typeof paper>;
     langs: unknown[];
   }): Promise<ShikiHighlighter>;
 }
@@ -76,7 +76,7 @@ export function highlightDiffLines(
   hunkId: string,
   language: string,
   lines: DiffLine[],
-  theme: AssayThemeName = "assay-dark"
+  theme: SightlineThemeName = "graphite"
 ): Promise<string[] | null> {
   const lang = LANGUAGE_ALIASES[language] ?? "text";
   if (lang === "text") {
@@ -87,12 +87,15 @@ export function highlightDiffLines(
   if (existing) {
     return existing;
   }
-  const promise = highlightLines(lang, lines, theme).catch(() => null);
+  const promise = highlightLines(lang, lines, theme).catch((error) => {
+    console.error("Sift syntax highlighter could not paint this hunk", error);
+    return null;
+  });
   cache.set(key, promise);
   return promise;
 }
 
-async function highlightLines(lang: string, lines: DiffLine[], theme: AssayThemeName): Promise<string[] | null> {
+async function highlightLines(lang: string, lines: DiffLine[], theme: SightlineThemeName): Promise<string[] | null> {
   const highlighter = await highlighterFor(lang);
   if (!highlighter) {
     return null;
@@ -112,12 +115,15 @@ function highlighterFor(lang: string): Promise<ShikiHighlighter | null> {
   const promise = Promise.all([import("shiki/core"), import("shiki/engine/javascript"), loader()])
     .then(([core, engine, language]) =>
       (core as unknown as ShikiCoreModule).createHighlighterCore({
-        engine: () => (engine as unknown as ShikiEngineModule).createJavaScriptRegexEngine({ forgiving: true }),
-        themes: [assayDark, assayLight],
+        engine: (engine as unknown as ShikiEngineModule).createJavaScriptRegexEngine({ forgiving: true }),
+        themes: [graphite, assay, paper],
         langs: [language.default]
       })
     )
-    .catch(() => null);
+    .catch((error) => {
+      console.error("Sift syntax highlighter could not initialise", error);
+      return null;
+    });
   highlighters.set(lang, promise);
   return promise;
 }

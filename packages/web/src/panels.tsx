@@ -1,8 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import type { StatsSnapshot } from "@sift-review/core";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
+import type { JournalEntry, StatsSnapshot } from "@sift-review/core";
 import type { ReviewHunk, ReviewModel } from "./types.js";
 import { DEFAULT_FLAG_REASONS } from "./undo.js";
+import { captureFocus, focusElement, focusFirst, restoreFocus, trapFocus } from "./focus.js";
+
+function useModalFocus(): { ref: RefObject<HTMLDivElement>; onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void } {
+  const ref = useRef<HTMLDivElement>(null!);
+  const previous = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    previous.current = captureFocus();
+    focusFirst(ref.current);
+    return () => restoreFocus(previous.current);
+  }, []);
+  return { ref, onKeyDown: (event) => trapFocus(event.nativeEvent, ref.current) };
+}
 
 export function renderInlineCode(text: string): ReactNode {
   return text
@@ -20,8 +32,16 @@ export function QuickFlagPicker({
   onPick(note: string): void;
   onCancel(): void;
 }) {
+  const modal = useModalFocus();
   const options = reasons && reasons.length > 0 ? reasons.slice(0, 4) : [...DEFAULT_FLAG_REASONS];
   const [freeNote, setFreeNote] = useState<string | null>(null);
+  const freeNoteRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (freeNote !== null) {
+      focusElement(freeNoteRef.current);
+    }
+  }, [freeNote]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
@@ -48,7 +68,7 @@ export function QuickFlagPicker({
   }, [freeNote, onCancel, onPick, options]);
 
   return (
-    <div className="quick-flag" role="dialog" aria-label="Flag reason">
+    <div ref={modal.ref} className="quick-flag" role="dialog" aria-modal="true" aria-label="Flag reason" onKeyDown={modal.onKeyDown}>
       {freeNote === null ? (
         <ul className="quick-flag-list">
           {options.map((reason, index) => (
@@ -73,7 +93,7 @@ export function QuickFlagPicker({
           }}
         >
           <input
-            autoFocus
+            ref={freeNoteRef}
             value={freeNote}
             placeholder="reason"
             onChange={(event) => setFreeNote(event.target.value)}
@@ -104,6 +124,7 @@ export function GroupApprovePreview({
   onConfirm(): void;
   onCancel(): void;
 }) {
+  const modal = useModalFocus();
   const total = group.totalAdded + group.totalRemoved;
   const blocked = new Set(blockedIds ?? []);
   useEffect(() => {
@@ -121,8 +142,8 @@ export function GroupApprovePreview({
   }, [onCancel, onConfirm]);
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-label="Approve group" onClick={onCancel}>
-      <div className="modal group-preview" onClick={(event) => event.stopPropagation()}>
+    <div className="modal-backdrop" role="presentation" onClick={onCancel}>
+      <div ref={modal.ref} className="modal group-preview" role="dialog" aria-modal="true" aria-label="Approve group" onKeyDown={modal.onKeyDown} onClick={(event) => event.stopPropagation()}>
         <h2>Approve {group.title}</h2>
         {group.digest && <p className="group-preview-digest">{group.digest}</p>}
         <ul className="group-preview-list">
@@ -158,12 +179,14 @@ export function CompletionScreen({
   model,
   stats,
   onCopyReport,
-  onBackToQueue
+  onBackToQueue,
+  onShowDecisions
 }: {
   model: ReviewModel;
   stats: StatsSnapshot;
   onCopyReport(): void;
   onBackToQueue(): void;
+  onShowDecisions(): void;
 }) {
   const flagged = useMemo(() => model.hunks.filter((hunk) => hunk.status === "flagged"), [model.hunks]);
   const approvedLines = useMemo(
@@ -212,9 +235,90 @@ export function CompletionScreen({
           Copy report
         </button>
         <button onClick={onBackToQueue}>Back to queue</button>
+        <button onClick={onShowDecisions}>Recent decisions</button>
       </div>
     </section>
   );
+}
+
+export function FlaggedReviewScreen({
+  hunks,
+  onUnflag,
+  onContinue
+}: {
+  hunks: ReviewHunk[];
+  onUnflag(hunk: ReviewHunk): void;
+  onContinue(): void;
+}) {
+  return (
+    <section className="completion flagged-review" aria-label="Flagged review">
+      <h1>Flagged review</h1>
+      <p>Scan the concerns once more before the summary.</p>
+      <ul className="completion-flagged">
+        {hunks.map((hunk) => (
+          <li key={hunk.id}>
+            <span className="completion-flagged-file">{hunk.file}</span>
+            <span>{hunk.note?.trim() || hunk.digest.headline}</span>
+            <span className="flagged-review-actions">
+              <span>Keep</span>
+              <button onClick={() => onUnflag(hunk)}>Unflag</button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="completion-actions">
+        <button className="primary" onClick={onContinue}>Continue to summary</button>
+      </div>
+    </section>
+  );
+}
+
+export function DecisionLogPanel({
+  entries,
+  onUndo,
+  onClose
+}: {
+  entries: JournalEntry[];
+  onUndo(entry: JournalEntry): void;
+  onClose(): void;
+}) {
+  const modal = useModalFocus();
+  return (
+    <div ref={modal.ref} className="overlay decision-log-overlay" role="dialog" aria-modal="true" aria-label="Recent decisions" onKeyDown={modal.onKeyDown}>
+      <section className="decision-log">
+        <div className="panel-heading">
+          <h1>Recent decisions</h1>
+          <button onClick={onClose}>Close</button>
+        </div>
+        {entries.length === 0 ? (
+          <p>No decisions yet.</p>
+        ) : (
+          <ol>
+            {entries.slice(0, 50).map((entry) => (
+              <li key={entry.id}>
+                <div>
+                  <strong>{entry.action}</strong> <code>{entry.file || entry.hunkId}</code>
+                  <span className="decision-time">{relativeTime(entry.ts)}</span>
+                </div>
+                {entry.note && <p>{entry.note.slice(0, 120)}</p>}
+                <button disabled={entry.kind === "revert"} title={entry.kind === "revert" ? "file changed since" : undefined} onClick={() => onUndo(entry)}>
+                  Undo this
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function relativeTime(value: string): string {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

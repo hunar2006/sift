@@ -8,7 +8,7 @@ import {
   omitFresh,
   preserveNearestSelection
 } from "./selection.js";
-import { popUndo, pushUndo, type UndoEntry, type UndoResult } from "./undo.js";
+import { popRedo, popUndo, pushUndo, type UndoEntry, type UndoResult } from "./undo.js";
 import type { HunkStatus } from "../types.js";
 
 export interface SessionState {
@@ -18,11 +18,13 @@ export interface SessionState {
   filter: string;
   freshIds: Record<string, true>;
   freshOnly: boolean;
+  flaggedOnly: boolean;
   sortMode: ReviewSortMode;
   collapsed: Record<string, boolean>;
   hunkCollapsed: Record<string, boolean>;
   toast?: string;
   undoStack: UndoEntry[];
+  redoStack: UndoEntry[];
 }
 
 export type SessionListener = (state: SessionState) => void;
@@ -50,10 +52,12 @@ export function createSessionState(overrides: Partial<SessionState> = {}): Sessi
     filter: "",
     freshIds: {},
     freshOnly: false,
+    flaggedOnly: false,
     sortMode: "risk",
     collapsed: {},
     hunkCollapsed: {},
     undoStack: [],
+    redoStack: [],
     ...overrides
   };
 }
@@ -93,18 +97,32 @@ export class ReviewSession {
       this.state.collapsed,
       this.state.sortMode,
       this.state.freshIds,
-      this.state.freshOnly
+      this.state.freshOnly,
+      this.state.flaggedOnly
     );
   }
 
   pushUndoEntry(entry: UndoEntry): void {
-    this.set((state) => ({ undoStack: pushUndo(state.undoStack, entry) }));
+    this.set((state) => ({ undoStack: pushUndo(state.undoStack, entry), redoStack: [] }));
   }
 
   popUndoEntry(): UndoResult {
     const existing = new Set((this.state.model?.hunks ?? []).map((hunk) => hunk.id));
     const result = popUndo(this.state.undoStack, existing);
-    this.set({ undoStack: result.stack });
+    this.set((state) => ({
+      undoStack: result.stack,
+      redoStack: result.entry ? pushUndo(state.redoStack, result.entry) : state.redoStack
+    }));
+    return result;
+  }
+
+  popRedoEntry(): UndoResult {
+    const existing = new Set((this.state.model?.hunks ?? []).map((hunk) => hunk.id));
+    const result = popRedo(this.state.redoStack, existing);
+    this.set((state) => ({
+      redoStack: result.stack,
+      undoStack: result.entry ? pushUndo(state.undoStack, result.entry) : state.undoStack
+    }));
     return result;
   }
 
@@ -168,6 +186,10 @@ export class ReviewSession {
 
   toggleFreshOnly(): void {
     this.set((state) => ({ freshOnly: !state.freshOnly }));
+  }
+
+  toggleFlaggedOnly(): void {
+    this.set((state) => ({ flaggedOnly: !state.flaggedOnly }));
   }
 
   setSortMode(sortMode: ReviewSortMode): void {

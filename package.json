@@ -1,6 +1,6 @@
 {
   "name": "sift",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",
@@ -17,6 +17,7 @@
     "perf": "tsx scripts/perf.ts",
     "pack-check": "tsx scripts/pack-check.ts",
     "preflight": "tsx scripts/preflight/index.ts",
+    "e2e": "pnpm build && playwright test",
     "eval": "tsx packages/eval/src/cli.ts",
     "fuzz": "tsx packages/eval/src/fuzz.ts",
     "health:knip": "knip --config knip.ts",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.20.1",
+    "@playwright/test": "^1.61.1",
     "@sift-review/claude-adapter": "workspace:*",
     "@sift-review/core": "workspace:*",
     "@types/node": "^22.13.4",

@@ -5,7 +5,7 @@ import { classifyHunk } from "./classify/categories.js";
 import { scopeKeyForPath } from "./classify/signals.js";
 import { assignHunkIds } from "./identity.js";
 import { parseUnifiedDiff } from "./parse.js";
-import { assignGroups } from "./group.js";
+import { assignGroups, enforceGroupingInvariant } from "./group.js";
 import { assignReadingRanks, orderReview } from "./order.js";
 import { attachCoverageToHunks } from "./coverage.js";
 import { applyRenamePatternGroups, analyzeParsedHunksStructure } from "./structure/index.js";
@@ -40,7 +40,8 @@ export function analyzeDiff(options: AnalyzeOptions): ReviewModel {
     identified.flatMap((hunk) => (hunk.renameCandidates === undefined ? [] : [[hunk.id ?? "", hunk.renameCandidates] as const]))
   );
   const structuralHunks = applyRenamePatternGroups(hunks, renameCandidatesByHunkId);
-  const { hunks: groupedHunks, groups: undigestedGroups } = assignGroups(structuralHunks);
+  const initiallyGrouped = assignGroups(structuralHunks);
+  const { hunks: groupedHunks, groups: undigestedGroups } = enforceGroupingInvariant(initiallyGrouped.hunks);
   const { hunks: digestedHunks, groups } = attachDigests(groupedHunks, undigestedGroups, parsed.files);
   const rankedHunks = assignReadingRanks(digestedHunks, groups);
   const ordered = orderReview(rankedHunks, groups);

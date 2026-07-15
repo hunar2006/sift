@@ -54,6 +54,14 @@ describe("undo stack", () => {
     expect(result.restore).toEqual([{ hunkId: "kept", prevStatus: "unreviewed" }]);
     expect(result.message).toBeNull();
   });
+
+  it("retains next values so redo can replay an undone decision", () => {
+    const entry: UndoEntry = [{ hunkId: "h1", prevStatus: "unreviewed", nextStatus: "flagged", nextNote: "Needs tests" }];
+    const undone = popUndo(pushUndo([], entry), new Set(["h1"]));
+
+    expect(undone.entry).toEqual(entry);
+    expect(undone.restore[0]?.nextStatus).toBe("flagged");
+  });
 });
 
 describe("flag reasons config", () => {

@@ -4,6 +4,7 @@ import {
   checkBounds,
   checkCompleteness,
   checkDeterminism,
+  checkGrouping,
   checkMechanical,
   checkPerf,
   checkStateSafety
@@ -169,6 +170,7 @@ export async function runEval(argv = process.argv.slice(2)): Promise<EvalReport>
         ...checkMechanical(entry.id, sha, model),
         ...checkDeterminism(entry.id, sha, model, modelSecond),
         ...checkBounds(entry.id, sha, model),
+        ...checkGrouping(entry.id, sha, model),
         ...checkPerf(entry.id, sha, durationMs, changedLines, options.perfMult ?? 1)
       );
 

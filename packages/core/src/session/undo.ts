@@ -9,6 +9,11 @@ export interface UndoChange {
   hunkId: string;
   prevStatus: HunkStatus;
   prevNote?: string;
+  nextStatus?: HunkStatus;
+  nextNote?: string;
+  /** Snapshot-backed file revert; the hunk fields retain its decision context. */
+  revertId?: string;
+  revertPath?: string;
 }
 
 export type UndoEntry = UndoChange[];
@@ -16,6 +21,7 @@ export type UndoEntry = UndoChange[];
 export interface UndoResult {
   stack: UndoEntry[];
   restore: UndoChange[];
+  entry?: UndoEntry;
   message: string | null;
 }
 
@@ -38,9 +44,14 @@ export function popUndo(stack: UndoEntry[], existingIds: ReadonlySet<string>): U
   }
   const entry = stack[stack.length - 1] ?? [];
   const remaining = stack.slice(0, -1);
-  const restore = entry.filter((change) => existingIds.has(change.hunkId));
+  // A file revert intentionally removes its hunks from the refreshed model;
+  // its snapshot id, unlike a normal decision, remains safely undoable.
+  const restore = entry.filter((change) => Boolean(change.revertId) || existingIds.has(change.hunkId));
   if (restore.length === 0) {
     return { stack: remaining, restore: [], message: "Nothing to undo here" };
   }
-  return { stack: remaining, restore, message: null };
+  return { stack: remaining, restore, entry: restore, message: null };
 }
+
+/** Redo is the same stack operation; consumers apply nextStatus/nextNote from the returned entry. */
+export const popRedo = popUndo;

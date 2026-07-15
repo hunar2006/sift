@@ -1,11 +1,13 @@
 export const FIRST_RUN_OVERLAY_STEPS = ["Move", "Decide", "Skim groups", "Palette"] as const;
 
 export const HELP_OVERLAY_LINES = [
-  "j/k hunk | J/K file",
-  "n/p attention | a/x decide",
+  "j/k hunk | J/K",
+  "n/p | a/x decide",
   "u reset | i note",
+  "z undo | Shift+Z redo",
+  "f focus | F flagged | R revert",
+  "Ctrl+F | e editor | r refresh",
   "space collapse | o split",
-  "/ filter | r refresh",
   "? help | Esc close"
 ] as const;
 

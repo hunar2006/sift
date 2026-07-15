@@ -153,7 +153,7 @@ export interface StoredHunkState {
   status: HunkStatus;
   note?: string;
   reviewedAt?: string;
-  via?: "single" | "group";
+  via?: "single" | "group" | "undo" | "redo" | "targeted-undo";
 }
 
 export interface ReviewStateFile {
@@ -336,7 +336,7 @@ export const storedHunkStateSchema: z.ZodType<StoredHunkState> = z.object({
   status: z.union([z.literal("unreviewed"), z.literal("approved"), z.literal("flagged")]),
   note: z.string().optional(),
   reviewedAt: z.string().optional(),
-  via: z.union([z.literal("single"), z.literal("group")]).optional()
+  via: z.union([z.literal("single"), z.literal("group"), z.literal("undo"), z.literal("redo"), z.literal("targeted-undo")]).optional()
 });
 
 export const reviewStateFileSchema: z.ZodType<ReviewStateFile> = z.object({
@@ -347,7 +347,8 @@ export const reviewStateFileSchema: z.ZodType<ReviewStateFile> = z.object({
 
 export const statusUpdateSchema = z.object({
   status: z.union([z.literal("unreviewed"), z.literal("approved"), z.literal("flagged")]),
-  note: z.string().optional()
+  note: z.string().optional(),
+  via: z.union([z.literal("single"), z.literal("group"), z.literal("undo"), z.literal("redo"), z.literal("targeted-undo")]).optional()
 });
 
 export const openHunkSchema = z.object({

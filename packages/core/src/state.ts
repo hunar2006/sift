@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type {
   HunkStatus,
@@ -8,11 +9,22 @@ import type {
   StoredHunkState
 } from "./types.js";
 import { reviewStateFileSchema } from "./types.js";
+import { appendJournal, createJournalId, makeJournalEntry, type JournalEntry, type JournalKind } from "./journal.js";
 
 export interface StateReadResult {
   state: ReviewStateFile;
   warning?: string;
 }
+
+export interface StatusUpdateOptions {
+  file?: string;
+  via?: "single" | "group" | "undo" | "redo" | "targeted-undo";
+  kind?: JournalKind;
+  compoundId?: string;
+  journal?: boolean;
+}
+
+const stateLocks = new Map<string, Promise<void>>();
 
 export function siftDir(repoRoot: string): string {
   return path.join(repoRoot, ".sift");
@@ -56,9 +68,13 @@ export async function readReviewState(repoRoot: string): Promise<StateReadResult
 }
 
 export async function writeReviewState(repoRoot: string, state: ReviewStateFile): Promise<void> {
+  await withStateLock(repoRoot, () => writeReviewStateAtomic(repoRoot, state));
+}
+
+async function writeReviewStateAtomic(repoRoot: string, state: ReviewStateFile): Promise<void> {
   await ensureSiftDir(repoRoot);
   const file = statePath(repoRoot);
-  const temp = `${file}.tmp`;
+  const temp = `${file}.${randomUUID()}.tmp`;
   const serialized = `${JSON.stringify(state, null, 2)}\n`;
   const handle = await fs.open(temp, "w");
   try {
@@ -75,20 +91,53 @@ export async function updateHunkStatus(
   hunkId: string,
   status: HunkStatus,
   note?: string,
-  via: "single" | "group" = "single"
+  options: StatusUpdateOptions = {}
+): Promise<StoredHunkState> {
+  return withStateLock(repoRoot, () => updateHunkStatusUnlocked(repoRoot, hunkId, status, note, options));
+}
+
+async function updateHunkStatusUnlocked(
+  repoRoot: string,
+  hunkId: string,
+  status: HunkStatus,
+  note: string | undefined,
+  options: StatusUpdateOptions
 ): Promise<StoredHunkState> {
   const { state } = await readReviewState(repoRoot);
+  const previous = state.hunks[hunkId] ?? { status: "unreviewed" as const };
+  const via = options.via ?? "single";
   const next: StoredHunkState = status === "unreviewed" ? { status } : { status, note, reviewedAt: new Date().toISOString(), via };
   if (note && status === "unreviewed") {
     next.note = note;
   }
   state.hunks[hunkId] = next;
   state.updatedAt = new Date().toISOString();
-  await writeReviewState(repoRoot, state);
+  await writeReviewStateAtomic(repoRoot, state);
+  if (options.journal !== false && (previous.status !== next.status || previous.note !== next.note)) {
+    await appendJournal(
+      repoRoot,
+      makeJournalEntry({
+        hunkId,
+        file: options.file ?? "",
+        via,
+        note: next.note,
+        kind: options.kind ?? "status",
+        compoundId: options.compoundId,
+        fromStatus: previous.status,
+        fromNote: previous.note,
+        toStatus: next.status,
+        toNote: next.note
+      })
+    );
+  }
   return next;
 }
 
 export async function approveGroup(repoRoot: string, model: ReviewModel, groupId: string): Promise<StoredHunkState[]> {
+  return withStateLock(repoRoot, () => approveGroupUnlocked(repoRoot, model, groupId));
+}
+
+async function approveGroupUnlocked(repoRoot: string, model: ReviewModel, groupId: string): Promise<StoredHunkState[]> {
   const group = model.groups.find((candidate) => candidate.id === groupId);
   if (!group) {
     throw new Error(`Unknown group: ${groupId}`);
@@ -100,13 +149,34 @@ export async function approveGroup(repoRoot: string, model: ReviewModel, groupId
   }
   const { state } = await readReviewState(repoRoot);
   const now = new Date().toISOString();
+  const compoundId = createJournalId();
+  const journalEntries: JournalEntry[] = [];
   const results = hunks.map<StoredHunkState>((hunk) => {
+    const previous = state.hunks[hunk.id] ?? { status: "unreviewed" as const };
     const stored: StoredHunkState = { status: "approved", reviewedAt: now, via: "group" };
     state.hunks[hunk.id] = stored;
+    if (previous.status !== stored.status || previous.note !== stored.note) {
+      journalEntries.push(
+        makeJournalEntry({
+          hunkId: hunk.id,
+          file: hunk.file,
+          via: "group",
+          kind: "group",
+          compoundId,
+          fromStatus: previous.status,
+          fromNote: previous.note,
+          toStatus: stored.status,
+          toNote: stored.note
+        })
+      );
+    }
     return stored;
   });
   state.updatedAt = now;
-  await writeReviewState(repoRoot, state);
+  await writeReviewStateAtomic(repoRoot, state);
+  for (const entry of journalEntries) {
+    await appendJournal(repoRoot, entry);
+  }
   return results;
 }
 
@@ -125,6 +195,26 @@ export function mergeReviewState(model: ReviewModel, state: ReviewStateFile): Re
       ...(state.hunks[hunk.id] ?? { status: "unreviewed" as const })
     }))
   };
+}
+
+async function withStateLock<T>(repoRoot: string, operation: () => Promise<T>): Promise<T> {
+  const key = statePath(repoRoot);
+  const previous = stateLocks.get(key) ?? Promise.resolve();
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const tail = previous.catch(() => undefined).then(() => gate);
+  stateLocks.set(key, tail);
+  await previous.catch(() => undefined);
+  try {
+    return await operation();
+  } finally {
+    release?.();
+    if (stateLocks.get(key) === tail) {
+      stateLocks.delete(key);
+    }
+  }
 }
 
 function isMissingFile(error: unknown): boolean {

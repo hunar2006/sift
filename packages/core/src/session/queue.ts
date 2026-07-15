@@ -13,7 +13,8 @@ export function visibleHunks(
   collapsed: Record<string, boolean>,
   sortMode: ReviewSortMode = "risk",
   freshIds: Record<string, true> = {},
-  freshOnly = false
+  freshOnly = false,
+  flaggedOnly = false
 ): SessionHunk[] {
   if (!model) {
     return [];
@@ -25,6 +26,9 @@ export function visibleHunks(
       return false;
     }
     if (freshOnly && !freshIds[hunk.id]) {
+      return false;
+    }
+    if (flaggedOnly && hunk.status !== "flagged") {
       return false;
     }
     const group = groupById.get(hunk.groupId);

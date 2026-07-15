@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sortReviewHunks, useReviewStore } from "./store.js";
+import { deriveDecisionProgress, deriveLiveStats, sortReviewHunks, useReviewStore } from "./store.js";
 import type { ApiMeta, ReviewHunk, ReviewModel } from "./types.js";
 import type { StatsSnapshot } from "@sift-review/core";
 
@@ -41,7 +41,12 @@ const modelFor = (hunks: ReviewHunk[]): ReviewModel => ({
       totalRemoved: 0
     }
   ],
-  totals: { changedLines: hunks.length, attentionLines: hunks.length, reviewableLines: hunks.length, files: hunks.length }
+  totals: {
+    changedLines: hunks.reduce((total, item) => total + item.addedLines + item.removedLines, 0),
+    attentionLines: hunks.reduce((total, item) => total + item.addedLines + item.removedLines, 0),
+    reviewableLines: hunks.reduce((total, item) => total + item.addedLines + item.removedLines, 0),
+    files: hunks.length
+  }
 });
 
 describe("web store adapter", () => {
@@ -65,7 +70,8 @@ describe("web store adapter", () => {
       sortMode: "risk",
       hunkCollapsed: {},
       nitsOpen: false,
-      theme: "dark"
+      theme: "graphite",
+      codeSize: 12
     });
 
     useReviewStore.getState().setPaletteOpen(true);
@@ -75,6 +81,7 @@ describe("web store adapter", () => {
     useReviewStore.getState().toggleHunkCollapsed("h1");
     useReviewStore.getState().toggleNits();
     useReviewStore.getState().toggleTheme();
+    useReviewStore.getState().cycleCodeSize();
 
     expect(useReviewStore.getState().paletteOpen).toBe(true);
     expect(useReviewStore.getState().timelineOpen).toBe(true);
@@ -82,7 +89,8 @@ describe("web store adapter", () => {
     expect(useReviewStore.getState().sortMode).toBe("reading");
     expect(useReviewStore.getState().hunkCollapsed.h1).toBe(true);
     expect(useReviewStore.getState().nitsOpen).toBe(true);
-    expect(useReviewStore.getState().theme).toBe("light");
+    expect(useReviewStore.getState().theme).toBe("assay");
+    expect(useReviewStore.getState().codeSize).toBe(13);
   });
 
   it("tracks fresh live hunks, preserves the nearest selection, and clears fresh on visit or decision", () => {
@@ -106,6 +114,36 @@ describe("web store adapter", () => {
     useReviewStore.getState().applyLiveData(next, {} as StatsSnapshot, meta(), ["fresh"], []);
     useReviewStore.getState().setStatus("fresh", "approved");
     expect(useReviewStore.getState().freshIds).toEqual({});
+  });
+
+  it("BUG-05-counter-invariant-after-mixed-decisions", () => {
+    const model = modelFor([
+      hunk({ id: "approved", file: "src/a.ts", risk: 60, status: "approved", addedLines: 2, removedLines: 1 }),
+      hunk({ id: "flagged", file: "src/b.ts", risk: 40, status: "flagged", addedLines: 3, removedLines: 0 }),
+      hunk({ id: "open", file: "src/c.ts", risk: 20, status: "unreviewed", addedLines: 5, removedLines: 0 })
+    ]);
+    const live = deriveLiveStats(model, {
+      at: "now",
+      diffSpec: "WORKTREE",
+      changedLines: 999,
+      reviewableLines: 999,
+      reviewedReviewableLines: 0,
+      flaggedHunks: 0,
+      debt: 1,
+      provenanceCoverage: 0
+    });
+    expect(live?.reviewedReviewableLines).toBe(6);
+    expect(live?.flaggedHunks).toBe(1);
+    expect(deriveDecisionProgress(model)).toEqual({ reviewed: 2, total: 3 });
+    expect(live?.reviewableLines).toBe(11);
+  });
+
+  it("BUG-03-unsaved-decisions-remain-in-the-shared-store", () => {
+    useReviewStore.setState({ unsaved: {} });
+    useReviewStore.getState().markUnsaved(["a", "b"]);
+    expect(useReviewStore.getState().unsaved).toEqual({ a: true, b: true });
+    useReviewStore.getState().markSaved(["a"]);
+    expect(useReviewStore.getState().unsaved).toEqual({ b: true });
   });
 });
 

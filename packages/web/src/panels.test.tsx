@@ -82,7 +82,7 @@ describe("CompletionScreen", () => {
 
   it("renders the completion headline, stats, flagged list, and actions", () => {
     const html = renderToStaticMarkup(
-      <CompletionScreen model={model} stats={stats} onCopyReport={() => undefined} onBackToQueue={() => undefined} />
+      <CompletionScreen model={model} stats={stats} onCopyReport={() => undefined} onBackToQueue={() => undefined} onShowDecisions={() => undefined} />
     );
     expect(html).toContain("Reviewed:");
     expect(html).toContain("2,314 lines");

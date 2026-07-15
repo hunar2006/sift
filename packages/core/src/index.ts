@@ -14,6 +14,8 @@ export * from "./order.js";
 export * from "./pipeline.js";
 export * from "./digest.js";
 export * from "./state.js";
+export * from "./journal.js";
+export * from "./revert.js";
 export * from "./seen.js";
 export * from "./stats.js";
 export * from "./report.js";

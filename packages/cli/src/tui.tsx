@@ -7,6 +7,9 @@ import {
   loadFlagReasons,
   mergeReviewState,
   readReviewState,
+  revertScopeFor,
+  snapshotAndRevert,
+  undoRevert,
   updateHunkStatus,
   wordDiffLines,
   type HunkWithState,
@@ -40,7 +43,7 @@ export interface TuiOptions {
   printFrame?: boolean;
 }
 
-type Mode = "review" | "flag" | "flag-note" | "group-confirm" | "help";
+type Mode = "review" | "flag" | "flag-note" | "group-confirm" | "revert-confirm" | "help";
 
 function bandColor(band: string): string {
   return BAND_COLOR[band] ?? "white";
@@ -91,8 +94,9 @@ export async function runTui(options: TuiOptions): Promise<void> {
       flagReasons,
       getRepoRoot: () => latestResult.model.meta.repoRoot,
       getModel: () => latestResult.model,
-      persistStatus: async (id, status, note) => {
-        await updateHunkStatus(latestResult.model.meta.repoRoot, id, status, note);
+      persistStatus: async (id, status, note, options) => {
+        const file = latestResult.model.hunks.find((hunk) => hunk.id === id)?.file;
+        await updateHunkStatus(latestResult.model.meta.repoRoot, id, status, note, { file, ...options });
         const { state } = await readReviewState(latestResult.model.meta.repoRoot);
         latestState = state;
       },
@@ -100,6 +104,32 @@ export async function runTui(options: TuiOptions): Promise<void> {
         await approveGroup(latestResult.model.meta.repoRoot, latestResult.model, groupId);
         const { state } = await readReviewState(latestResult.model.meta.repoRoot);
         latestState = state;
+        session.setModel(mergeReviewState(latestResult.model, latestState), computeStats(latestResult.model, latestState));
+      },
+      performRevert: async (hunk) => {
+        const model = latestResult.model;
+        if (!revertScopeFor(model.meta.diffSpec)) {
+          throw new Error("Revert works on the working tree. This diff is historical.");
+        }
+        const { state } = await readReviewState(model.meta.repoRoot);
+        const reverted = await snapshotAndRevert({
+          repoRoot: model.meta.repoRoot,
+          filePath: hunk.file,
+          diffSpec: model.meta.diffSpec,
+          hunkStates: model.hunks.filter((candidate) => candidate.file === hunk.file).map((candidate) => {
+            const stored = state.hunks[candidate.id] ?? { status: "unreviewed" as const };
+            return { hunkId: candidate.id, status: stored.status, note: stored.note };
+          })
+        });
+        latestResult = await options.reanalyze();
+        latestState = (await readReviewState(latestResult.model.meta.repoRoot)).state;
+        session.setModel(mergeReviewState(latestResult.model, latestState), computeStats(latestResult.model, latestState));
+        return reverted;
+      },
+      undoFileRevert: async (id) => {
+        await undoRevert(latestResult.model.meta.repoRoot, id);
+        latestResult = await options.reanalyze();
+        latestState = (await readReviewState(latestResult.model.meta.repoRoot)).state;
         session.setModel(mergeReviewState(latestResult.model, latestState), computeStats(latestResult.model, latestState));
       },
       onExit: (summary) => {
@@ -157,7 +187,7 @@ function renderFrameText(model: ReturnType<typeof mergeReviewState>, stats: Stat
   if (first) {
     lines.push(`-- ${first.file} · ${first.band} ${first.risk} · ${first.digest.headline}`);
   }
-  lines.push("footer: n of m · j/k move · a approve · x flag · u unreview · z undo · q quit");
+  lines.push("footer: n of m · j/k move · a approve · x flag · u unreview · z undo · Shift+Z redo · R revert · q quit");
   return lines.join("\n");
 }
 
@@ -166,8 +196,15 @@ interface TuiAppProps {
   flagReasons: string[];
   getRepoRoot: () => string;
   getModel: () => ReviewModel;
-  persistStatus: (id: string, status: "approved" | "flagged" | "unreviewed", note?: string) => Promise<void>;
+  persistStatus: (
+    id: string,
+    status: "approved" | "flagged" | "unreviewed",
+    note?: string,
+    options?: { via?: "undo" | "redo" }
+  ) => Promise<void>;
   persistGroupApprove: (groupId: string) => Promise<void>;
+  performRevert: (hunk: SessionHunk) => Promise<{ id: string; path: string }>;
+  undoFileRevert: (id: string) => Promise<void>;
   onExit: (summary: string) => void;
 }
 
@@ -179,6 +216,7 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
   const [flagNote, setFlagNote] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [pendingGroupId, setPendingGroupId] = useState<string | undefined>();
+  const [pendingRevert, setPendingRevert] = useState<SessionHunk | undefined>();
   const [message, setMessage] = useState<string | undefined>();
 
   useEffect(() => props.session.subscribe(() => setTick((value) => value + 1)), [props.session]);
@@ -263,6 +301,34 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
       }
       return;
     }
+    if (mode === "revert-confirm") {
+      if (key.escape || input === "n") {
+        setMode("review");
+        setPendingRevert(undefined);
+        return;
+      }
+      if ((input === "y" || key.return) && pendingRevert) {
+        void props
+          .performRevert(pendingRevert)
+          .then((record) => {
+            props.session.pushUndoEntry([{
+              hunkId: pendingRevert.id,
+              prevStatus: pendingRevert.status,
+              prevNote: pendingRevert.note,
+              nextStatus: "unreviewed",
+              revertId: record.id,
+              revertPath: record.path
+            }]);
+            setMessage(`reverted ${record.path} — Z to undo`);
+          })
+          .catch((error: unknown) => setMessage(error instanceof Error ? error.message : String(error)))
+          .finally(() => {
+            setMode("review");
+            setPendingRevert(undefined);
+          });
+      }
+      return;
+    }
 
     if (input === "q") {
       const model = props.getModel();
@@ -316,13 +382,35 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
     if (input === "z") {
       const undone = props.session.popUndoEntry();
       if (undone.restore.length > 0) {
+        const reverted = undone.restore.find((change) => change.revertId);
+        if (reverted?.revertId) {
+          void props.undoFileRevert(reverted.revertId).then(() => setMessage(`undid revert of ${reverted.revertPath ?? "file"}`)).catch((error: unknown) => {
+            setMessage(error instanceof Error ? error.message : String(error));
+          });
+          return;
+        }
         for (const change of undone.restore) {
           props.session.setStatus(change.hunkId, change.prevStatus, change.prevNote);
-          void props.persistStatus(change.hunkId, change.prevStatus, change.prevNote);
+          void props.persistStatus(change.hunkId, change.prevStatus, change.prevNote, { via: "undo" });
         }
         setMessage("undone");
       } else if (undone.message) {
         setMessage(undone.message);
+      }
+      return;
+    }
+    if (input === "Z") {
+      const redone = props.session.popRedoEntry();
+      if (redone.restore.length > 0) {
+        for (const change of redone.restore) {
+          if (change.nextStatus) {
+            props.session.setStatus(change.hunkId, change.nextStatus, change.nextNote);
+            void props.persistStatus(change.hunkId, change.nextStatus, change.nextNote, { via: "redo" });
+          }
+        }
+        setMessage("redone");
+      } else if (redone.message) {
+        setMessage(redone.message);
       }
       return;
     }
@@ -340,6 +428,14 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
         setMessage(error instanceof Error ? error.message : String(error));
       });
     }
+    if (input === "R" && selected) {
+      if (!revertScopeFor(props.getModel().meta.diffSpec)) {
+        setMessage("Revert works on the working tree. This diff is historical.");
+        return;
+      }
+      setPendingRevert(selected);
+      setMode("revert-confirm");
+    }
   });
 
   async function decide(hunk: SessionHunk, status: "approved" | "flagged" | "unreviewed", note?: string): Promise<void> {
@@ -347,7 +443,9 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
       {
         hunkId: hunk.id,
         prevStatus: hunk.status,
-        prevNote: hunk.note
+        prevNote: hunk.note,
+        nextStatus: status,
+        nextNote: note
       }
     ]);
     props.session.setStatus(hunk.id, status, note);
@@ -402,7 +500,7 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
                   return (
                     <Text key={hunk.id} color={active ? "green" : bandColor(hunk.band)} wrap="truncate">
                       {active ? "›" : " "}
-                      {String(hunk.risk).padStart(3, " ")} {truncate(hunk.file, 12)} {truncate(hunk.digest.headline, railWidth - 20)}
+                      {String(hunk.risk).padStart(3, " ")} {truncate(hunk.file, 12)} {hunk.status === "flagged" ? `âš‘ ${truncate(hunk.note?.trim() || "Flagged", Math.max(8, railWidth - 20))}` : truncate(hunk.digest.headline, railWidth - 20)}
                     </Text>
                   );
                 })}
@@ -459,7 +557,7 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
       <Box>
         <Text>
           {selectedIndex + 1} of {visible.length} · j/k move · a approve · x flag · u unreview · z undo · A group · o
-          editor · ? help · q quit
+           editor · R revert · ? help · q quit
           {state.toast ? ` · ${state.toast}` : ""}
           {message ? ` · ${message}` : ""}
         </Text>
@@ -473,6 +571,9 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
             </Text>
           ))}
         </Box>
+      ) : null}
+      {mode === "revert-confirm" && pendingRevert ? (
+        <Text color="red">Revert {pendingRevert.file}? +{pendingRevert.addedLines}/−{pendingRevert.removedLines} discarded, snapshot kept [y/N]</Text>
       ) : null}
       {mode === "flag-note" ? <Text>Note: {flagNote}█</Text> : null}
       {mode === "group-confirm" ? <Text>Approve group? y/N</Text> : null}

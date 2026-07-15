@@ -33,6 +33,8 @@ export default tseslint.config(
           allowDefaultProject: [
             "*.js",
             "knip.ts",
+            "playwright.config.ts",
+            "e2e/*.ts",
             "vitest.config.ts",
             "packages/web/vite.config.ts",
             "packages/cli/tsup.config.ts"

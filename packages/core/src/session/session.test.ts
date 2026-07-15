@@ -104,4 +104,31 @@ describe("ReviewSession", () => {
     const result = session.popUndoEntry();
     expect(result.restore).toEqual([{ hunkId: "h1", prevStatus: "unreviewed" }]);
   });
+
+  it("redos the most recently undone decision and clears redo after a new decision", () => {
+    const session = new ReviewSession({
+      model: modelFor([hunk({ id: "one", file: "one.ts", risk: 10 }), hunk({ id: "two", file: "two.ts", risk: 20 })])
+    });
+    session.pushUndoEntry([{ hunkId: "one", prevStatus: "unreviewed", nextStatus: "approved" }]);
+    session.pushUndoEntry([{ hunkId: "two", prevStatus: "unreviewed", nextStatus: "flagged", nextNote: "Needs tests" }]);
+
+    expect(session.popUndoEntry().restore[0]?.hunkId).toBe("two");
+    expect(session.popUndoEntry().restore[0]?.hunkId).toBe("one");
+    expect(session.popRedoEntry().restore[0]?.nextStatus).toBe("approved");
+
+    session.pushUndoEntry([{ hunkId: "two", prevStatus: "unreviewed", nextStatus: "approved" }]);
+    expect(session.getState().redoStack).toEqual([]);
+  });
+
+  it("intersects flagged-only mode with the regular queue", () => {
+    const session = new ReviewSession({
+      model: modelFor([
+        hunk({ id: "flagged", file: "flagged.ts", risk: 40, status: "flagged" }),
+        hunk({ id: "open", file: "open.ts", risk: 20, status: "unreviewed" })
+      ]),
+      flaggedOnly: true
+    });
+
+    expect(session.visible().map((item) => item.id)).toEqual(["flagged"]);
+  });
 });

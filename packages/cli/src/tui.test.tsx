@@ -80,6 +80,10 @@ describe("TUI", () => {
         persistGroupApprove: async () => {
           await Promise.resolve();
         },
+        performRevert: () => Promise.resolve({ id: "revert-1", path: "src/a.ts" }),
+        undoFileRevert: async () => {
+          await Promise.resolve();
+        },
         onExit: () => undefined
       })
     );
@@ -131,6 +135,10 @@ describe("TUI", () => {
         getModel: () => session.getState().model!,
         persistStatus,
         persistGroupApprove: async () => {
+          await Promise.resolve();
+        },
+        performRevert: () => Promise.resolve({ id: "revert-1", path: "src/a.ts" }),
+        undoFileRevert: async () => {
           await Promise.resolve();
         },
         onExit: () => undefined

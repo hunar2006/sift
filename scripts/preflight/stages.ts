@@ -23,7 +23,7 @@ import {
 const STAGE_NAMES: Record<StageId, string> = {
   A: "Gate",
   B: "Evidence",
-  C: "v0.6.1 conformance",
+  C: "v0.9.0 conformance",
   D: "Fresh-user simulation",
   E: "Installed-package simulation",
   F: "Audits",
@@ -147,7 +147,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
   const rootManifest = await readJson<{ scripts?: Record<string, unknown> }>(path.join(context.root, "package.json"));
   const packageChecks: Array<[boolean, string]> = [
     [manifest.name === "siftdiff", "cli name is siftdiff"],
-    [manifest.version === "0.6.1", "cli version is 0.6.1"],
+    [manifest.version === "0.9.0", "cli version is 0.9.0"],
     [!("private" in manifest), "cli private field is absent"],
     [JSON.stringify(manifest.bin) === JSON.stringify({ sift: "./dist/index.js" }), "cli bin is sift"],
     [JSON.stringify(manifest.publishConfig) === JSON.stringify({ access: "public", provenance: true }), "publishConfig is public + provenance"],
@@ -222,7 +222,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
     details.push("PASS release/pages YAML and guarded publish flow");
   }
   const changelog = await fs.readFile(path.join(context.root, "CHANGELOG.md"), "utf8");
-  for (const version of ["0.6.1"]) {
+  for (const version of ["0.9.0"]) {
     const passed = changelog.includes(version);
     (passed ? details : failures).push(`${passed ? "PASS" : "FAIL"} CHANGELOG includes ${version}`);
   }
@@ -230,7 +230,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
     "C",
     started,
     failures.length === 0 ? "PASS" : "FAIL",
-    failures.length === 0 ? "v0.6.1 release claims conform" : `${failures.length} conformance check(s) failed`,
+    failures.length === 0 ? "v0.9.0 release claims conform" : `${failures.length} conformance check(s) failed`,
     [...details, ...failures]
   );
 }
@@ -247,6 +247,10 @@ async function stageFreshUser(context: PreflightContext): Promise<StageResult> {
       if (clone.code !== 0) {
         return completed("D", started, "FAIL", "fresh clone failed", [commandFailure(clone)]);
       }
+      const overlay = await overlayWorkingTree(context.root, cloneRoot);
+      if (overlay.length > 0) {
+        details.push(`PASS fresh clone overlaid ${overlay.length} uncommitted source file(s)`);
+      }
       const install = await runCommand(pnpmCommand(), ["i", "--frozen-lockfile"], { cwd: workRoot, timeoutMs: 6 * 60_000 });
       if (install.code !== 0) {
         const failure = commandFailure(install);
@@ -260,12 +264,22 @@ async function stageFreshUser(context: PreflightContext): Promise<StageResult> {
     } else {
       details.push("PASS reused working tree (fast mode)");
     }
+    const e2e = await runCommand(pnpmCommand(), ["e2e"], { cwd: workRoot, timeoutMs: 3 * 60_000 });
+    if (e2e.code !== 0) {
+      return completed("D", started, "FAIL", "DOM e2e failed", [...details, commandFailure(e2e)]);
+    }
+    details.push("PASS blocking DOM e2e");
     const demo = await runCommand(pnpmCommand(), ["demo", "--", "--headless"], { cwd: workRoot, timeoutMs: 2 * 60_000 });
     if (demo.code !== 0) {
       return completed("D", started, "FAIL", "demo generation failed", [...details, commandFailure(demo)]);
     }
     const demoRoot = path.join(workRoot, ".demo", "repo");
-    const service = await startSiftServer(workRoot, demoRoot);
+    const demoEnv = {
+      ...process.env,
+      SIFT_HOME: path.join(workRoot, ".demo", "home", ".sift"),
+      SIFT_CLAUDE_DIR: path.join(workRoot, ".demo", "home", ".claude")
+    };
+    const service = await startSiftServer(workRoot, demoRoot, demoEnv);
     try {
       const review = (await (await fetch(`${service.url}/api/review`)).json()) as { hunks?: unknown[] };
       if (!Array.isArray(review.hunks) || review.hunks.length === 0) {
@@ -277,6 +291,7 @@ async function stageFreshUser(context: PreflightContext): Promise<StageResult> {
       }
       const tui = await runCommand(process.execPath, [path.join(workRoot, "packages", "cli", "dist", "index.js"), "tui", "--print-frame"], {
         cwd: demoRoot,
+        env: demoEnv,
         timeoutMs: 60_000
       });
       if (tui.code !== 0 || !tui.stdout.includes("SIFT TUI FRAME")) {
@@ -284,6 +299,7 @@ async function stageFreshUser(context: PreflightContext): Promise<StageResult> {
       }
       const printed = await runCommand(process.execPath, [path.join(workRoot, "packages", "cli", "dist", "index.js"), "print", "--json"], {
         cwd: demoRoot,
+        env: demoEnv,
         timeoutMs: 60_000
       });
       const parsed = parsePrintPayload(workRoot, printed.stdout);
@@ -374,7 +390,7 @@ async function stageAudits(context: PreflightContext): Promise<StageResult> {
     if (!rel.endsWith("packages/cli/src/ai.ts") && !rel.endsWith("packages/core/src/classify/signals/popular-packages.ts") && /telemetry|analytics|sentry|posthog|segment\.io/iu.test(content)) {
       telemetry.push(rel);
     }
-    if (/(?:execFile\(|execFileSync\(|spawn\(|spawnSync\()/u.test(content) && !rel.endsWith("packages/cli/src/editor.ts") && !rel.endsWith("packages/core/src/git.ts") && !rel.endsWith("packages/core/src/demo.ts")) {
+    if (/(?:execFile\(|execFileSync\(|spawn\(|spawnSync\()/u.test(content) && !rel.endsWith("packages/cli/src/editor.ts") && !rel.endsWith("packages/core/src/git.ts") && !rel.endsWith("packages/core/src/demo.ts") && !rel.endsWith("packages/core/src/revert.ts")) {
       executors.push(rel);
     }
   });
@@ -485,10 +501,11 @@ async function verifyImageUrls(urls: string[]): Promise<"offline" | string[]> {
   }
 }
 
-async function startSiftServer(root: string, cwd: string): Promise<{ url: string; child: ChildProcess }> {
+async function startSiftServer(root: string, cwd: string, env = process.env): Promise<{ url: string; child: ChildProcess }> {
   const port = 47000 + Math.floor(Math.random() * 1000);
   const child = spawn(process.execPath, [path.join(root, "packages", "cli", "dist", "index.js"), "--no-open", "--port", String(port)], {
     cwd,
+    env,
     shell: false,
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"]
@@ -519,6 +536,38 @@ async function stopProcess(child: ChildProcess): Promise<void> {
   await new Promise<void>((resolve) => child.once("close", () => resolve()));
 }
 
+/** A full preflight must exercise the exact source the developer is testing.
+ * Clone HEAD for a clean install, then overlay tracked edits and untracked
+ * source files without staging, committing, or changing the shared checkout. */
+async function overlayWorkingTree(sourceRoot: string, targetRoot: string): Promise<string[]> {
+  const changed = await runCommand("git", ["diff", "--name-status", "HEAD"], { cwd: sourceRoot, timeoutMs: 60_000 });
+  const untracked = await runCommand("git", ["ls-files", "--others", "--exclude-standard"], { cwd: sourceRoot, timeoutMs: 60_000 });
+  if (changed.code !== 0 || untracked.code !== 0) {
+    throw new Error(`Could not enumerate working source: ${commandFailure(changed)} ${commandFailure(untracked)}`);
+  }
+  const files = new Map<string, "copy" | "delete">();
+  for (const line of changed.stdout.split(/\r?\n/u).filter(Boolean)) {
+    const [status, file] = line.split("\t", 2);
+    if (file) {
+      files.set(file, status === "D" ? "delete" : "copy");
+    }
+  }
+  for (const file of untracked.stdout.split(/\r?\n/u).filter(Boolean)) {
+    files.set(file, "copy");
+  }
+  for (const [file, action] of files) {
+    const source = path.join(sourceRoot, file);
+    const target = path.join(targetRoot, file);
+    if (action === "delete") {
+      await fs.rm(target, { force: true });
+      continue;
+    }
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.copyFile(source, target);
+  }
+  return [...files.keys()];
+}
+
 async function captureFreshUserScreenshots(url: string, artifactsDir: string): Promise<"ok" | string> {
   try {
     const { chromium } = await import("playwright");
@@ -532,6 +581,10 @@ async function captureFreshUserScreenshots(url: string, artifactsDir: string): P
       }
       await ensureDir(artifactsDir);
       await page.screenshot({ path: path.join(artifactsDir, "workbench.png"), fullPage: true });
+      const helpClose = page.locator(".help button").first();
+      if (await helpClose.count()) {
+        await helpClose.click();
+      }
       await page.keyboard.press("f");
       await page.locator('[role="dialog"][aria-label="Focus mode"]').waitFor({ timeout: 5_000 });
       await page.screenshot({ path: path.join(artifactsDir, "focus.png"), fullPage: true });

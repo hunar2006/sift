@@ -1,7 +1,7 @@
 import type { HunkGroup, UndigestedHunk } from "./types.js";
 import { isLockfilePath } from "./classify/categories.js";
 
-interface GroupDefinition {
+export interface GroupDefinition {
   id: string;
   title: string;
   kind: "attention" | "skim";
@@ -97,7 +97,10 @@ const DEFINITIONS: GroupDefinition[] = [
     title: "Generated files",
     kind: "skim",
     order: 150,
-    accepts: (hunk) => hunk.category === "generated" && hunk.band === "skim" && !hunk.file.includes("__snapshots__")
+    // Generated output remains a skim *group* even when a detector finds a
+    // hot signal. `approveGroup` still refuses that bulk decision, which is
+    // safer than hiding the hunk in a generic attention bucket.
+    accepts: (hunk) => hunk.category === "generated" && !hunk.file.includes("__snapshots__")
   },
   {
     id: "snapshots",
@@ -112,6 +115,13 @@ const DEFINITIONS: GroupDefinition[] = [
     kind: "skim",
     order: 170,
     accepts: (hunk) => hunk.category === "binary" && hunk.band === "skim"
+  },
+  {
+    id: "skim",
+    title: "Skim",
+    kind: "skim",
+    order: 100,
+    accepts: (hunk) => hunk.band === "skim"
   }
 ];
 
@@ -158,9 +168,45 @@ export function assignGroups(hunks: UndigestedHunk[]): { hunks: UndigestedHunk[]
   return { hunks: withGroups, groups };
 }
 
+/** The final classifier band/category is the sole source for queue membership. */
+export function groupingMismatches(hunks: UndigestedHunk[]): string[] {
+  return hunks.flatMap((hunk) => {
+    const expected = groupDefinitionForHunk(hunk).id;
+    return hunk.groupId === expected ? [] : [`${hunk.id}: ${hunk.groupId || "(none)"} should be ${expected}`];
+  });
+}
+
+/**
+ * Development and test builds fail loudly; production reassigns deterministically and warns once.
+ * This makes a rendered score/band mismatch impossible to silently ship.
+ */
+export function enforceGroupingInvariant(hunks: UndigestedHunk[]): { hunks: UndigestedHunk[]; groups: HunkGroup[] } {
+  const mismatches = groupingMismatches(hunks);
+  if (mismatches.length === 0) {
+    return assignGroups(hunks);
+  }
+  const detail = `Sift grouping invariant: ${mismatches.join("; ")}`;
+  if (process.env.NODE_ENV !== "production") {
+    throw new Error(detail);
+  }
+  console.error(`${detail}; reassigned from final band/category.`);
+  return assignGroups(hunks);
+}
+
 export function groupForHunk(hunk: UndigestedHunk): GroupDefinition {
+  return groupDefinitionForHunk(hunk);
+}
+
+function groupDefinitionForHunk(hunk: UndigestedHunk): GroupDefinition {
+  const dynamic = dynamicGroupForHunk(hunk);
+  if (dynamic) {
+    return dynamic;
+  }
   const skimDefinition = DEFINITIONS.find(
-    (definition) => definition.kind === "skim" && isSkimEligible(hunk) && definition.accepts(hunk)
+    (definition) =>
+      definition.kind === "skim" &&
+      (hunk.band === "skim" || isSkimEligible(hunk) || definition.id === "generated-files") &&
+      definition.accepts(hunk)
   );
   if (skimDefinition) {
     return skimDefinition;

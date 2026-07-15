@@ -12,11 +12,13 @@ export interface KeyboardState {
   allIds: string[];
   hunks: ReviewHunk[];
   pendingG: boolean;
+  flaggedOnly?: boolean;
 }
 
 export interface KeyboardModifiers {
   ctrlKey?: boolean;
   metaKey?: boolean;
+  shiftKey?: boolean;
 }
 
 export type KeyboardCommand =
@@ -37,8 +39,11 @@ export type KeyboardCommand =
   | { type: "collapse-all"; collapsed: boolean }
   | { type: "focus-note" }
   | { type: "undo" }
+  | { type: "redo" }
+  | { type: "toggle-flagged" }
   | { type: "toggle-focus" }
-  | { type: "open-editor" };
+  | { type: "open-editor" }
+  | { type: "revert" };
 
 export function keyboardCommand(
   state: KeyboardState,
@@ -50,6 +55,9 @@ export function keyboardCommand(
   }
   if ((modifiers.ctrlKey || modifiers.metaKey) && key.toLowerCase() === "f") {
     return { type: "toggle-search" };
+  }
+  if ((modifiers.ctrlKey || modifiers.metaKey) && key.toLowerCase() === "z") {
+    return modifiers.shiftKey ? { type: "redo" } : { type: "undo" };
   }
   if (state.paletteOpen) {
     return key === "Escape" ? { type: "toggle-palette" } : { type: "none" };
@@ -114,10 +122,18 @@ export function keyboardCommand(
       return { type: "focus-note" };
     case "z":
       return { type: "undo" };
+    case "Z":
+      // Browser key events use `Z` for Shift+Z. Keep a raw `Z` alias useful
+      // for programmatic callers while reserving the real shifted gesture for redo.
+      return modifiers.shiftKey ? { type: "redo" } : { type: "undo" };
+    case "F":
+      return { type: "toggle-flagged" };
     case "f":
       return { type: "toggle-focus" };
     case "e":
       return { type: "open-editor" };
+    case "R":
+      return { type: "revert" };
     case " ":
     case "Spacebar":
       return { type: "toggle-current-collapse" };

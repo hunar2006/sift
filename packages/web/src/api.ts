@@ -1,5 +1,5 @@
 import type { ApiMeta, ProvenanceTimelineSession, ReviewModel, Status } from "./types.js";
-import type { ReviewBrief, StatsSnapshot, StoredHunkState } from "@sift-review/core";
+import type { JournalEntry, ReviewBrief, StatsSnapshot, StoredHunkState } from "@sift-review/core";
 
 async function checked<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -32,13 +32,34 @@ export async function fetchBrief(): Promise<ReviewBrief | null> {
   return checked<ReviewBrief>(response);
 }
 
-export async function setHunkStatus(id: string, status: Status, note?: string): Promise<StoredHunkState> {
+export async function setHunkStatus(
+  id: string,
+  status: Status,
+  note?: string,
+  via: "single" | "group" | "undo" | "redo" | "targeted-undo" = "single"
+): Promise<StoredHunkState> {
   return checked<StoredHunkState>(
     await fetch(`/api/hunks/${encodeURIComponent(id)}/status`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status, note })
+      body: JSON.stringify({ status, note, via })
     })
+  );
+}
+
+export async function revertHunk(id: string): Promise<{ id: string; path: string; hunkIds: string[] }> {
+  return checked<{ id: string; path: string; hunkIds: string[] }>(
+    await fetch(`/api/hunks/${encodeURIComponent(id)}/revert`, { method: "POST" })
+  );
+}
+
+export async function fetchJournal(): Promise<JournalEntry[]> {
+  return checked<JournalEntry[]>(await fetch("/api/journal"));
+}
+
+export async function targetedUndo(entryId: string): Promise<{ hunkIds: string[]; compound: boolean; reverted?: boolean }> {
+  return checked<{ hunkIds: string[]; compound: boolean; reverted?: boolean }>(
+    await fetch(`/api/journal/${encodeURIComponent(entryId)}/undo`, { method: "POST" })
   );
 }
 

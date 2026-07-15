@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ReviewHunk } from "./types.js";
 import { keyboardCommand, nextUnreviewedAfter } from "./keyboard.js";
+import { popUndo, pushUndo } from "./undo.js";
 
 const hunk = (id: string, file: string, status: ReviewHunk["status"] = "unreviewed"): ReviewHunk => ({
   id,
@@ -69,5 +70,25 @@ describe("keyboardCommand", () => {
 
   it("advances to next unreviewed after status", () => {
     expect(nextUnreviewedAfter([hunk("a", "a.ts", "approved"), hunk("b", "b.ts")], "a")).toBe("b");
+  });
+
+  it("BUG-07-shifted-key-matrix-keeps-f-and-F-distinct", () => {
+    let status: ReviewHunk["status"] = "unreviewed";
+    const undoStack = pushUndo([], [{ hunkId: "a", prevStatus: status }]);
+    status = "flagged";
+
+    expect(undoStack).toHaveLength(1);
+    expect(keyboardCommand({ ...state, hunks: [hunk("a", "a.ts", status)] }, "z")).toEqual({ type: "undo" });
+    expect(keyboardCommand(state, "Z")).toEqual({ type: "undo" });
+    expect(keyboardCommand(state, "Z", { shiftKey: true })).toEqual({ type: "redo" });
+    expect(keyboardCommand(state, "z", { ctrlKey: true })).toEqual({ type: "undo" });
+    expect(keyboardCommand(state, "z", { metaKey: true, shiftKey: true })).toEqual({ type: "redo" });
+    expect(keyboardCommand(state, "f")).toEqual({ type: "toggle-focus" });
+    expect(keyboardCommand(state, "F", { shiftKey: true })).toEqual({ type: "toggle-flagged" });
+    expect(keyboardCommand(state, "R", { shiftKey: true })).toEqual({ type: "revert" });
+
+    const restored = popUndo(undoStack, new Set(["a"]));
+    status = restored.restore[0]?.prevStatus ?? status;
+    expect(status).toBe("unreviewed");
   });
 });

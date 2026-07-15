@@ -1,5 +1,9 @@
 # Troubleshooting
 
+## Undoing a confirmed file revert
+
+Press `Z` immediately after a confirmed revert to restore the snapshot. Sift refuses restoration with `file changed since` when another edit has changed the reverted-to bytes; resolve that edit first rather than overwriting it. Snapshots are Git objects and may be pruned by normal object-store garbage collection after roughly two weeks, so restore important work promptly.
+
 Start with the shortest fix below. Sift stays local; retry after the change.
 
 ## “Not a git repository”

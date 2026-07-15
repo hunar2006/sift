@@ -4,6 +4,36 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [0.9.0] - Ground Truth (Unreleased)
+
+### Fixed
+
+- Decision state is now store-first: queue stamps, flag reasons, tallies, review progress, checkpoints, and completion update without a model refetch. Failed saves retain the decision, mark it unsaved, warn before unload, and expose Retry.
+- Keyboard redo now uses Shift+Z and Ctrl/Cmd+Shift+Z while raw `Z` remains an undo alias; `F` filters flagged hunks without stealing `f` focus mode. History uses transition verbs instead of misleading state arrows.
+- The theme picker, overlay stack, bounded expiring notifications, coverage formatting, sticky inspector action row, refresh feedback, and rendered syntax tokens are covered by browser-level regressions.
+
+### Added
+
+- Snapshot-first, file-level revert for WORKTREE and STAGED reviews. A confirmed revert writes a recoverable Git blob before restoring or deleting; `Z` restores byte-exact bytes when the reverted-to file has not changed.
+- Blocking DOM-level Playwright checks run in preflight Stage D.
+
+### Changed
+
+- The CLI and surfaced Sift version are now `0.9.0`.
+
+## [0.8.0] - Sightline (Unreleased)
+
+### Added
+
+- Durable local decision history in `.sift/journal.jsonl`, capped at 500 entries with recovery from malformed interrupted lines; the workbench now offers redo, decision history, targeted undo, and compound group undo.
+- A flagged-only review filter, permanent queue reason markers, a flagged-review checkpoint, and three persisted local themes: Graphite, Assay, and Paper.
+- Focus-contract helpers, keyboard coverage for undo/redo, group-assignment invariant coverage, and a blocking Playwright dogfood path in preflight.
+
+### Changed
+
+- Decisions return focus to the diff pane; the note field receives focus only by explicit intent. `z` undoes, `Shift+Z` redoes, and Ctrl/Cmd variants match.
+- The CLI and surfaced Sift version are now `0.8.0`.
+
 ## [0.6.1] - Approachable (Unreleased)
 
 ### Added

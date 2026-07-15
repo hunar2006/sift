@@ -1,6 +1,6 @@
 # Sift
 
-Sift orders repository diffs for review.
+Sift orders repository diffs for review, with durable local decision history and keyboard-first undo/redo.
 
 ![Sift workbench][workbench]
 
@@ -123,10 +123,10 @@ SIFT TUI FRAME · 34 hunks · 11 groups · debt 100%
 [attention] Medium risk (15)
 …
 -- src/auth/session.ts · high 100 · Adds `rotateSessionRefresh()` (+7 lines)
-footer: n of m · j/k move · a approve · x flag · u unreview · z undo · q quit
+footer: n of m · j/k move · a approve · x flag · u unreview · z undo · Shift+Z redo · R revert · q quit
 ```
 
-Keys: `j`/`k` hunk · `g`/`G` first/last · `n`/`p` next/prev unreviewed attention · `a` approve · `x` flag (1–4 quick reasons, `i` note) · `u` unreview · `z` undo · `A` group · `space` expand patch · `o` editor · `?` help · `q` quit (prints `sift print` summary). Prefer a terminal ≥100×28; 80×24 still works with truncation. Use `--watch` for live refreshes and `--print-frame` for CI smoke.
+Keys: `j`/`k` hunk · `g`/`G` first/last · `n`/`p` next/prev unreviewed attention · `a` approve · `x` flag (1–4 quick reasons, `i` note) · `u` unreview · `z` undo · `Shift+Z` redo · `A` group · `space` expand patch · `o` editor · `R` snapshot-backed file revert · `?` help · `q` quit (prints `sift print` summary). Prefer a terminal ≥100×28; 80×24 still works with truncation. Use `--watch` for live refreshes and `--print-frame` for CI smoke.
 
 ## Cockpit keys
 
@@ -137,12 +137,14 @@ Keys: `j`/`k` hunk · `g`/`G` first/last · `n`/`p` next/prev unreviewed attenti
 | `j` / `k`, `J` / `K` | Move by hunk, or by file. |
 | `n` / `p` | Next / previous unreviewed attention hunk. |
 | `a`, `x`, `u`, `z` | Approve, flag, unreview, or undo the last decision. |
-| `f` | Enter/exit focus mode. |
+| `Shift+Z`, `Ctrl/Cmd+Shift+Z` | Redo the last decision. |
+| `f` / `F` | Enter focus mode, or toggle flagged hunks only. |
 | `e` | Open the current hunk at its first changed line in the configured editor. |
+| `R` | Confirm a snapshot-backed revert of the current file in a WORKTREE/STAGED review. |
 | `i`, `space`, `s` | Focus note, collapse hunk, or cycle sort order. |
 | `t`, `T`, `?` | Open timeline, toggle theme, or open help. |
 
-In focus mode the action row is `[a] Approve` `[x] Flag` `[j] Skip` `[z] Undo` `[e] Open in editor`; `Esc` returns to the workbench. The **New (n)** header button filters fresh hunks.
+In focus mode the action row is `[a] Approve` `[x] Flag` `[j] Skip` `[z] Undo` `[R] Revert` `[e] Open in editor`; `Esc` returns to the workbench. The **New (n)** header button filters fresh hunks.
 
 ## Change digests and the summary stack
 
@@ -192,7 +194,7 @@ Sift never executes repository tests, scripts, or configs. It only parses LCOV a
 
 - Offline-first by default; no telemetry or analytics.
 - Sift never runs reviewed repository code.
-- Git access is read-only except the explicit `pr` command's use of `gh`.
+- Git access is read-only except an explicitly confirmed file revert. Revert is limited to WORKTREE/STAGED, snapshots the current bytes in Git first, and never stages, commits, pushes, or bulk-reverts.
 - The web server binds `127.0.0.1` only.
 - Web and grammar assets are bundled from disk; nothing is fetched at runtime.
 - Network is limited to localhost and explicit `--ai` provider calls.

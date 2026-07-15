@@ -52,6 +52,22 @@ try {
     }).catch(() => undefined);
     await page.screenshot({ path: path.join(shotsDir, "workbench-dark.png") });
 
+    await page.locator('select[aria-label="Theme"]').selectOption("assay");
+    await page.locator('html[data-theme="assay"]').waitFor();
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: path.join(shotsDir, "workbench-assay.png") });
+
+    // Keep a single side-by-side artifact so Assay's ink-blue surfaces can be
+    // compared directly with Graphite's neutral charcoal without inference.
+    const [graphite, assay] = await Promise.all([
+      fs.readFile(path.join(shotsDir, "workbench-dark.png")),
+      fs.readFile(path.join(shotsDir, "workbench-assay.png"))
+    ]);
+    const comparison = await browser.newPage({ viewport: { width: 1440, height: 470 }, colorScheme: "dark" });
+    await comparison.setContent(`<!doctype html><style>body{margin:0;background:#080a0d;color:#d9e0e8;font:14px system-ui;display:flex;gap:12px;padding:12px}.theme{width:50%}h1{font-size:14px;margin:0 0 8px}img{width:100%;display:block}</style><section class="theme"><h1>Graphite</h1><img src="data:image/png;base64,${graphite.toString("base64")}"></section><section class="theme"><h1>Assay</h1><img src="data:image/png;base64,${assay.toString("base64")}"></section>`);
+    await comparison.screenshot({ path: path.join(shotsDir, "assay-graphite.png") });
+    await comparison.close();
+
     await page.keyboard.press("Control+F");
     await page.locator(".diff-search input").fill("legacy");
     await page.waitForTimeout(100);
@@ -84,13 +100,13 @@ try {
       });
     }
 
-    await page.keyboard.press("T");
-    await page.locator('html[data-theme="light"]').waitFor();
+    await page.locator('select[aria-label="Theme"]').selectOption("paper");
+    await page.locator('html[data-theme="paper"]').waitFor();
     await page.waitForTimeout(200);
     await page.screenshot({ path: path.join(shotsDir, "workbench-light.png") });
 
-    await page.keyboard.press("T");
-    await page.locator('html[data-theme="dark"]').waitFor();
+    await page.locator('select[aria-label="Theme"]').selectOption("graphite");
+    await page.locator('html[data-theme="graphite"]').waitFor();
     await page.keyboard.press("f");
     await page.locator(".focus-card").waitFor({ state: "visible" });
     await page.screenshot({ path: path.join(shotsDir, "focus.png") });
