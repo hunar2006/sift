@@ -140,6 +140,19 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
     await expect(page.locator(".decision-log")).toContainText(/Approved|Flagged|Unapproved|Unflagged/u);
   });
 
+  test("UNDO-journal-fallback-works-after-reload", async ({ page }) => {
+    await openWorkbench(page);
+    const row = page.locator(".hunk-row").filter({ hasNot: page.locator(".mini-stamp") }).first();
+    await row.click();
+    await focusDiff(page);
+    await page.keyboard.press("a");
+    await expect(page.locator(".mini-stamp.verified").first()).toBeVisible();
+    await page.reload();
+    await focusDiff(page);
+    await page.keyboard.press("z");
+    await expect(page.locator(".toast-stack")).toContainText("Undid");
+  });
+
   test("BUG-10-syntax-token-colour-per-theme", async ({ page }) => {
     await openWorkbench(page);
     const code = page.locator(".diff-line code").first();
@@ -209,6 +222,7 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "Revert" }).click();
     await expect(page.locator(".toast-stack")).toContainText("Reverted");
+    await page.reload();
     await focusDiff(page);
     await page.keyboard.press("z");
     await expect(page.locator(".toast-stack")).toContainText("Undid revert");

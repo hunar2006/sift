@@ -612,6 +612,17 @@ export function App() {
   async function performUndo(): Promise<void> {
     const result = popUndoEntry();
     if (result.message) {
+      try {
+        const persisted = await fetchJournal();
+        setJournal(persisted);
+        const latestDecision = persisted.find((entry) => entry.kind !== "revert" || entry.action === "Reverted");
+        if (latestDecision) {
+          await undoJournalEntry(latestDecision);
+          return;
+        }
+      } catch {
+        // Fall through to the truthful empty-history message below.
+      }
       setToast("Undo unavailable.");
       return;
     }
@@ -709,7 +720,7 @@ export function App() {
       }
       focusDiffPane(diffPaneRef);
       setJournal(await fetchJournal());
-      setToast(result.compound ? `Undid ${result.hunkIds.length} grouped decisions` : `Undid ${entry.file}`);
+      setToast(entry.kind === "revert" ? `Undid revert of ${entry.file}` : result.compound ? `Undid ${result.hunkIds.length} grouped decisions` : `Undid ${entry.file}`);
     } catch (error) {
       setToast(error instanceof Error && error.message.includes("File changed since") ? "File changed since." : "Undo unavailable.");
     }
