@@ -42,6 +42,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm i --frozen-lockfile
+      - run: pnpm exec playwright install chromium --with-deps
+        if: runner.os == 'Linux'
+      - run: pnpm exec playwright install chromium
+        if: runner.os == 'Windows'
       - run: pnpm preflight --fast
 
   publish:

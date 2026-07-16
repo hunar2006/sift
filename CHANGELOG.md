@@ -4,7 +4,13 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
-## [0.9.0] - Ground Truth (Unreleased)
+## [0.9.1] - 2026-07-17
+
+### Fixed
+
+- The tag-gated release checks now install Chromium before their blocking DOM preflight on Ubuntu and Windows.
+
+## [0.9.0] - Ground Truth
 
 ### Fixed
 
