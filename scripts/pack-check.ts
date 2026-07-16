@@ -86,7 +86,7 @@ try {
 async function run(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv = process.env): Promise<string> {
   const { stdout } = await execFileAsync(command, args, {
     cwd,
-    env,
+    env: { ...process.env, ...env },
     windowsHide: true,
     shell: process.platform === "win32",
     maxBuffer: 64 * 1024 * 1024
