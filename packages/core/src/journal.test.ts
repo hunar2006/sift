@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { JOURNAL_LIMIT, appendJournal, journalPath, journalVerb, makeJournalEntry, readJournal } from "./journal.js";
+import { JOURNAL_LIMIT, appendJournal, journalPath, journalVerb, makeJournalEntry, readJournal, writeJournal } from "./journal.js";
 
 const roots: string[] = [];
 
@@ -47,12 +47,14 @@ describe("decision journal", () => {
 
   it("keeps the most recent capped history", async () => {
     const root = await temporaryRepo();
-    for (let index = 0; index < JOURNAL_LIMIT + 2; index += 1) {
-      await appendJournal(root, entry(index));
-    }
+    await writeJournal(
+      root,
+      Array.from({ length: JOURNAL_LIMIT + 2 }, (_, index) => entry(index))
+    );
+    await appendJournal(root, entry(JOURNAL_LIMIT + 2));
 
     const entries = await readJournal(root);
     expect(entries).toHaveLength(JOURNAL_LIMIT);
-    expect(entries[0]?.hunkId).toBe("h2");
+    expect(entries[0]?.hunkId).toBe("h3");
   });
 });
