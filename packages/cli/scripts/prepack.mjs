@@ -9,8 +9,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const OWNER_BASE = "https://github.com/PLACEHOLDER_OWNER/sift";
-const RAW_BASE = "https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main";
+const OWNER_BASE = "https://github.com/hunar2006/sift";
+const RAW_BASE = "https://raw.githubusercontent.com/hunar2006/sift/main";
 
 const cliDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(cliDir, "..", "..");

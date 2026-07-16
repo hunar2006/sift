@@ -4,14 +4,14 @@
   "type": "module",
   "description": "Local-first review cockpit for AI-generated diffs — deterministic triage, provenance, and verification.",
   "license": "MIT",
-  "homepage": "https://github.com/PLACEHOLDER_OWNER/sift#readme",
+  "homepage": "https://github.com/hunar2006/sift#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PLACEHOLDER_OWNER/sift.git",
+    "url": "git+https://github.com/hunar2006/sift.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/PLACEHOLDER_OWNER/sift/issues"
+    "url": "https://github.com/hunar2006/sift/issues"
   },
   "keywords": [
     "code-review",

@@ -31,23 +31,23 @@ npm i -g siftdiff
 
 | Workbench | Focus mode |
 |---|---|
-| ![Dark workbench](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/workbench-dark.png) | ![Focus mode](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/focus.png) |
+| ![Dark workbench](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/workbench-dark.png) | ![Focus mode](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/focus.png) |
 
 | Light workbench | Completion | Timeline |
 |---|---|---|
-| ![Light workbench](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/workbench-light.png) | ![Completion](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/completion.png) | ![Timeline](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/timeline.png) |
+| ![Light workbench](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/workbench-light.png) | ![Completion](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/completion.png) | ![Timeline](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/timeline.png) |
 
 | Queue close-up | Inspector close-up |
 |---|---|
-| ![Queue](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/queue.png) | ![Inspector](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/inspector.png) |
+| ![Queue](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/queue.png) | ![Inspector](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/inspector.png) |
 
 | Diff search | Static report |
 |---|---|
-| ![Diff search](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/search.png) | ![Static report](https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/report.png) |
+| ![Diff search](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/search.png) | ![Static report](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/report.png) |
 
 Regenerate the complete set with `pnpm shots`.
 
-[workbench]: https://raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/docs/screenshots/workbench-dark.png
+[workbench]: https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/workbench-dark.png
 
 ## How we test Sift
 
