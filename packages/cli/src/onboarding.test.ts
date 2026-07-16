@@ -1,10 +1,16 @@
 import { PassThrough } from "node:stream";
+import { promises as fs } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   CLEAN_WORKTREE_HINT,
   cleanWorktreePickerInfo,
   emptyReviewMessage,
   ensureLastHistory,
+  FIRST_RUN_HINT,
+  firstRunHint,
+  isBareSiftInvocation,
   isInteractiveTerminal,
   lastCount,
   lastRange,
@@ -55,5 +61,18 @@ describe("clean-worktree onboarding", () => {
     });
     expect(info).toEqual({ lastSubject: "Tighten onboarding", hasStagedChanges: true });
     expect(seen).toEqual([["log", "-1", "--format=%s"], ["diff", "--cached", "--name-only"]]);
+  });
+
+  it("shows the setup hint once for a bare invocation with no Sift marker", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "sift-onboarding-"));
+    try {
+      expect(isBareSiftInvocation(["node", "sift"])).toBe(true);
+      expect(isBareSiftInvocation(["node", "sift", "last"])).toBe(false);
+      expect(await firstRunHint(root)).toBe(FIRST_RUN_HINT);
+      expect(await firstRunHint(root)).toBeUndefined();
+      await expect(fs.stat(path.join(root, ".sift", "onboarding.json"))).resolves.toBeDefined();
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
   });
 });

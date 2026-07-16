@@ -17,7 +17,7 @@ export function isAllowedPackedFile(filePath: string): boolean {
   );
 }
 
-export async function scanPlaceholders(root: string, allowed = new Set(["PLACEHOLDER_OWNER"])): Promise<string[]> {
+export async function scanPlaceholders(root: string, allowed = new Set<string>()): Promise<string[]> {
   const unexpected: string[] = [];
   await walkTextFiles(root, async (filePath, content) => {
     const file = relative(root, filePath);

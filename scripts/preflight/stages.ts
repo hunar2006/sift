@@ -23,7 +23,7 @@ import {
 const STAGE_NAMES: Record<StageId, string> = {
   A: "Gate",
   B: "Evidence",
-  C: "v0.9.1 conformance",
+  C: "v1.0.0 conformance",
   D: "Fresh-user simulation",
   E: "Installed-package simulation",
   F: "Audits",
@@ -147,7 +147,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
   const rootManifest = await readJson<{ scripts?: Record<string, unknown> }>(path.join(context.root, "package.json"));
   const packageChecks: Array<[boolean, string]> = [
     [manifest.name === "siftdiff", "cli name is siftdiff"],
-    [manifest.version === "0.9.1", "cli version is 0.9.1"],
+    [manifest.version === "1.0.0", "cli version is 1.0.0"],
     [!("private" in manifest), "cli private field is absent"],
     [JSON.stringify(manifest.bin) === JSON.stringify({ sift: "./dist/index.js" }), "cli bin is sift"],
     [JSON.stringify(manifest.publishConfig) === JSON.stringify({ access: "public", provenance: true }), "publishConfig is public + provenance"],
@@ -179,20 +179,35 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
 
   const readme = await fs.readFile(path.join(context.root, "README.md"), "utf8");
   const imageUrls = [...readme.matchAll(/!\[[^\]]*\]\(([^)]+)\)/gu)].map((match) => match[1] ?? "");
+  const demoGif = path.join(context.root, "docs", "demo.gif");
+  const demoGifUrl = canonicalDemoGifUrl(manifest);
+  const demoGifExists = await fs.access(demoGif).then(() => true, () => false);
   if (imageUrls.length === 0 || imageUrls.some((url) => !/^https?:\/\//u.test(url))) {
     failures.push("FAIL README image links must be absolute URLs");
   } else {
     details.push(`PASS README has ${imageUrls.length} absolute image URLs`);
-    if (imageUrls.some((url) => url.includes("PLACEHOLDER_OWNER"))) {
-      details.push("SKIP README image HEAD check (PLACEHOLDER_OWNER is intentionally unset)");
+    if (!imageUrls.includes(demoGifUrl) || !demoGifExists) {
+      failures.push("FAIL README demo GIF URL or local artifact is missing");
     } else {
-      const head = await verifyImageUrls(imageUrls);
-      if (head === "offline") {
-        details.push("SKIP README image HEAD check (network unavailable)");
-      } else if (head.length > 0) {
-        failures.push(`FAIL README image HEAD check: ${head.join(", ")}`);
+      const bytes = (await fs.stat(demoGif)).size;
+      if (bytes > 3 * 1024 * 1024) {
+        failures.push(`FAIL docs/demo.gif exceeds 3 MB (${(bytes / 1024 / 1024).toFixed(2)} MB)`);
       } else {
-        details.push("PASS README image links HEAD-resolve");
+        details.push(`PASS local README demo GIF (${(bytes / 1024).toFixed(0)} kB; awaiting first push)`);
+      }
+    }
+    const head = await verifyImageUrls(imageUrls);
+    if (head === "offline") {
+      details.push("SKIP README image HEAD check (network unavailable)");
+    } else {
+      const remoteFailures = head.filter((failure) => !failure.startsWith(`${demoGifUrl} (`));
+      if (remoteFailures.length > 0) {
+        failures.push(`FAIL README image HEAD check: ${remoteFailures.join(", ")}`);
+      } else {
+        details.push("PASS README public image links HEAD-resolve");
+        if (head.length > 0) {
+          details.push("PASS local demo GIF substitutes for its not-yet-pushed raw URL");
+        }
       }
     }
   }
@@ -201,7 +216,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
   if (placeholders.length > 0) {
     failures.push(`FAIL unexpected placeholders: ${placeholders.join(", ")}`);
   } else {
-    details.push("PASS placeholder scan (only documented PLACEHOLDER_OWNER tokens)");
+    details.push("PASS placeholder scan (no release placeholders)");
   }
   for (const file of [
     "SECURITY.md",
@@ -222,7 +237,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
     details.push("PASS release/pages YAML and guarded publish flow");
   }
   const changelog = await fs.readFile(path.join(context.root, "CHANGELOG.md"), "utf8");
-  for (const version of ["0.9.1"]) {
+  for (const version of ["1.0.0"]) {
     const passed = changelog.includes(version);
     (passed ? details : failures).push(`${passed ? "PASS" : "FAIL"} CHANGELOG includes ${version}`);
   }
@@ -230,7 +245,7 @@ async function stageConformance(context: PreflightContext): Promise<StageResult>
     "C",
     started,
     failures.length === 0 ? "PASS" : "FAIL",
-    failures.length === 0 ? "v0.9.1 release claims conform" : `${failures.length} conformance check(s) failed`,
+    failures.length === 0 ? "v1.0.0 release claims conform" : `${failures.length} conformance check(s) failed`,
     [...details, ...failures]
   );
 }
@@ -424,18 +439,34 @@ async function stageAudits(context: PreflightContext): Promise<StageResult> {
 
 async function stageGif(context: PreflightContext): Promise<StageResult> {
   const started = performance.now();
-  for (const extension of ["gif", "mp4", "webm"]) {
-    const file = path.join(context.root, "docs", `demo.${extension}`);
-    if (await fs.access(file).then(() => true, () => false)) {
-      return completed("G", started, "PASS", `docs/demo.${extension} exists`, [`PASS ${relative(context.root, file)}`]);
-    }
+  const file = path.join(context.root, "docs", "demo.gif");
+  const manifest = await readJson<{ scripts?: Record<string, unknown>; devDependencies?: Record<string, unknown> }>(path.join(context.root, "package.json"));
+  const gifScript = String(manifest.scripts?.gif ?? "");
+  const exists = await fs.access(file).then(() => true, () => false);
+  if (!exists) {
+    return completed("G", started, "FAIL", "docs/demo.gif is missing", ["Run pnpm gif to regenerate the scripted Playwright capture."]);
   }
-  const attempt = await runCommand("ffmpeg", ["-version"], { cwd: context.root, timeoutMs: 3 * 60_000 });
-  const reason = attempt.code === 0 ? "ffmpeg is available but no scripted video source is configured" : commandFailure(attempt);
-  return completed("G", started, "SKIP", "demo recording requires a manual capture", [
-    `SKIP bounded GIF attempt: ${reason}`,
-    "Manual recording: open the demo, show the workbench and focus mode, then save docs/demo.gif or docs/demo.mp4."
-  ]);
+  const bytes = (await fs.stat(file)).size;
+  const errors = [
+    ...(bytes > 3 * 1024 * 1024 ? [`docs/demo.gif exceeds 3 MB (${(bytes / 1024 / 1024).toFixed(2)} MB)`] : []),
+    ...(!gifScript.includes("scripts/gif.ts") ? ["package script gif does not invoke scripts/gif.ts"] : []),
+    ...(typeof manifest.devDependencies?.gifenc !== "string" ? ["gifenc is not a dev dependency"] : [])
+  ];
+  return completed(
+    "G",
+    started,
+    errors.length === 0 ? "PASS" : "FAIL",
+    errors.length === 0 ? "scripted GIF is present and regenerable" : `${errors.length} GIF check(s) failed`,
+    errors.length === 0
+      ? [`PASS ${relative(context.root, file)} (${(bytes / 1024).toFixed(0)} kB)`, "PASS regenerate with pnpm gif (Playwright + gifenc; no ffmpeg)"]
+      : errors.map((error) => `FAIL ${error}`)
+  );
+}
+
+function canonicalDemoGifUrl(manifest: Record<string, unknown>): string {
+  const homepage = typeof manifest.homepage === "string" ? manifest.homepage : "";
+  const match = homepage.match(/^https:\/\/github\.com\/([^/]+\/[^/#]+)(?:#.*)?$/u);
+  return match ? `https://raw.githubusercontent.com/${match[1]}/main/docs/demo.gif` : "";
 }
 
 async function stageHandoff(context: PreflightContext): Promise<StageResult> {

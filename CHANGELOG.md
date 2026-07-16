@@ -4,6 +4,17 @@ All notable changes to Sift are documented here.
 
 The format follows Keep a Changelog, and this project uses semantic versioning once published.
 
+## [1.0.0] - 2026-07-17
+
+### Added
+
+- `sift doctor` and `sift setup` make the local review loop diagnosable and repeatable.
+
+### Changed
+
+- Public release metadata, image links, health checks, and the release scorecard now use the canonical GitHub repository without placeholder exemptions.
+- The project release line is now 1.0.0.
+
 ## [0.9.1] - 2026-07-17
 
 ### Fixed

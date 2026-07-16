@@ -1,6 +1,11 @@
 # Sift
 
+[![CI](https://github.com/hunar2006/sift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hunar2006/sift/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Sift orders repository diffs for review, with durable local decision history and keyboard-first undo/redo.
+
+![Sift demo](https://raw.githubusercontent.com/hunar2006/sift/main/docs/demo.gif)
 
 ![Sift workbench][workbench]
 
@@ -47,6 +52,10 @@ pnpm sift
 Regenerate the complete set with `pnpm shots`.
 
 [workbench]: https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/workbench-dark.png
+
+## Daily workflow
+
+Run `sift doctor` once to check the local tools Sift relies on, then `sift setup` to configure hooks, editor, reasons, and coverage. During normal work, keep `sift --watch` open, decide with `a`/`x`/`R`, and use `sift brief` when a flag needs a fix.
 
 ## How we test Sift
 
@@ -100,6 +109,8 @@ Directive comments are machine-read behavior changes, not bulk-approvable prose.
 | `sift print [--json]` | Print compact terminal triage without starting the server. |
 | `sift stats [--json]` | Print review debt, progress, flags, and line-match coverage. |
 | `sift check [--max-debt pct]` | Personal pre-push aid; not a team performance metric. |
+| `sift doctor [--json]` | Check local Sift prerequisites and print exact recovery commands. |
+| `sift setup [--remove]` | Interactively configure the daily review workflow, or remove its setup-owned changes. |
 | `sift demo [--dir path]` | Generate the demo repository and launch Sift. |
 | `sift rules lint` / `sift rules list` | Validate and display the effective ruleset. |
 | `sift init` | Write commented `.sift/config.json` and `.sift/rules.yml` starters if absent. |
@@ -129,19 +140,41 @@ Keys: `j`/`k` hunk · `g`/`G` first/last · `n`/`p` next/prev unreviewed attenti
 
 ## Cockpit keys
 
+<!-- keymap:start -->
 | Key | Action |
 |---|---|
-| `Ctrl/Cmd+K` | Open the command palette. |
-| `Ctrl/Cmd+F` | Search paths, digest text, and diff lines. |
-| `j` / `k`, `J` / `K` | Move by hunk, or by file. |
-| `n` / `p` | Next / previous unreviewed attention hunk. |
-| `a`, `x`, `u`, `z` | Approve, flag, unreview, or undo the last decision. |
-| `Shift+Z`, `Ctrl/Cmd+Shift+Z` | Redo the last decision. |
-| `f` / `F` | Enter focus mode, or toggle flagged hunks only. |
-| `e` | Open the current hunk at its first changed line in the configured editor. |
-| `R` | Confirm a snapshot-backed revert of the current file in a WORKTREE/STAGED review. |
-| `i`, `space`, `s` | Focus note, collapse hunk, or cycle sort order. |
-| `t`, `T`, `?` | Open timeline, toggle theme, or open help. |
+| `j` | Next hunk |
+| `k` | Previous hunk |
+| `g` | First hunk |
+| `G` | Last hunk |
+| `n` | Next unreviewed attention hunk |
+| `p` | Previous unreviewed attention hunk |
+| `a` | Approve current hunk |
+| `x` | Flag current hunk |
+| `u` | Mark current hunk unreviewed |
+| `z` | Undo latest decision |
+| `Shift+Z` | Redo latest decision |
+| `?` | Open shortcuts |
+| `R` | Revert current file |
+| `Ctrl/Cmd+K` | Open command palette |
+| `Ctrl/Cmd+F` | Search diff text |
+| `J` | Next file |
+| `K` | Previous file |
+| `i` | Focus note |
+| `f` | Enter focus mode |
+| `F` | Show flagged only |
+| `e` | Open current hunk in editor |
+| `r` | Refresh review |
+| `Space` | Collapse current hunk |
+| `o` | Toggle split diff |
+| `t` | Open timeline |
+| `T` | Cycle theme |
+| `s` | Cycle sort mode |
+| `/` | Focus filter |
+| `[` | Collapse all groups |
+| `]` | Expand all groups |
+| `Esc` | Close overlay |
+<!-- keymap:end -->
 
 In focus mode the action row is `[a] Approve` `[x] Flag` `[j] Skip` `[z] Undo` `[R] Revert` `[e] Open in editor`; `Esc` returns to the workbench. The **New (n)** header button filters fresh hunks.
 

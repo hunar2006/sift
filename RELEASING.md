@@ -13,8 +13,8 @@ Sift launches from GitHub first. Keep `NPM_TOKEN` unset: the `release` workflow 
 
 ```powershell
 git status --short
-git tag -a v0.9.1 -m "Sift v0.9.1"
-git push origin v0.9.1
+git tag -a v1.0.0 -m "Sift v1.0.0"
+git push origin v1.0.0
 
 $cold = Join-Path $env:TEMP ("sift-cold-" + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $cold | Out-Null

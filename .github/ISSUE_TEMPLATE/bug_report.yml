@@ -30,6 +30,14 @@ body:
       placeholder: "Windows 11 / Windows Terminal, or macOS 14 / iTerm2"
     validations:
       required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Paste your `sift doctor` output
+      description: Run `sift doctor` in the affected repository and redact only sensitive paths or repository names.
+      render: shell
+    validations:
+      required: false
   - type: dropdown
     id: diff-source
     attributes:

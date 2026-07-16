@@ -52,10 +52,16 @@ export async function resolveEditor(repoRoot: string, filePath: string, line: nu
   if (configured) {
     return commandForSetting(configured, filePath, line);
   }
+  const detected = await detectEditor(deps);
+  return detected ? knownCommand(detected, filePath, line) : null;
+}
+
+/** Return a PATH-resolvable supported editor without reading user configuration. */
+export async function detectEditor(deps: EditorDeps = {}): Promise<string | null> {
   const exists = deps.exists ?? executableExists;
   for (const bin of KNOWN_EDITORS) {
     if (await existsOnPath(bin, deps.env ?? process.env, exists)) {
-      return knownCommand(bin, filePath, line);
+      return bin;
     }
   }
   return null;

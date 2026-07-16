@@ -1,6 +1,6 @@
 {
   "name": "@sift-review/core",
-  "version": "0.9.1",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -13,6 +13,10 @@
     "./session": {
       "types": "./dist/session/index.d.ts",
       "import": "./dist/session/index.js"
+    },
+    "./keymap": {
+      "types": "./dist/keymap.d.ts",
+      "import": "./dist/keymap.js"
     }
   },
   "scripts": {

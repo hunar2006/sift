@@ -16,6 +16,7 @@ import {
   type ReviewModel,
   type StatsSnapshot
 } from "@sift-review/core";
+import { keymapKeys } from "@sift-review/core/keymap";
 import {
   ReviewSession,
   nextAttentionUnreviewed,
@@ -29,6 +30,20 @@ import type { PipelineResult } from "./pipeline-runner.js";
 import { startLiveWatcher, type LiveWatcher } from "./watch.js";
 
 const PATCH_COLLAPSE = 200;
+const TUI_FOOTER_ROWS = [
+  { ids: ["shared-next-hunk", "shared-prev-hunk"], label: "move" },
+  { ids: ["shared-approve"], label: "approve" },
+  { ids: ["shared-flag"], label: "flag" },
+  { ids: ["shared-unreview"], label: "unreview" },
+  { ids: ["shared-undo"], label: "undo" },
+  { ids: ["shared-redo"], label: "redo" },
+  { ids: ["tui-group-approve"], label: "group" },
+  { ids: ["tui-editor"], label: "editor" },
+  { ids: ["shared-revert"], label: "revert" },
+  { ids: ["shared-help"], label: "help" },
+  { ids: ["tui-quit"], label: "quit" }
+] as const;
+const TUI_FOOTER = TUI_FOOTER_ROWS.map(({ ids, label }) => `${keymapKeys(ids)} ${label}`).join(" · ");
 const BAND_COLOR: Record<string, string> = {
   high: "red",
   medium: "yellow",
@@ -187,7 +202,7 @@ function renderFrameText(model: ReturnType<typeof mergeReviewState>, stats: Stat
   if (first) {
     lines.push(`-- ${first.file} · ${first.band} ${first.risk} · ${first.digest.headline}`);
   }
-  lines.push("footer: n of m · j/k move · a approve · x flag · u unreview · z undo · Shift+Z redo · R revert · q quit");
+  lines.push(`footer: n of m · ${TUI_FOOTER}`);
   return lines.join("\n");
 }
 
@@ -556,8 +571,7 @@ function TuiApp(props: TuiAppProps): React.ReactElement {
       </Box>
       <Box>
         <Text>
-          {selectedIndex + 1} of {visible.length} · j/k move · a approve · x flag · u unreview · z undo · A group · o
-           editor · R revert · ? help · q quit
+          {selectedIndex + 1} of {visible.length} · {TUI_FOOTER}
           {state.toast ? ` · ${state.toast}` : ""}
           {message ? ` · ${message}` : ""}
         </Text>

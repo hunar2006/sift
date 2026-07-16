@@ -31,7 +31,7 @@ function successfulGh(calls: string[][]): GhRunner {
   return (args) => {
     calls.push(args);
     if (args[0] === "pr" && args[1] === "list") {
-      return Promise.resolve({ stdout: '[{"number":123,"title":"Tighten onboarding","author":{"login":"hunar"}}]' });
+      return Promise.resolve({ stdout: '[{"number":123,"title":"Tighten onboarding","author":{"login":"reviewer"}}]' });
     }
     if (args[0] === "pr" && args[1] === "diff") {
       return Promise.resolve({ stdout: "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-a\n+b\n" });
@@ -74,7 +74,7 @@ describe("GitHub pull request ingest", () => {
   it("lists pull requests after mocked gh checks", async () => {
     const calls: string[][] = [];
     await expect(listPullRequests("repo", successfulGh(calls))).resolves.toEqual([
-      { number: 123, title: "Tighten onboarding", author: "hunar" }
+      { number: 123, title: "Tighten onboarding", author: "reviewer" }
     ]);
     expect(calls.at(-1)).toEqual(["pr", "list", "--limit", "10", "--json", "number,title,author"]);
   });

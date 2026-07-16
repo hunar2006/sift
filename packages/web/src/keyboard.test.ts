@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ReviewHunk } from "./types.js";
 import { keyboardCommand, nextUnreviewedAfter } from "./keyboard.js";
 import { popUndo, pushUndo } from "./undo.js";
+import { formatWebHelpRow, HELP_OVERLAY_LINES, WEB_HELP_KEYMAP_ROWS } from "./copy.js";
 
 const hunk = (id: string, file: string, status: ReviewHunk["status"] = "unreviewed"): ReviewHunk => ({
   id,
@@ -66,6 +67,20 @@ describe("keyboardCommand", () => {
 
   it("moves note focus to i", () => {
     expect(keyboardCommand(state, "i")).toEqual({ type: "focus-note" });
+  });
+
+  it("renders the help overlay from the shared registry", () => {
+    expect(HELP_OVERLAY_LINES).toEqual(WEB_HELP_KEYMAP_ROWS.map((row) => formatWebHelpRow(row)));
+    expect(HELP_OVERLAY_LINES).toEqual([
+      "j/k hunk | J/K",
+      "n/p | a/x decide",
+      "u reset | i note",
+      "z undo | Shift+Z redo",
+      "f focus | F flagged | R revert",
+      "Ctrl/Cmd+F | e editor | r refresh",
+      "Space collapse | o split",
+      "? help | Esc close"
+    ]);
   });
 
   it("advances to next unreviewed after status", () => {

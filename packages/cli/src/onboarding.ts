@@ -1,5 +1,7 @@
 import { createInterface } from "node:readline/promises";
-import { GitError, runGit } from "@sift-review/core";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { ensureSiftDir, GitError, runGit, siftDir } from "@sift-review/core";
 
 export type CleanWorktreeSelection =
   | { kind: "last" }
@@ -18,6 +20,8 @@ export interface PickerIo {
   output: NodeJS.WritableStream & { isTTY?: boolean };
 }
 
+export const FIRST_RUN_HINT = "New here? sift setup wires hooks, gates, and your editor.";
+
 export const CLEAN_WORKTREE_HINT = "Try: sift last · sift --help";
 
 export function emptyReviewMessage(): string {
@@ -26,6 +30,34 @@ export function emptyReviewMessage(): string {
 
 export function isInteractiveTerminal(io: PickerIo = { input: process.stdin, output: process.stdout }): boolean {
   return io.input.isTTY === true && io.output.isTTY === true;
+}
+
+/** A bare review is the only time Sift should offer setup without being asked. */
+export function isBareSiftInvocation(argv: readonly string[]): boolean {
+  return argv.length === 2;
+}
+
+/** Record the one welcome hint by creating the repo-local Sift marker once. */
+export async function firstRunHint(repoRoot: string): Promise<string | undefined> {
+  const dir = siftDir(repoRoot);
+  const existing = await fs.stat(dir).then(
+    () => true,
+    () => false
+  );
+  if (existing) {
+    return undefined;
+  }
+  await ensureSiftDir(repoRoot);
+  const marker = path.join(dir, "onboarding.json");
+  try {
+    await fs.writeFile(marker, '{"hintShown":true}\n', { encoding: "utf8", flag: "wx" });
+    return FIRST_RUN_HINT;
+  } catch (error) {
+    if (isAlreadyExists(error)) {
+      return undefined;
+    }
+    throw error;
+  }
 }
 
 export function pickerLines(info: CleanWorktreePickerInfo): string[] {
@@ -113,4 +145,8 @@ export async function cleanWorktreePickerInfo(repoRoot: string, git: GitRunner =
     lastSubject: subject.trim() || "no commits",
     hasStagedChanges: staged.trim().length > 0
   };
+}
+
+function isAlreadyExists(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "EEXIST";
 }

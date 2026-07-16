@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import { parsePullRequestChoice, pickPullRequest, pullRequestPickerLines, truncateTitle } from "./github.js";
 
 const pullRequests = [
-  { number: 123, title: "Tighten onboarding copy", author: "hunar" },
+  { number: 123, title: "Tighten onboarding copy", author: "reviewer" },
   { number: 456, title: "Add a title that is deliberately long enough to need truncating in the compact picker", author: "sift-bot" }
 ];
 
 describe("pull request picker", () => {
   it("formats compact numbered rows", () => {
     expect(pullRequestPickerLines(pullRequests)).toEqual([
-      "  1  #123 · Tighten onboarding copy (hunar)",
+      "  1  #123 · Tighten onboarding copy (reviewer)",
       "  2  #456 · Add a title that is deliberately long enough to need trun... (sift-bot)"
     ]);
     expect(truncateTitle("x".repeat(61))).toHaveLength(60);

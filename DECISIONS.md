@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-07-17 - v1.0.0 Daily Driver public hygiene
+
+- The forward-visible tree is scrubbed in new commits only. Published Git history is deliberately not rewritten, force-pushed, or amended; the remaining historical traces are low-sensitivity and immutable by policy.
+- Health derives the canonical public repository references from `origin`, allowing those URLs and the legal copyright line in `NOTICE` while rejecting local checkout paths, personal handles elsewhere, and non-fixture email addresses.
+- Release placeholders are no longer accepted. Preflight now checks canonical README images directly, with `SKIP` reserved for an unavailable network.
+- The old Cowork review reports were generated evidence rather than project documentation, so they are removed and `qa/` is ignored.
+- The optional pre-push hook remains a v0.7 amendment: `sift setup` writes it only after an explicit human confirmation, marks exactly its own reversible block, backs up foreign hook content, and can remove only that block.
+- Shiki core and its JavaScript engine stay dynamically loaded. The health budget measures all initial JavaScript together (75.9 kB gzip in the v1.0.0 build) and rejects an initial Shiki runtime.
+
 ## 2026-07-09
 
 - Chose a hand-rolled unified diff parser instead of `parse-diff` so Sift can meet the exact parser edge cases in the v0.1 spec without adapting a third-party model.
@@ -223,17 +232,17 @@ pnpm sift -- init         # starter config/rules
 
 - npm name is `siftdiff` (confirmed available per the spec); the binary/command stays `sift` and the brand constant `PRODUCT_NAME` stays "Sift". Only `packages/cli` is published; `@sift-review/*` remain private and bundled by tsup `noExternal`.
 - Version reconciliation: `packages/cli/package.json` version is `0.5.0` and `SIFT_VERSION` was bumped `0.1.0 → 0.5.0` so `sift --version` matches the published artifact (test fixtures hardcode their own `siftVersion` strings, so nothing broke). The ship-prep meta-changes are logged under a CHANGELOG `[0.5.1]` heading even though the published package is `0.5.0`, because this pass changes packaging only and rides on the 0.5.0 tarball; the next runtime change would be the real 0.5.1.
-- `prepack` runs a single node script (`packages/cli/scripts/prepack.mjs`) that builds the bundle and stages `LICENSE` + `README.md`. It routes the child build's stdout to stderr so `scripts/pack-check.ts`, which parses `npm pack --json` stdout, sees clean JSON. README relative image embeds are rewritten to `raw.githubusercontent.com/PLACEHOLDER_OWNER/sift/main/...` and relative doc links to repo blob URLs, because npm renders the README outside the repo tree. Staged `LICENSE`/`README.md` are gitignored in the package.
+- `prepack` runs a single node script (`packages/cli/scripts/prepack.mjs`) that builds the bundle and stages `LICENSE` + `README.md`. It routes the child build's stdout to stderr so `scripts/pack-check.ts`, which parses `npm pack --json` stdout, sees clean JSON. README relative image embeds are rewritten to the canonical raw-GitHub URL and relative doc links to repository blob URLs, because npm renders the README outside the repo tree. Staged `LICENSE`/`README.md` are gitignored in the package.
 - `pack-check` now asserts the packed name is `siftdiff`, the tarball contains `LICENSE`/`README.md` and the five grammar wasm files, the installed manifest is not private and has no `workspace:` range or `@sift-review/*` dependency, and `dist/index.js` contains no runtime `@sift-review/*` require/import. It also prints the packed file list.
 - Packed tarball (`npm pack --json`): name `siftdiff`, version `0.5.0`, 345 files, ~15.6 MB unpacked. Grouped: `dist/index.js`, 14 `dist/*.d.ts(.map)` pairs, `dist/grammars/*` (5 wasm), `dist/web/**` (310 files — the Vite bundle incl. Shiki language chunks), `LICENSE`, `README.md`, `package.json`. No `@sift-review/*` or `workspace:` leaks (asserted).
 - `release.yml` is inert: it triggers only on `v*` tag push or manual dispatch, and the publish step is gated with `if: ${{ env.NPM_TOKEN != '' }}` — GitHub Actions forbids `secrets.*` in `if:`, so the secret is mapped to a job-level env var and the `if:` tests that. With no `NPM_TOKEN` secret configured, the publish step is skipped. `pages.yml` already triggers on the same `v*` tags, so one tag push both publishes and deploys the site; both stay inert on a private repo without Pages enabled.
 - Demo GIF (cut-line §4): **cut this pass.** `ffmpeg` is not available in this environment, so the specified mp4 + ≤3 MB gif (palettegen) pipeline cannot encode its deliverable. Playwright is present but the primary artifact is unreachable without ffmpeg, and driving a 15 s scripted flow blind to produce only a webm was not worth the risk. Per the cut-line protocol, the README continues to lead with `docs/screenshots/workbench-dark.png`; the human records the GIF manually (steps remain in RELEASING/site).
-- Only remaining intentional placeholder in the tree is `PLACEHOLDER_OWNER` (GitHub owner/org), used in `packages/cli/package.json`, `packages/cli/scripts/prepack.mjs`, `site/index.html`, and `SECURITY.md`'s advisory link context. Listed for the human to replace before publish.
+- Release metadata now uses the canonical public repository URL directly; release placeholders are rejected by preflight.
 
 ## 2026-07-12 — v0.5.2 preflight audit remediation
 
 - The claimed v0.5.1 package proof missed three release-facing details: the repository README still embedded relative screenshot paths, the packed CLI manifest retained internal `@sift-review/core` and `@sift-review/claude-adapter` development dependencies, and the root `build` script still filtered for the old `@sift-review/cli` name. The first breaks npm-hosted image rendering; the second violates the sealed-package boundary even though tsup bundles the code; the third made `pnpm build` silently omit the renamed CLI in a clean clone.
-- Screenshot embeds now use absolute raw-GitHub URLs (with the documented `PLACEHOLDER_OWNER` token), the internal workspace references live only at the private root for source builds, and the build target is `siftdiff`. The packed `siftdiff` manifest is free of `workspace:` and `@sift-review/*` references. `pnpm typecheck` and `pnpm pack-check` passed after the correction.
+- Screenshot embeds now use absolute raw-GitHub URLs, the internal workspace references live only at the private root for source builds, and the build target is `siftdiff`. The packed `siftdiff` manifest is free of `workspace:` and `@sift-review/*` references. `pnpm typecheck` and `pnpm pack-check` passed after the correction.
 
 ## 2026-07-12 — v0.5.2 Preflight
 
@@ -264,11 +273,11 @@ pnpm sift -- init         # starter config/rules
 - Both cut-line features shipped: `sift report --html` creates a static dependency-free report below 1.5 MB with no external URLs, and inspector rules copy a scoped `adjust` snippet without writing files. The optional regex search toggle is deliberately cut so search remains deterministic and unsurprising.
 - Directive carry-over is verified by the named cached reproduction: `pnpm eval --repo chi --sha 3b171578ca44dfd75ca3c5cbddc7b44c600a7b49` completed with 12 hunks and **0 violations**. `middleware/realip.go` fires one `LINT_SUPPRESSED` for `// Deprecated:`; the prior chi attention reclassification remains **7 → 6**. A full six-repository refresh was attempted but the evaluator could not fetch the pinned zod SHA because GitHub port 443 was unavailable; this is recorded as a network limitation, not an evaluator or invariant failure.
 
-## Backlog
+## Backlog disposition (v1.0.0)
 
-- Kept: the optional regex search toggle is a documented v0.6 cut; literal search is the shipped contract. TUI diff-wide search remains intentionally out of scope.
-- Kept: `TODO`/`FIXME` words in the historical changelog and the detector implementation describe Sift's review surface, not unfinished runtime work.
-- Kept: `TODO`/`FIXME` and `console.log` strings in core signal tests and eval fuzz inputs are deliberate fixture data. No production TODO/FIXME item required deletion or repair in this pass.
+- Deleted with reason: the optional regex search toggle remains intentionally unbuilt; literal search is the shipped contract and no actionable backlog item remains.
+- Deleted with reason: `TODO`/`FIXME` in historical documentation and detector descriptions describe review input, not unfinished product work.
+- Deleted with reason: `TODO`/`FIXME` and `console.log` fixture literals are test data, not a production backlog.
 
 ## 2026-07-13 — v0.6 final verification
 

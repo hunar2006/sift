@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 
@@ -34,8 +34,13 @@ const measured = await Promise.all(
   }))
 );
 const largest = measured.sort((left, right) => right.bytes - left.bytes)[0];
-if (!largest || largest.bytes >= 350 * 1024) {
-  throw new Error(`Initial JavaScript exceeds the 350 kB gzip budget (${largest?.asset ?? "no entry"}).`);
+const total = measured.reduce((sum, asset) => sum + asset.bytes, 0);
+const lazyShiki = (await readdir(path.join(dist, "assets"))).filter((asset) => /^(?:core|engine-javascript)-.+\.js$/u.test(asset));
+if (!largest || total >= 350 * 1024) {
+  throw new Error(`Initial JavaScript exceeds the 350 kB gzip budget (${(total / 1024).toFixed(1)} kB across ${initial.size} chunk(s)).`);
+}
+if (lazyShiki.length < 2 || lazyShiki.some((asset) => initial.has(`assets/${asset}`))) {
+  throw new Error("Shiki must remain in a non-initial lazy chunk.");
 }
 
-console.log(`bundle budget: largest initial JS ${largest.asset} is ${(largest.bytes / 1024).toFixed(1)} kB gzip`);
+console.log(`bundle budget: ${(total / 1024).toFixed(1)} kB gzip across ${initial.size} initial chunk(s); largest ${largest.asset} ${(largest.bytes / 1024).toFixed(1)} kB; lazy Shiki ${lazyShiki.join(", ")}`);

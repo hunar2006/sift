@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
+import { shortcutForPaletteAction } from "@sift-review/core/keymap";
 import type { JournalEntry, ReviewBrief, StatsSnapshot } from "@sift-review/core";
 import {
   approveGroup,
@@ -2349,7 +2350,10 @@ function buildCommandActions({
       run: () => selectHunk(firstHunk.id)
     });
   }
-  return actions;
+  return actions.map((action) => ({
+    ...action,
+    shortcut: action.shortcut ?? shortcutForPaletteAction(action.id)
+  }));
 }
 
 function findSearchHits(model: ReviewModel | undefined, query: string): SearchHit[] {

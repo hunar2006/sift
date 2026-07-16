@@ -35,12 +35,15 @@ import { renderReviewBrief, type ReviewBriefMode } from "./review-brief.js";
 import { runTui } from "./tui.js";
 import { acquireLock, releaseLock } from "./lock.js";
 import { initQuickstart, runInit } from "./init.js";
-import { commandHelp, ROOT_HELP } from "./help.js";
 import { pickPullRequest, pullRequestPickerLines } from "./github.js";
+import { doctorJson, inspectDoctor, renderDoctor } from "./doctor.js";
+import { runSetup } from "./setup.js";
 import {
   cleanWorktreePickerInfo,
   emptyReviewMessage,
   ensureLastHistory,
+  firstRunHint,
+  isBareSiftInvocation,
   isInteractiveTerminal,
   lastCount,
   lastRange,
@@ -49,8 +52,6 @@ import {
 } from "./onboarding.js";
 
 const program = new Command();
-
-program.helpInformation = () => ROOT_HELP;
 
 class WatchUsageError extends Error {}
 
@@ -73,6 +74,13 @@ program
   .option("--watch", "watch working-tree changes and stream review updates")
   .action(async (range: string | undefined, options: ReviewCommandOptions) => {
     assertWatchUsage(options.watch, range);
+    if (isBareSiftInvocation(process.argv)) {
+      const repoRoot = await discoverRepoRoot(process.cwd()).catch(() => undefined);
+      const hint = repoRoot ? await firstRunHint(repoRoot) : undefined;
+      if (hint) {
+        console.log(hint);
+      }
+    }
     const ai = parseAiOption(options.ai);
     const noAiCache = options.aiCache === false;
     let pipelineOptions = { cwd: process.cwd(), staged: options.staged, range, ai, noAiCache, coverage: options.coverage };
@@ -430,6 +438,23 @@ program
   });
 
 program
+  .command("doctor")
+  .description("Diagnose local Sift prerequisites without changing them")
+  .option("--json", "emit machine-readable output")
+  .action(async (options: JsonOption) => {
+    const report = await inspectDoctor({ cwd: process.cwd() });
+    console.log(options.json === true || process.argv.includes("--json") ? doctorJson(report) : renderDoctor(report));
+  });
+
+program
+  .command("setup")
+  .description("Interactively wire local hooks, gate, editor, and coverage")
+  .option("--remove", "remove setup-owned hooks, gate, and config values")
+  .action(async (options: { remove?: boolean }) => {
+    console.log((await runSetup(process.cwd(), { remove: options.remove })).join("\n"));
+  });
+
+program
   .command("tui")
   .argument("[range]", "git ref/range to diff against HEAD")
   .option("--staged", "review staged changes")
@@ -459,10 +484,6 @@ program
       printFrame: options.printFrame
     });
   });
-
-for (const command of program.commands) {
-  command.helpInformation = () => commandHelp(command.name());
-}
 
 program.parseAsync(process.argv).catch((error: unknown) => {
   if (error instanceof GitError || error instanceof WatchUsageError) {

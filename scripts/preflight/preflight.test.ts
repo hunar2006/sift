@@ -19,12 +19,12 @@ describe("preflight helpers", () => {
     expect(isAllowedPackedFile("dist/secret.txt")).toBe(false);
   });
 
-  it("reports unexpected placeholder tokens", async () => {
+  it("reports every release placeholder token", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "sift-placeholders-"));
     try {
-      await fs.writeFile(path.join(root, "ok.md"), "PLACEHOLDER_OWNER\n", "utf8");
-      await fs.writeFile(path.join(root, "bad.md"), "TBD\nPLACEHOLDER_SECRET\n", "utf8");
-      await expect(scanPlaceholders(root)).resolves.toEqual(["bad.md: PLACEHOLDER_SECRET", "bad.md: TBD"]);
+      await fs.writeFile(path.join(root, "ok.md"), "release notes\n", "utf8");
+      await fs.writeFile(path.join(root, "bad.md"), "TBD\nPLACEHOLDER_OWNER\nPLACEHOLDER_SECRET\n", "utf8");
+      await expect(scanPlaceholders(root)).resolves.toEqual(["bad.md: PLACEHOLDER_OWNER", "bad.md: PLACEHOLDER_SECRET", "bad.md: TBD"]);
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }

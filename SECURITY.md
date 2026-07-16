@@ -2,16 +2,16 @@
 
 ## Supported versions
 
-Sift is pre-1.0. Only the latest published version of `siftdiff` receives security fixes.
+Only the latest published 1.x version of `siftdiff` receives security fixes.
 
 | Version | Supported |
 |---|---|
-| latest | ✅ |
+| 1.x | ✅ |
 | older | ❌ |
 
 ## Reporting a vulnerability
 
-Please report suspected vulnerabilities privately through **GitHub Security Advisories**:
+Please report suspected vulnerabilities privately through [GitHub Security Advisories](https://github.com/hunar2006/sift/security/advisories/new):
 open the repository's **Security → Report a vulnerability** form. This keeps the report
 confidential until a fix is available. (No security email address is published for this
 project; use the advisory form.)

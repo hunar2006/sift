@@ -36,6 +36,21 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
     await expect(counter).not.toHaveText(before ?? "");
   });
 
+  test("BUG-16-flag-keeps-diff-focus-for-immediate-undo", async ({ page }) => {
+    await openWorkbench(page);
+    await page.locator(".hunk-row").filter({ hasNot: page.locator(".mini-stamp") }).first().click();
+    await focusDiff(page);
+    await page.keyboard.press("x");
+    const dialog = page.getByRole("dialog", { name: "Flag reason" });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("1");
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator(".diff")).toBeFocused();
+    await page.keyboard.press("z");
+    await expect(page.locator(".toast-stack")).toContainText("Undid");
+    await expect(page.locator(".hunk-row .mini-stamp.flagged")).toHaveCount(0);
+  });
+
   test("BUG-02-store-first-live-decision-selectors", async ({ page }) => {
     await openWorkbench(page);
     const row = page.locator(".hunk-row").filter({ hasNot: page.locator(".mini-stamp") }).first();

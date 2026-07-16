@@ -16,9 +16,6 @@ export default defineConfig({
           if (id.includes("@tanstack/react-virtual")) {
             return "virtualizer";
           }
-          if (id.includes("@shikijs/core") || id.includes("@shikijs/engine")) {
-            return "shiki-runtime";
-          }
           return undefined;
         }
       }

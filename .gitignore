@@ -2,6 +2,8 @@ node_modules
 dist
 dist-types
 coverage
+qa/
+test-results/
 .sift/
 .demo/
 .evalcache/

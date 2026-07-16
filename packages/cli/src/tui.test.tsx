@@ -90,6 +90,9 @@ describe("TUI", () => {
 
     expect(lastFrame()).toContain("Updates a constant");
     expect(lastFrame()).toContain("src/a.ts");
+    expect(lastFrame()).toContain("Shift+Z redo");
+    expect(lastFrame()).toContain("o editor");
+    expect(lastFrame()).not.toContain("o split");
 
     stdin.write("a");
     await vi.waitFor(() => {
@@ -150,5 +153,57 @@ describe("TUI", () => {
     await vi.waitFor(() => {
       expect(persistStatus).toHaveBeenCalledWith("h1", "flagged", "Security concern");
     });
+  });
+
+  it("renders a two-thousand-line patch and confirms the [y/N] revert path", async () => {
+    const session = new ReviewSession();
+    const large = hunk({
+      lines: Array.from({ length: 2_000 }, (_, index) => ({ kind: "add" as const, text: `export const line_${index} = ${index};`, newLine: index + 1 })),
+      addedLines: 2_000,
+      removedLines: 0
+    });
+    session.setModel({
+      meta: {
+        siftVersion: "1.0.0",
+        repoRoot: "/repo",
+        diffSpec: "WORKTREE",
+        generatedAt: new Date().toISOString(),
+        git: { headSha: "abc", branch: "main" },
+        astCoverage: 0
+      },
+      files: [],
+      hunks: [large],
+      groups: [{ id: "g1", title: "Attention", kind: "attention", order: 0, hunkIds: ["h1"], totalAdded: 2_000, totalRemoved: 0 }],
+      totals: { changedLines: 2_000, attentionLines: 2_000, reviewableLines: 2_000, files: 1 }
+    });
+    const performRevert = vi.fn(async () => {
+      await Promise.resolve();
+      return { id: "revert-1", path: "src/a.ts" };
+    });
+    const { lastFrame, stdin } = render(
+      React.createElement(TuiApp, {
+        session,
+        flagReasons: ["Needs tests"],
+        getRepoRoot: () => "/repo",
+        getModel: () => session.getState().model!,
+        persistStatus: async () => {
+          await Promise.resolve();
+        },
+        persistGroupApprove: async () => {
+          await Promise.resolve();
+        },
+        performRevert,
+        undoFileRevert: async () => {
+          await Promise.resolve();
+        },
+        onExit: () => undefined
+      })
+    );
+
+    expect(lastFrame()).toContain("export const line_199 = 199;");
+    stdin.write("R");
+    await vi.waitFor(() => expect(lastFrame()).toContain("snapshot kept [y/N]"));
+    stdin.write("y");
+    await vi.waitFor(() => expect(performRevert).toHaveBeenCalledWith(large));
   });
 });
