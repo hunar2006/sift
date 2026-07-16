@@ -7,6 +7,7 @@ export function isAllowedPackedFile(filePath: string): boolean {
   return (
     filePath === "package.json" ||
     filePath === "LICENSE" ||
+    filePath === "NOTICE" ||
     filePath === "README.md" ||
     filePath === "dist/index.js" ||
     /^dist\/[A-Za-z0-9-]+\.d\.ts(?:\.map)?$/u.test(filePath) ||

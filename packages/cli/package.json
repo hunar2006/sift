@@ -3,7 +3,7 @@
   "version": "0.9.0",
   "type": "module",
   "description": "Local-first review cockpit for AI-generated diffs — deterministic triage, provenance, and verification.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "homepage": "https://github.com/hunar2006/sift#readme",
   "repository": {
     "type": "git",
@@ -44,6 +44,7 @@
     "dist/grammars",
     "package.json",
     "LICENSE",
+    "NOTICE",
     "README.md"
   ],
   "publishConfig": {
@@ -51,7 +52,7 @@
     "provenance": true
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",

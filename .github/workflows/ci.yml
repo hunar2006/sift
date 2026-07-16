@@ -10,13 +10,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            node: 20
-          - os: ubuntu-latest
             node: 22
+          - os: ubuntu-latest
+            node: 24
           - os: macos-latest
-            node: 20
+            node: 22
           - os: windows-latest
-            node: 20
+            node: 22
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -35,13 +35,13 @@ jobs:
       - run: pnpm build
       - run: node scripts/smoke.mjs
       - run: pnpm perf
-        if: matrix.os == 'ubuntu-latest' && matrix.node == 20
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
         env:
           PERF_MULT: 2
       - run: pnpm pack-check
-        if: (matrix.os == 'ubuntu-latest' && matrix.node == 20) || matrix.os == 'windows-latest'
+        if: (matrix.os == 'ubuntu-latest' && matrix.node == 22) || matrix.os == 'windows-latest'
       - run: pnpm preflight --fast
-        if: (matrix.os == 'ubuntu-latest' && matrix.node == 20) || matrix.os == 'windows-latest'
+        if: (matrix.os == 'ubuntu-latest' && matrix.node == 22) || matrix.os == 'windows-latest'
 
   eval:
     runs-on: ubuntu-latest
@@ -54,7 +54,7 @@ jobs:
           version: 11.7.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm i --frozen-lockfile
       - run: pnpm --filter @sift-review/core build
@@ -82,7 +82,7 @@ jobs:
           version: 11.7.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm i --frozen-lockfile
       - run: pnpm exec playwright install chromium --with-deps

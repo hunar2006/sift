@@ -1,6 +1,6 @@
 // Runs during `prepack` (npm pack / npm publish) so a publish from this package
-// directory is self-sufficient: it builds the bundle and stages LICENSE +
-// README into the package. All build output is routed to stderr so callers that
+// directory is self-sufficient: it builds the bundle and stages LICENSE, NOTICE,
+// and README into the package. All build output is routed to stderr so callers that
 // parse `npm pack --json` stdout (e.g. scripts/pack-check.ts) see clean JSON.
 // Relative doc/image links in the README are rewritten to absolute GitHub URLs
 // because npm renders the README outside the repo tree.
@@ -26,6 +26,7 @@ if (build.status !== 0) {
 }
 
 await fs.copyFile(path.join(repoRoot, "LICENSE"), path.join(cliDir, "LICENSE"));
+await fs.copyFile(path.join(repoRoot, "NOTICE"), path.join(cliDir, "NOTICE"));
 
 let readme = await fs.readFile(path.join(repoRoot, "README.md"), "utf8");
 readme = readme.replace(
@@ -38,4 +39,4 @@ readme = readme.replace(
 );
 await fs.writeFile(path.join(cliDir, "README.md"), readme, "utf8");
 
-console.error("prepack: built bundle and staged LICENSE + README with absolute links.");
+console.error("prepack: built bundle and staged LICENSE, NOTICE, and README with absolute links.");

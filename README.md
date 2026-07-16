@@ -6,16 +6,15 @@ Sift orders repository diffs for review, with durable local decision history and
 
 ## Install
 
-Run:
+Sift is currently installed from source. You need Git and Node.js 22.13 or newer.
 
 ```bash
-npx siftdiff
-```
-
-Or install:
-
-```bash
-npm i -g siftdiff
+git clone https://github.com/hunar2006/sift.git
+cd sift
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+pnpm sift
 ```
 
 ## 60-second tour
@@ -205,4 +204,4 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for command-first fixes f
 
 ## License
 
-MIT.
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

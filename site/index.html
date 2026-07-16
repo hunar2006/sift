@@ -65,18 +65,18 @@
 
       <section id="install" class="install">
         <h2>Install</h2>
-        <p>The package is <code>siftdiff</code>; the command it installs is <code>sift</code>.</p>
-        <pre><code># run without installing
-npx siftdiff
-# or install globally
-npm i -g siftdiff &amp;&amp; sift
-# or from source
-pnpm i &amp;&amp; pnpm build &amp;&amp; pnpm sift</code></pre>
+        <p>GitHub-first release: install from source with Git, Node.js 22.13+, and Corepack.</p>
+        <pre><code>git clone https://github.com/hunar2006/sift.git
+cd sift
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+pnpm sift</code></pre>
       </section>
     </main>
 
     <footer>
-      <p>MIT · <a href="https://github.com/hunar2006/sift">GitHub (placeholder)</a></p>
+      <p>Apache-2.0 &middot; <a href="https://github.com/hunar2006/sift">GitHub</a></p>
     </footer>
   </body>
 </html>

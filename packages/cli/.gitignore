@@ -1,3 +1,4 @@
-# Staged into the package by scripts/prepack-docs.mjs at pack/publish time.
+# Staged into the package by scripts/prepack.mjs at pack/publish time.
 /LICENSE
+/NOTICE
 /README.md

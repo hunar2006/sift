@@ -20,6 +20,8 @@ The format follows Keep a Changelog, and this project uses semantic versioning o
 ### Changed
 
 - The CLI and surfaced Sift version are now `0.9.0`.
+- Source installs and CI now require Node.js 22.13 or newer, matching the pinned pnpm runtime.
+- The project is Apache-2.0 licensed; the distributable CLI now carries its required `NOTICE` file.
 
 ## [0.8.0] - Sightline (Unreleased)
 

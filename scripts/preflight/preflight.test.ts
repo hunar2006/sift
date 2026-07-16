@@ -14,6 +14,7 @@ describe("preflight helpers", () => {
     expect(isAllowedPackedFile("dist/index.js")).toBe(true);
     expect(isAllowedPackedFile("dist/web/assets/app.js")).toBe(true);
     expect(isAllowedPackedFile("dist/grammars/tree-sitter-typescript.wasm")).toBe(true);
+    expect(isAllowedPackedFile("NOTICE")).toBe(true);
     expect(isAllowedPackedFile("src/index.ts")).toBe(false);
     expect(isAllowedPackedFile("dist/secret.txt")).toBe(false);
   });

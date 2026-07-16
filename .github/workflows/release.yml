@@ -39,7 +39,7 @@ jobs:
           version: 11.7.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm i --frozen-lockfile
       - run: pnpm preflight --fast
@@ -59,7 +59,7 @@ jobs:
           version: 11.7.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
           registry-url: "https://registry.npmjs.org"
       - run: pnpm i --frozen-lockfile

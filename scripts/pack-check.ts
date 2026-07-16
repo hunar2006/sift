@@ -44,6 +44,7 @@ try {
     "dist/grammars/tree-sitter-python.wasm",
     "dist/grammars/tree-sitter-go.wasm",
     "LICENSE",
+    "NOTICE",
     "README.md"
   ]) {
     await fs.access(path.join(installedRoot, asset)).catch(() => {
