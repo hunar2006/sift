@@ -93,20 +93,25 @@ export async function startLiveWatcher(options: LiveWatcherOptions): Promise<Liv
     const result = await options.reanalyze();
     options.apply(result, modelUpdate(previous, result));
   }, options.onWarning);
-  const watcher = watch(options.repoRoot, { ignoreInitial: true, ignored, persistent: true });
-
-  watcher.add([gitIndex, gitHead]);
-  watcher.on("all", () => scheduler.request());
-  watcher.on("error", (error) => {
+  const worktreeWatcher = watch(options.repoRoot, { ignoreInitial: true, ignored, persistent: true });
+  // Watch Git metadata separately: chokidar will otherwise skip .git entirely
+  // after the worktree ignore predicate excludes it, notably on macOS.
+  const gitWatcher = watch([gitIndex, gitHead], { ignoreInitial: true, persistent: true });
+  const requestRefresh = () => scheduler.request();
+  const reportError = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     options.onWarning(`Watch error: ${message}`);
-  });
-  await watcherReady(watcher);
+  };
+  worktreeWatcher.on("all", requestRefresh);
+  worktreeWatcher.on("error", reportError);
+  gitWatcher.on("all", requestRefresh);
+  gitWatcher.on("error", reportError);
+  await Promise.all([watcherReady(worktreeWatcher), watcherReady(gitWatcher)]);
 
   return {
     async close() {
       scheduler.close();
-      await watcher.close();
+      await Promise.all([worktreeWatcher.close(), gitWatcher.close()]);
     }
   };
 }

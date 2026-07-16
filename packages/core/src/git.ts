@@ -38,6 +38,24 @@ export async function discoverRepoRoot(cwd: string): Promise<string> {
   if (!root) {
     throw new GitError("Not a git repository. Run sift inside a git checkout.\nTry: sift demo");
   }
+  return preserveCwdPathPrefix(cwd, root);
+}
+
+/**
+ * Git resolves macOS's /var symlink to /private/var. Keep the spelling the
+ * caller used so repo-relative paths and persisted workspace keys stay stable.
+ */
+async function preserveCwdPathPrefix(cwd: string, root: string): Promise<string> {
+  const resolvedCwd = path.resolve(cwd);
+  try {
+    const [realCwd, realRoot] = await Promise.all([fs.realpath(resolvedCwd), fs.realpath(root)]);
+    const upward = path.relative(realCwd, realRoot);
+    if (!upward || upward === "." || upward === ".." || upward.startsWith(`..${path.sep}`)) {
+      return path.resolve(resolvedCwd, upward);
+    }
+  } catch {
+    // Use Git's resolved path if the caller's path disappears during discovery.
+  }
   return path.resolve(root);
 }
 
