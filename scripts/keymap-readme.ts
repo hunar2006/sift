@@ -8,14 +8,15 @@ const readme = path.join(root, "README.md");
 const start = "<!-- keymap:start -->";
 const end = "<!-- keymap:end -->";
 
+const source = await fs.readFile(readme, "utf8");
+const newline = source.includes("\r\n") ? "\r\n" : "\n";
 const table = [
   start,
   "| Key | Action |",
   "|---|---|",
   ...keymapEntries("web").map((entry) => `| \`${entry.key}\` | ${entry.label} |`),
   end
-].join("\n");
-const source = await fs.readFile(readme, "utf8");
+].join(newline);
 const marker = new RegExp(`${escape(start)}[\\s\\S]*?${escape(end)}`, "u");
 if (!marker.test(source)) {
   throw new Error("README keymap markers are missing.");
