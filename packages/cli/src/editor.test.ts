@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ReviewModel } from "@sift-review/core";
-import { commandForSetting, EditorNotFoundError, openHunkInEditor, resolveEditor } from "./editor.js";
+import { commandForSetting, editorLaunchCommand, EditorNotFoundError, openHunkInEditor, resolveEditor } from "./editor.js";
 
 const tempRoots: string[] = [];
 
@@ -26,6 +26,17 @@ describe("editor jump", () => {
   it("rejects unsafe binaries and incomplete templates", () => {
     expect(() => commandForSetting("code;rm %f %l", "/repo/a.ts", 1)).toThrow("unsafe binary");
     expect(() => commandForSetting("subl %f", "/repo/a.ts", 1)).toThrow("must include %f and %l");
+  });
+
+  it("launches supported Windows editor shims through cmd without shelling custom editors", () => {
+    expect(editorLaunchCommand({ bin: "code", args: ["-g", "C:\\repo\\src\\app.ts:12"] }, "win32", "cmd.exe")).toEqual({
+      bin: "cmd.exe",
+      args: ["/d", "/s", "/c", "code", "-g", "C:\\repo\\src\\app.ts:12"]
+    });
+    expect(editorLaunchCommand({ bin: "subl", args: ["C:\\repo\\src\\app.ts:12"] }, "win32", "cmd.exe")).toEqual({
+      bin: "subl",
+      args: ["C:\\repo\\src\\app.ts:12"]
+    });
   });
 
   it("prefers configured editor settings and otherwise detects code before cursor", async () => {
@@ -54,6 +65,7 @@ describe("editor jump", () => {
     await fs.writeFile(path.join(repoRoot, ".sift", "config.json"), JSON.stringify({ editor: "code" }), "utf8");
     const calls: Array<{ bin: string; args: string[] }> = [];
     await openHunkInEditor(repoRoot, modelFor(repoRoot), "h1", {
+      platform: "linux",
       execute: (bin, args) => {
         calls.push({ bin, args });
         return Promise.resolve();

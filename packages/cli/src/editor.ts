@@ -15,6 +15,8 @@ export interface EditorCommand {
 
 export interface EditorDeps {
   env?: NodeJS.ProcessEnv;
+  platform?: NodeJS.Platform;
+  comspec?: string;
   exists?(filePath: string): Promise<boolean>;
   execute?(bin: string, args: string[]): Promise<void>;
 }
@@ -43,8 +45,17 @@ export async function openHunkInEditor(repoRoot: string, model: ReviewModel, hun
   if (!command) {
     throw new EditorNotFoundError();
   }
+  const launch = editorLaunchCommand(command, deps.platform ?? process.platform, deps.comspec ?? process.env.ComSpec ?? "cmd.exe");
   const execute = deps.execute ?? ((bin: string, args: string[]) => execFileAsync(bin, args, { windowsHide: true }).then(() => undefined));
-  await execute(command.bin, command.args);
+  await execute(launch.bin, launch.args);
+}
+
+/** Windows exposes the supported editor CLIs as .cmd shims, which execFile cannot launch directly. */
+export function editorLaunchCommand(command: EditorCommand, platform = process.platform, comspec = process.env.ComSpec ?? "cmd.exe"): EditorCommand {
+  if (platform === "win32" && KNOWN_EDITORS.has(command.bin)) {
+    return { bin: comspec, args: ["/d", "/s", "/c", command.bin, ...command.args] };
+  }
+  return command;
 }
 
 export async function resolveEditor(repoRoot: string, filePath: string, line: number, deps: EditorDeps = {}): Promise<EditorCommand | null> {

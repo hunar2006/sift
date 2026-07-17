@@ -494,7 +494,7 @@ export function App() {
       if (command.type === "open-editor" && selected) {
         void openHunkInEditor(selected.id)
           .then(() => setToast("Opened editor."))
-          .catch(() => setToast("Open failed."));
+          .catch((error: unknown) => setToast(editorError(error)));
       }
       if (command.type === "revert" && selected) {
         if (canRevert(meta?.diffSpec)) {
@@ -1142,7 +1142,7 @@ export function App() {
           onOpenEditor={(hunk) =>
             void openHunkInEditor(hunk.id)
               .then(() => setToast("Opened editor."))
-              .catch(() => setToast("Open failed."))
+              .catch((error: unknown) => setToast(editorError(error)))
           }
           onCopySuppression={(reason, hunk) =>
             void navigator.clipboard
@@ -1328,7 +1328,7 @@ export function App() {
           onOpenEditor={(hunk) =>
             void openHunkInEditor(hunk.id)
               .then(() => setToast("Opened editor."))
-              .catch(() => setToast("Open failed."))
+              .catch((error: unknown) => setToast(editorError(error)))
           }
           onOpenFile={(hunk) =>
             void fetchFile(hunk.file, "new")
@@ -1382,6 +1382,10 @@ function themeLabel(theme: "graphite" | "assay" | "paper"): string {
 function canRevert(diffSpec: string | undefined): boolean {
   const scope = diffSpec?.trim().toUpperCase();
   return scope === "WORKTREE" || scope === "STAGED";
+}
+
+function editorError(error: unknown): string {
+  return error instanceof Error ? error.message : "Editor could not be opened.";
 }
 
 function aiAnnotationsFor(hunk: ReviewHunk): NonNullable<ReviewHunk["aiAnnotations"]> {
