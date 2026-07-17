@@ -325,4 +325,4 @@ The separate v0.7 revert omission was structural: there was no snapshot-first mu
 
 ### Theme token delta
 
-- **Assay is intentionally not Graphite:** Assay uses `#0C0F14 / #12161C / #1A202A` with teal `#3BB8A2`, while Graphite retains `#1A1D21 / #20242A / #292E36` with mint `#4EC9B0`. The matching-hunk visual proof is generated as `docs/screenshots/assay-graphite.png`; Paper additionally uses a 16% green added-line wash and a dedicated AA `--copy-rule` outline.
+- **Assay is intentionally not Graphite:** Assay uses `#0A0E16 / #0F1420 / #161C2B` with teal `#3DD6B8`, while Graphite uses neutral `#101215 / #16191D / #1D2126` with mint `#2FBFA4`. The matching-hunk visual proof is generated as `docs/screenshots/graphite-vs-assay.png`; Paper keeps its 13% green added-line wash and AA-verified `--copy-rule` outline.

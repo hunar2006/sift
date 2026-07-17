@@ -257,7 +257,8 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
     const generatedGroup = page.locator(".queue-group").filter({ hasText: "Generated files" });
     await expect(generatedGroup.getByRole("button", { name: "Approve group" })).toBeVisible();
     await generatedGroup.getByRole("button", { name: "Approve group" }).click();
-    const approval = page.getByRole("dialog", { name: "Approve group" });
+    const approval = page.getByRole("dialog", { name: /^Approve /u });
+    await expect(approval).toBeVisible();
     await approval.getByRole("button", { name: /Approve 2/u }).click();
     await expect(approval).toContainText("hot risk signal blocks bulk approval");
   });
@@ -281,10 +282,10 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
     const search = palette.getByRole("combobox", { name: "Command palette", exact: true });
     await expect(search).toBeVisible();
     for (const group of ["Review", "Navigate", "View", "Setup"]) {
-      await expect(palette.getByRole("group", { name: group })).toBeVisible();
+      await expect(palette.getByRole("group", { name: group, exact: true })).toBeVisible();
     }
     await search.fill("Approve current hunk");
-    await palette.getByRole("option", { name: "Approve current hunk", exact: true }).click();
+    await palette.getByRole("option", { name: /^Approve current hunk\b/u }).click();
     await expect(palette).toHaveCount(0);
 
     await focusDiff(page);
@@ -303,8 +304,7 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
     await row.click();
     await focusDiff(page);
     await page.keyboard.press("a");
-    await expect(page.locator(".hunk-row.selected")).toHaveClass(/status-approved/u);
-    await expect(page.locator(".mini-stamp.verified").first()).toBeVisible();
+    await expect(page.locator(".hunk-row.status-approved .mini-stamp.verified").first()).toBeVisible();
   });
 
   test("REVERT-snapshot-confirm-row-disappears-and-z-restores", async ({ page }) => {

@@ -147,9 +147,9 @@ try {
     }
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator(".completion").waitFor({ state: "visible" });
-    // The completion figures deliberately enter in a short stagger; capture
-    // the settled state rather than a partly-entered intermediate frame.
-    await page.waitForTimeout(300);
+    // The completion figures deliberately enter in a stagger; wait through
+    // the final spring so documentation never captures an intermediate frame.
+    await page.waitForTimeout(900);
     await page.screenshot({ path: path.join(shotsDir, "completion.png") });
   } finally {
     await browser.close();

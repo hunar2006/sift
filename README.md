@@ -37,6 +37,10 @@ pnpm sift
 |---|---|
 | ![Dark workbench](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/workbench-dark.png) | ![Focus mode](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/focus.png) |
 
+| Graphite and Assay |
+|---|
+| ![Graphite and Assay comparison](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/graphite-vs-assay.png) |
+
 | Light workbench | Completion | Timeline |
 |---|---|---|
 | ![Light workbench](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/workbench-light.png) | ![Completion](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/completion.png) | ![Timeline](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/timeline.png) |

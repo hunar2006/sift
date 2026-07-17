@@ -165,8 +165,9 @@ export function GroupApprovePreview({
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onCancel()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="modal-backdrop">
-          <Dialog.Content className="modal group-preview" aria-describedby={undefined}>
+        <Dialog.Overlay className="modal-backdrop" />
+        <Dialog.Content className="dialog-content group-preview-dialog" aria-describedby={undefined}>
+          <section className="modal group-preview">
             <Dialog.Title asChild>
               <h2>Approve {group.title}</h2>
             </Dialog.Title>
@@ -196,8 +197,8 @@ export function GroupApprovePreview({
             </button>
           </Dialog.Close>
         </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
+          </section>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );
@@ -328,8 +329,9 @@ export function DecisionLogPanel({
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="overlay decision-log-overlay">
-          <Dialog.Content className="decision-log" aria-describedby={undefined}>
+        <Dialog.Overlay className="overlay" />
+        <Dialog.Content className="dialog-content decision-log-dialog" aria-describedby={undefined}>
+          <section className="decision-log">
         <div className="panel-heading">
             <Dialog.Title asChild>
               <h1>Recent decisions</h1>
@@ -356,8 +358,8 @@ export function DecisionLogPanel({
             ))}
           </ol>
           )}
-          </Dialog.Content>
-        </Dialog.Overlay>
+          </section>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );
