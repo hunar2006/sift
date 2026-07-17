@@ -2,7 +2,15 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { chromium, type Page } from "playwright";
+
+type Theme = "graphite" | "assay" | "paper";
+
+const THEME_LABEL: Record<Theme, string> = {
+  graphite: "Graphite",
+  assay: "Assay",
+  paper: "Paper"
+};
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const demoRoot = path.join(root, ".demo");
@@ -52,8 +60,7 @@ try {
     }).catch(() => undefined);
     await page.screenshot({ path: path.join(shotsDir, "workbench-dark.png") });
 
-    await page.locator('select[aria-label="Theme"]').selectOption("assay");
-    await page.locator('html[data-theme="assay"]').waitFor();
+    await selectTheme(page, "assay");
     await page.waitForTimeout(200);
     await page.screenshot({ path: path.join(shotsDir, "workbench-assay.png") });
 
@@ -65,7 +72,7 @@ try {
     ]);
     const comparison = await browser.newPage({ viewport: { width: 1440, height: 470 }, colorScheme: "dark" });
     await comparison.setContent(`<!doctype html><style>body{margin:0;background:#080a0d;color:#d9e0e8;font:14px system-ui;display:flex;gap:12px;padding:12px}.theme{width:50%}h1{font-size:14px;margin:0 0 8px}img{width:100%;display:block}</style><section class="theme"><h1>Graphite</h1><img src="data:image/png;base64,${graphite.toString("base64")}"></section><section class="theme"><h1>Assay</h1><img src="data:image/png;base64,${assay.toString("base64")}"></section>`);
-    await comparison.screenshot({ path: path.join(shotsDir, "assay-graphite.png") });
+    await comparison.screenshot({ path: path.join(shotsDir, "graphite-vs-assay.png") });
     await comparison.close();
 
     await page.keyboard.press("Control+F");
@@ -100,13 +107,11 @@ try {
       });
     }
 
-    await page.locator('select[aria-label="Theme"]').selectOption("paper");
-    await page.locator('html[data-theme="paper"]').waitFor();
+    await selectTheme(page, "paper");
     await page.waitForTimeout(200);
     await page.screenshot({ path: path.join(shotsDir, "workbench-light.png") });
 
-    await page.locator('select[aria-label="Theme"]').selectOption("graphite");
-    await page.locator('html[data-theme="graphite"]').waitFor();
+    await selectTheme(page, "graphite");
     await page.keyboard.press("f");
     await page.locator(".focus-card").waitFor({ state: "visible" });
     await page.screenshot({ path: path.join(shotsDir, "focus.png") });
@@ -142,6 +147,9 @@ try {
     }
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator(".completion").waitFor({ state: "visible" });
+    // The completion figures deliberately enter in a short stagger; capture
+    // the settled state rather than a partly-entered intermediate frame.
+    await page.waitForTimeout(300);
     await page.screenshot({ path: path.join(shotsDir, "completion.png") });
   } finally {
     await browser.close();
@@ -151,6 +159,12 @@ try {
 }
 
 console.log(`screenshots written to ${shotsDir}`);
+
+async function selectTheme(page: Page, theme: Theme): Promise<void> {
+  await page.getByRole("button", { name: "Theme", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: THEME_LABEL[theme], exact: true }).click();
+  await page.locator(`html[data-theme="${theme}"]`).waitFor();
+}
 
 function run(command: string, args: string[], cwd: string, env = process.env): Promise<void> {
   return new Promise((resolve, reject) => {

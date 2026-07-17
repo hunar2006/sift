@@ -45,22 +45,23 @@ const BODY_PAIRS: Array<[string, string]> = [
   ["--text-lo", "--ink-0"], ["--text-lo", "--ink-1"], ["--text-lo", "--ink-2"]
 ];
 
-const LARGE_PAIRS: Array<[string, string]> = [
-  ["--verdict", "--ink-0"], ["--verdict", "--ink-1"], ["--critical", "--ink-0"], ["--critical", "--ink-1"],
-  ["--high", "--ink-1"], ["--medium", "--ink-1"], ["--low", "--ink-1"], ["--green-text", "--ink-1"],
-  ["--high-text", "--ink-1"], ["--medium-text", "--ink-1"], ["--low-text", "--ink-1"], ["--skim-text", "--ink-1"]
+const ACCENT_PAIRS: Array<[string, string]> = [
+  ["--verdict", "--ink-0"], ["--verdict", "--ink-1"], ["--verdict", "--ink-2"],
+  ["--critical", "--ink-0"], ["--critical", "--ink-1"], ["--critical", "--ink-2"],
+  ["--high", "--ink-0"], ["--high", "--ink-1"], ["--high", "--ink-2"],
+  ["--medium", "--ink-0"], ["--medium", "--ink-1"], ["--medium", "--ink-2"],
+  ["--low", "--ink-0"], ["--low", "--ink-1"], ["--low", "--ink-2"]
 ];
 
 const CHIP_PAIRS: Array<[string, string]> = [
-  ["--critical", "--critical-chip-bg"], ["--high-text", "--high-chip-bg"], ["--medium-text", "--medium-chip-bg"],
-  ["--low-text", "--low-chip-bg"], ["--green-text", "--verdict-chip-bg"]
+  ["--critical-text", "--critical"], ["--critical", "--critical-chip-bg"], ["--high-text", "--high-chip-bg"],
+  ["--medium-text", "--medium-chip-bg"], ["--low-text", "--low-chip-bg"], ["--skim-text", "--low-chip-bg"],
+  ["--green-text", "--verdict-chip-bg"]
 ];
 
 const PAPER_SECONDARY_PAIRS: Array<[string, string]> = [
-  // SEC_PATH/reason metadata and line-match use --text-lo; copy-rule is the
-  // visible suppression-control outline on Paper's light surface.
-  ["--text-lo", "--ink-1"],
-  ["--copy-rule", "--ink-1"]
+  // The Copy-rule outline borders an ink-0 control on an ink-1 surface.
+  ["--copy-rule", "--ink-0"], ["--copy-rule", "--ink-1"]
 ];
 
 function check(theme: Record<string, string>, fg: string, bg: string): number {
@@ -75,7 +76,7 @@ describe.each([["graphite", graphite], ["assay", assay], ["paper", paper]])("con
   it.each(BODY_PAIRS)("body text %s on %s meets 4.5:1", (fg, bg) => {
     expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(4.5);
   });
-  it.each(LARGE_PAIRS)("large/accent text %s on %s meets 3:1", (fg, bg) => {
+  it.each(ACCENT_PAIRS)("accent text %s on %s meets 3:1", (fg, bg) => {
     expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(3);
   });
   if (_name === "paper") {
