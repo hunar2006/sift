@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
+type Theme = "graphite" | "assay" | "paper";
+
+const THEME_LABEL: Record<Theme, string> = {
+  graphite: "Graphite",
+  assay: "Assay",
+  paper: "Paper"
+};
+
 async function openWorkbench(page: Page): Promise<void> {
   await page.goto("/");
   await expect(page.locator(".hunk-row").first()).toBeVisible();
@@ -11,6 +19,20 @@ async function openWorkbench(page: Page): Promise<void> {
 
 async function focusDiff(page: Page): Promise<void> {
   await page.locator(".diff").focus();
+}
+
+async function selectTheme(page: Page, theme: Theme): Promise<void> {
+  await page.getByRole("button", { name: "Theme", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: THEME_LABEL[theme], exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+}
+
+function ledgerCounts(value: string | null): { reviewed: number; total: number } {
+  const match = /^(\d+) of (\d+) verdicts$/u.exec(value ?? "");
+  if (!match) {
+    throw new Error(`Unexpected verdict ledger label: ${value ?? "missing"}`);
+  }
+  return { reviewed: Number(match[1]), total: Number(match[2]) };
 }
 
 async function flagCurrent(page: Page): Promise<void> {
@@ -109,6 +131,30 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
     expect(tallySum).toBe(headerReviewed);
   });
 
+  test("ASSAY-verdict-rail-and-micro-ledger-fill-with-a-live-decision", async ({ page }) => {
+    await openWorkbench(page);
+    const unreviewed = page.locator(".hunk-row").filter({ hasNot: page.locator(".mini-stamp") }).first();
+    await expect(unreviewed).toBeVisible();
+    await expect(unreviewed).toHaveClass(/status-unreviewed/u);
+    await expect(unreviewed.locator(".verdict-rail")).toBeVisible();
+    const digest = await unreviewed.locator(".hunk-row-digest").innerText();
+    const actedOn = page.locator(".hunk-row").filter({ hasText: digest });
+    await expect(actedOn).toHaveCount(1);
+    const group = page.locator(".queue-group").filter({ has: actedOn });
+    await expect(group).toHaveCount(1);
+    const ledger = group.locator(".group-ledger");
+    const before = ledgerCounts(await ledger.getAttribute("aria-label"));
+    expect(await ledger.locator(".ledger-tick").count()).toBe(before.total);
+
+    await unreviewed.click();
+    await page.locator(".review-pinned").getByRole("button", { name: /Approve$/u }).click();
+
+    await expect(actedOn).toHaveClass(/status-approved/u);
+    await expect(actedOn.locator(".verdict-rail-fill")).toBeVisible();
+    await expect(ledger).toHaveAttribute("aria-label", `${before.reviewed + 1} of ${before.total} verdicts`);
+    await expect(ledger.locator(".ledger-tick.approved").first()).toBeVisible();
+  });
+
   test("BUG-06-overlay-stack-audit-repro", async ({ page }) => {
     await openWorkbench(page);
     await focusDiff(page);
@@ -173,8 +219,8 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
     const code = page.locator(".diff-line code").first();
     await expect(code).toBeVisible();
     await expect.poll(async () => page.locator(".diff-line code span").count()).toBeGreaterThan(0);
-    for (const theme of ["graphite", "assay", "paper"]) {
-      await page.locator('select[aria-label="Theme"]').selectOption(theme);
+    for (const theme of ["graphite", "assay", "paper"] as const) {
+      await selectTheme(page, theme);
       const baseColour = await code.evaluate((element) => getComputedStyle(element).color);
       const tokenColours = await page.locator(".diff-line code span").evaluateAll((elements) => elements.map((element) => getComputedStyle(element).color));
       expect(tokenColours.some((colour) => colour !== baseColour)).toBeTruthy();
@@ -219,11 +265,46 @@ test.describe.serial("Ground Truth DOM dogfood", () => {
   test("BUG-15-theme-dropdown-and-honest-keymap", async ({ page }) => {
     await openWorkbench(page);
     const html = page.locator("html");
-    for (const theme of ["graphite", "assay", "paper"]) {
-      await page.locator('select[aria-label="Theme"]').selectOption(theme);
+    for (const theme of ["graphite", "assay", "paper"] as const) {
+      await selectTheme(page, theme);
       await expect(html).toHaveAttribute("data-theme", theme);
     }
-    await page.locator('select[aria-label="Theme"]').selectOption("graphite");
+    await selectTheme(page, "graphite");
+  });
+
+  test("ASSAY-cmdk-exposes-groups-and-recent-commands-through-the-dialog", async ({ page }) => {
+    await openWorkbench(page);
+    await focusDiff(page);
+    await page.keyboard.press("Control+k");
+    const palette = page.getByRole("dialog", { name: "Command palette" });
+    await expect(palette).toBeVisible();
+    const search = palette.getByRole("combobox", { name: "Command palette", exact: true });
+    await expect(search).toBeVisible();
+    for (const group of ["Review", "Navigate", "View", "Setup"]) {
+      await expect(palette.getByRole("group", { name: group })).toBeVisible();
+    }
+    await search.fill("Approve current hunk");
+    await palette.getByRole("option", { name: "Approve current hunk", exact: true }).click();
+    await expect(palette).toHaveCount(0);
+
+    await focusDiff(page);
+    await page.keyboard.press("Control+k");
+    const reopened = page.getByRole("dialog", { name: "Command palette" });
+    await expect(reopened.getByRole("group", { name: "Recent commands" })).toContainText("Approve current hunk");
+    await page.keyboard.press("Escape");
+  });
+
+  test("ASSAY-reduced-motion-preserves-an-immediate-verdict-state", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openWorkbench(page);
+    await expect.poll(() => page.evaluate(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+    const row = page.locator(".hunk-row").filter({ hasNot: page.locator(".mini-stamp") }).first();
+    await expect(row).toHaveClass(/status-unreviewed/u);
+    await row.click();
+    await focusDiff(page);
+    await page.keyboard.press("a");
+    await expect(page.locator(".hunk-row.selected")).toHaveClass(/status-approved/u);
+    await expect(page.locator(".mini-stamp.verified").first()).toBeVisible();
   });
 
   test("REVERT-snapshot-confirm-row-disappears-and-z-restores", async ({ page }) => {

@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { Command } from "cmdk";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { shortcutForPaletteAction } from "@sift-review/core/keymap";
 import type { JournalEntry, ReviewBrief, StatsSnapshot } from "@sift-review/core";
 import {
@@ -33,7 +38,8 @@ import type { ApiMeta, ProvenanceTimelineSession, ReviewHunk, ReviewModel } from
 import { highlightDiffLines } from "./highlight.js";
 import { suppressionRuleFor } from "./suppression-rule.js";
 import { FIRST_RUN_OVERLAY_STEPS, HELP_OVERLAY_LINES } from "./copy.js";
-import { captureFocus, focusDiffPane, focusElement, focusFirst, focusNote, isTextEntryTarget, restoreFocus, trapFocus } from "./focus.js";
+import { captureFocus, focusDiffPane, focusElement, focusNote, isTextEntryTarget, restoreFocus } from "./focus.js";
+import { motionTransition, SPRING } from "./motion.js";
 import "./styles.css";
 
 interface CommandAction {
@@ -50,6 +56,7 @@ interface SearchHit {
 }
 
 export function App() {
+  const reducedMotion = useReducedMotion();
   const {
     model,
     stats,
@@ -122,6 +129,9 @@ export function App() {
   const [toastStack, setToastStack] = useState<string[]>([]);
   const [decisionToast, setDecisionToast] = useState<{ message: string; target: string } | null>(null);
   const [decisionLogOpen, setDecisionLogOpen] = useState(false);
+  const [recentCommandIds, setRecentCommandIds] = useState<string[]>([]);
+  const [watchPulse, setWatchPulse] = useState(0);
+  const [revertingHunkIds, setRevertingHunkIds] = useState<Set<string>>(() => new Set());
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [pulseHunkId, setPulseHunkId] = useState<string | null>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -372,24 +382,14 @@ export function App() {
     const onKey = (event: KeyboardEvent) => {
       const isInput = isTextEntryTarget(event.target);
       const isPaletteToggle = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
-      if (event.key === "Escape") {
-        const close =
-          (revertDialog && (() => setRevertDialog(null))) ||
-          (groupPreview && (() => setGroupPreview(null))) ||
-          (flagPickerFor && (() => setFlagPickerFor(null))) ||
-          (fileModal && (() => setFileModal(null))) ||
-          (searchOpen && closeSearch) ||
-          (decisionLogOpen && (() => setDecisionLogOpen(false))) ||
-          (timelineOpen && (() => setTimelineOpen(false))) ||
-          (statsOpen && (() => setStatsOpen(false))) ||
-          (paletteOpen && (() => setPaletteOpen(false))) ||
-          (helpOpen && (() => setHelp(false))) ||
-          (focusMode && (() => setFocusMode(false)));
-        if (close) {
-          event.preventDefault();
-          close();
-          return;
-        }
+      // Radix owns escape, focus trapping, and restore-on-close for every
+      // modal surface. The diff search is intentionally inline rather than a
+      // modal, so it is the only overlay closed here.
+      if (event.defaultPrevented) return;
+      if (event.key === "Escape" && searchOpen) {
+        event.preventDefault();
+        closeSearch();
+        return;
       }
       if (searchOpen) {
         return;
@@ -397,8 +397,8 @@ export function App() {
       if (isInput && event.key !== "Escape" && !isPaletteToggle && !((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f")) {
         return;
       }
-      // A single topmost overlay owns keys. This prevents an inert palette or
-      // commands leaking through focus mode into the workbench underneath.
+      // A visible Radix layer owns keys; this only prevents workbench
+      // shortcuts from leaking into it.
       if (flagPickerFor || groupPreview || revertDialog || fileModal || decisionLogOpen || timelineOpen || statsOpen || paletteOpen || helpOpen || focusMode) {
         return;
       }
@@ -543,6 +543,7 @@ export function App() {
       const fresh = await refreshReview();
       const [nextStats, nextMeta] = await Promise.all([fetchStats(), fetchMeta()]);
       setData(fresh, nextStats, nextMeta);
+      setWatchPulse((value) => value + 1);
       setToast(`Refreshed — ${fresh.hunks.length} hunks`);
       if (timelineOpen) {
         setTimeline(await fetchTimeline());
@@ -703,9 +704,13 @@ export function App() {
         }
       ]);
       setRevertDialog(null);
+      setRevertingHunkIds(new Set(result.hunkIds.length > 0 ? result.hunkIds : [hunk.id]));
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 180));
       await refresh();
+      setRevertingHunkIds(new Set());
       setToast(`Reverted ${result.path} — Z to undo`);
     } catch (error) {
+      setRevertingHunkIds(new Set());
       setToast(error instanceof Error ? error.message : "Revert failed.");
     }
   }
@@ -806,6 +811,16 @@ export function App() {
   const decisionProgress = deriveDecisionProgress(model);
   const reviewedHunkCount = decisionProgress.reviewed;
   const reviewedPct = decisionProgress.total === 0 ? 100 : (reviewedHunkCount / decisionProgress.total) * 100;
+  const groupBoundaryPercents = (() => {
+    if (decisionProgress.total === 0) {
+      return [];
+    }
+    let reviewedSpace = 0;
+    return model.groups.slice(0, -1).flatMap((group) => {
+      reviewedSpace += group.hunkIds.length;
+      return reviewedSpace < decisionProgress.total ? [(reviewedSpace / decisionProgress.total) * 100] : [];
+    });
+  })();
   const attentionGroupIds = new Set(
     model.groups.filter((group) => group.kind === "attention").map((group) => group.id)
   );
@@ -904,14 +919,26 @@ export function App() {
             </button>
           )}
           <div className="hud-actions">
-            <label className="theme-picker">
-              <span className="sr-only">Theme</span>
-              <select aria-label="Theme" value={theme} onChange={(event) => setTheme(event.target.value as typeof theme)}>
-                <option value="graphite">Graphite</option>
-                <option value="assay">Assay</option>
-                <option value="paper">Paper</option>
-              </select>
-            </label>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="ghost theme-trigger" aria-label="Theme">
+                  Theme · {themeLabel(theme)}
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="theme-menu" align="end" sideOffset={8}>
+                  <DropdownMenu.Label>Room</DropdownMenu.Label>
+                  <DropdownMenu.RadioGroup value={theme} onValueChange={(value) => setTheme(value as typeof theme)}>
+                    {(["graphite", "assay", "paper"] as const).map((option) => (
+                      <DropdownMenu.RadioItem key={option} value={option} className="theme-menu-item">
+                        <DropdownMenu.ItemIndicator>✓</DropdownMenu.ItemIndicator>
+                        {themeLabel(option)}
+                      </DropdownMenu.RadioItem>
+                    ))}
+                  </DropdownMenu.RadioGroup>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
             <button
               className="ghost"
               onClick={() => {
@@ -935,13 +962,29 @@ export function App() {
             </button>
           </div>
         </div>
-        <div
+        <div className="hud-progress-ticks" aria-hidden="true">
+          {groupBoundaryPercents.map((left) => (
+            <span key={left} className="hud-progress-tick" style={{ left: `${left}%` }} />
+          ))}
+        </div>
+        <motion.div
           className="hud-progress-fill"
-          style={{ width: `${Math.min(100, Math.max(0, reviewedPct))}%` }}
+          initial={false}
+          animate={{ width: `${Math.min(100, Math.max(0, reviewedPct))}%` }}
+          transition={motionTransition(reducedMotion, SPRING.glide)}
           aria-label={`${reviewedPct.toFixed(0)}% reviewed`}
         >
-          {meta.watchActive && <span className="live-dot" aria-label="Watch mode active" />}
-        </div>
+          {meta.watchActive && (
+            <motion.span
+              key={watchPulse}
+              className="live-dot"
+              aria-label="Watch mode active"
+              initial={reducedMotion ? false : { opacity: 0.45, scale: 0.72 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={motionTransition(reducedMotion, SPRING.snap)}
+            />
+          )}
+        </motion.div>
       </header>
 
       {brief && <Briefing brief={brief} diffKey={`${meta.diffSpec}:${model.meta.git.headSha}`} />}
@@ -989,6 +1032,14 @@ export function App() {
                   <span className="group-title">
                     {group.title} · {reviewed}/{group.hunkIds.length}
                   </span>
+                  <span className="group-ledger" aria-label={`${reviewed} of ${group.hunkIds.length} verdicts`}>
+                    {model.hunks
+                      .filter((hunk) => hunk.groupId === group.id)
+                      .map((hunk) => {
+                        const displayStatus = revertingHunkIds.has(hunk.id) ? "reverted" : hunk.status;
+                        return <span key={hunk.id} className={`ledger-tick ${displayStatus}`} aria-hidden="true" />;
+                      })}
+                  </span>
                 </button>
                 {group.kind === "skim" && (
                   <div className="skim-summary">
@@ -1010,14 +1061,24 @@ export function App() {
                     .filter((hunk) => !filter || hunk.file.toLowerCase().includes(filter.toLowerCase()))
                     .map((hunk, index) => {
                       const band = visualBand(hunk);
+                      const displayStatus = revertingHunkIds.has(hunk.id) ? "reverted" : hunk.status;
                       const firstForFile = groupHunks.findIndex((candidate) => candidate.file === hunk.file) === index;
                       return (
-                        <button
+                        <motion.button
+                          layout="position"
+                          transition={motionTransition(reducedMotion, SPRING.glide)}
                           key={hunk.id}
-                          className={`hunk-row ${band} ${firstForFile ? "file-first" : "same-file"} ${selected?.id === hunk.id ? "selected" : ""}`}
+                          className={`hunk-row ${band} status-${displayStatus} ${firstForFile ? "file-first" : "same-file"} ${selected?.id === hunk.id ? "selected" : ""}`}
                           onClick={() => setSelected(hunk.id)}
                         >
-                          <span className={`risk-spine ${band}`} aria-hidden="true" />
+                          <span className={`verdict-rail ${band}`} aria-hidden="true">
+                            <motion.span
+                              className="verdict-rail-fill"
+                              initial={false}
+                              animate={{ scaleY: displayStatus === "unreviewed" || displayStatus === "reverted" ? 0 : 1 }}
+                              transition={motionTransition(reducedMotion, SPRING.snap)}
+                            />
+                          </span>
                           <span className="hunk-row-body">
                             <span className="hunk-row-top">
                               {firstForFile ? (
@@ -1040,7 +1101,7 @@ export function App() {
                             {band === "critical" && <span className="crit-tag">CRIT</span>}
                             <span className={`risk ${band}`}>{hunk.risk}</span>
                           </span>
-                        </button>
+                        </motion.button>
                       );
                     })}
               </div>
@@ -1089,6 +1150,16 @@ export function App() {
               .then(() => setToast("Copied rule - paste into .sift/rules.yml"))
               .catch(() => setToast("Copy failed."))
           }
+          flagOpen={Boolean(selected && flagPickerFor === selected.id && !focusMode)}
+          flagReasons={meta.flagReasons}
+          onOpenFlag={() => selected && setFlagPickerFor(selected.id)}
+          onPickFlag={(note) => {
+            if (selected) {
+              setFlagPickerFor(null);
+              void updateStatus(selected, "flagged", note.length > 0 ? note : selected.note);
+            }
+          }}
+          onCancelFlag={() => setFlagPickerFor(null)}
            onStatus={(status, note) => selected && void updateStatus(selected, status, note)}
            onUndo={() => void performUndo()}
            onRevert={(hunk) => {
@@ -1105,23 +1176,30 @@ export function App() {
       {shortcutsHint && <div className="shortcuts-hint">? shortcuts</div>}
       {toastStack.length > 0 && (
         <div className="toast-stack" aria-live="polite" aria-label="Notifications">
-          {toastStack.map((message) => (
-            <button
-              className="toast"
-              key={message}
-              onMouseEnter={() => {
-                const timer = toastTimers.current.get(message);
-                if (timer !== undefined) {
-                  window.clearTimeout(timer);
-                  toastTimers.current.delete(message);
-                }
-              }}
-              onMouseLeave={() => scheduleToastDismiss(message)}
-              onClick={() => dismissToast(message)}
-            >
-              {message}
-            </button>
-          ))}
+          <AnimatePresence initial={!reducedMotion}>
+            {toastStack.map((message) => (
+              <motion.button
+                className="toast"
+                key={message}
+                layout
+                initial={reducedMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.98 }}
+                transition={motionTransition(reducedMotion, SPRING.settle)}
+                onMouseEnter={() => {
+                  const timer = toastTimers.current.get(message);
+                  if (timer !== undefined) {
+                    window.clearTimeout(timer);
+                    toastTimers.current.delete(message);
+                  }
+                }}
+                onMouseLeave={() => scheduleToastDismiss(message)}
+                onClick={() => dismissToast(message)}
+              >
+                {message}
+              </motion.button>
+            ))}
+          </AnimatePresence>
         </div>
       )}
       {Object.keys(unsaved).length > 0 && (
@@ -1130,23 +1208,29 @@ export function App() {
           <button onClick={() => void retryUnsaved()}>Retry</button>
         </div>
       )}
-      {decisionToast && (
-        <div
-          className="decision-toast"
-          aria-live="polite"
-          onMouseEnter={() => {
-            if (decisionToastTimer.current !== undefined) {
-              window.clearTimeout(decisionToastTimer.current);
-              decisionToastTimer.current = undefined;
-            }
-          }}
-          onMouseLeave={scheduleDecisionToastDismiss}
-        >
-          <span>{decisionToast.message}</span>
-          <button onClick={() => void performUndo()}>Undo</button>
-          <button aria-label="Dismiss decision notice" onClick={dismissDecisionToast}>×</button>
-        </div>
-      )}
+      <AnimatePresence initial={!reducedMotion}>
+        {decisionToast && (
+          <motion.div
+            className="decision-toast"
+            aria-live="polite"
+            initial={reducedMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
+            transition={motionTransition(reducedMotion, SPRING.settle)}
+            onMouseEnter={() => {
+              if (decisionToastTimer.current !== undefined) {
+                window.clearTimeout(decisionToastTimer.current);
+                decisionToastTimer.current = undefined;
+              }
+            }}
+            onMouseLeave={scheduleDecisionToastDismiss}
+          >
+            <span>{decisionToast.message}</span>
+            <button onClick={() => void performUndo()}>Undo</button>
+            <button aria-label="Dismiss decision notice" onClick={dismissDecisionToast}>×</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {searchOpen && (
         <div className="diff-search" role="dialog" aria-label="Search diff">
           <input
@@ -1171,7 +1255,14 @@ export function App() {
           <button aria-label="Close search" onClick={closeSearch}>Esc</button>
         </div>
       )}
-      {paletteOpen && <CommandPalette actions={actions} onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && (
+        <CommandPalette
+          actions={actions}
+          recentIds={recentCommandIds}
+          onClose={() => setPaletteOpen(false)}
+          onExecute={(action) => setRecentCommandIds((ids) => [action.id, ...ids.filter((id) => id !== action.id)].slice(0, 5))}
+        />
+      )}
       {timelineOpen && (
         <TimelinePanel
           sessions={timeline}
@@ -1190,19 +1281,6 @@ export function App() {
       )}
       {helpOpen && <HelpOverlay tour={helpTour} onClose={() => setHelp(false)} />}
       {fileModal && <FileModal modal={fileModal} onClose={() => setFileModal(null)} />}
-      {flagPickerFor && (
-        <QuickFlagPicker
-          reasons={meta.flagReasons}
-          onPick={(note) => {
-            const target = model.hunks.find((hunk) => hunk.id === flagPickerFor);
-            setFlagPickerFor(null);
-            if (target) {
-              void updateStatus(target, "flagged", note.length > 0 ? note : target.note);
-            }
-          }}
-          onCancel={() => setFlagPickerFor(null)}
-        />
-      )}
       {groupPreview &&
         (() => {
           const group = model.groups.find((candidate) => candidate.id === groupPreview.groupId);
@@ -1220,14 +1298,22 @@ export function App() {
           );
          })()}
       {revertDialog && <RevertConfirm hunk={revertDialog} onConfirm={() => void confirmRevert(revertDialog)} onCancel={() => setRevertDialog(null)} />}
-      {focusMode && focusHunk && (
-        <FocusMode
+      <AnimatePresence initial={false}>
+        {focusMode && focusHunk && (
+          <FocusMode
           hunk={focusHunk}
           index={focusIndex}
           total={focusHunks.length}
           split={split}
           onApprove={() => void updateStatus(focusHunk, "approved")}
           onFlag={() => setFlagPickerFor(focusHunk.id)}
+          flagOpen={flagPickerFor === focusHunk.id}
+          flagReasons={meta.flagReasons}
+          onPickFlag={(note) => {
+            setFlagPickerFor(null);
+            void updateStatus(focusHunk, "flagged", note.length > 0 ? note : focusHunk.note);
+          }}
+          onCancelFlag={() => setFlagPickerFor(null)}
           onSkip={() => setSelected(nextUnreviewedAfter(focusHunks, focusHunk.id))}
           onUndo={() => void performUndo()}
           onRevert={(hunk) => {
@@ -1249,8 +1335,9 @@ export function App() {
               .then((text) => setFileModal({ path: hunk.file, text }))
               .catch(() => setToast("Open failed."))
           }
-        />
-      )}
+          />
+        )}
+      </AnimatePresence>
       {stamp && (
         <div className="stamp-overlay" aria-hidden="true">
           <Stamp kind={stamp} />
@@ -1286,6 +1373,10 @@ export function App() {
 
 function sortLabel(mode: "risk" | "reading" | "path"): string {
   return mode === "risk" ? "Risk" : mode === "reading" ? "Reading" : "Path";
+}
+
+function themeLabel(theme: "graphite" | "assay" | "paper"): string {
+  return theme === "graphite" ? "Graphite" : theme === "assay" ? "Assay" : "Paper";
 }
 
 function canRevert(diffSpec: string | undefined): boolean {
@@ -1492,10 +1583,18 @@ export function Logomark({ size = 20 }: { size?: number }) {
 }
 
 export function Stamp({ kind }: { kind: "verified" | "flagged" }) {
+  const reducedMotion = useReducedMotion();
   return (
-    <span className={`stamp stamp-${kind}`} role="img" aria-label={kind === "verified" ? "Verified" : "Flagged"}>
+    <motion.span
+      className={`stamp stamp-${kind}`}
+      role="img"
+      aria-label={kind === "verified" ? "Verified" : "Flagged"}
+      initial={reducedMotion ? false : { opacity: 0, scale: 0.8, rotate: -6 }}
+      animate={{ opacity: 1, scale: 1, rotate: -6 }}
+      transition={motionTransition(reducedMotion, SPRING.snap)}
+    >
       {kind === "verified" ? "VERIFIED" : "FLAGGED"}
-    </span>
+    </motion.span>
   );
 }
 
@@ -1566,6 +1665,10 @@ function FocusMode({
   split,
   onApprove,
   onFlag,
+  flagOpen,
+  flagReasons,
+  onPickFlag,
+  onCancelFlag,
   onSkip,
   onUndo,
   onRevert,
@@ -1580,6 +1683,10 @@ function FocusMode({
   split: boolean;
   onApprove(): void;
   onFlag(): void;
+  flagOpen: boolean;
+  flagReasons?: string[];
+  onPickFlag(note: string): void;
+  onCancelFlag(): void;
   onSkip(): void;
   onUndo(): void;
   onRevert(hunk: ReviewHunk): void;
@@ -1588,6 +1695,7 @@ function FocusMode({
   onOpenEditor(hunk: ReviewHunk): void;
   onOpenFile(hunk: ReviewHunk): void;
 }) {
+  const reducedMotion = useReducedMotion();
   const primaryReasons = hunk.reasons.filter((reason) => reason.tier !== "nit");
   const band = visualBand(hunk);
   useEffect(() => {
@@ -1601,8 +1709,14 @@ function FocusMode({
     return () => window.removeEventListener("keydown", onKey);
   }, [hunk, onRevert]);
   return (
-    <ModalOverlay className="focus-backdrop" label="Focus mode">
-      <article className="focus-card">
+    <InstrumentDialog className="focus-backdrop" label="Focus mode" onClose={onExit}>
+      <motion.article
+        className="focus-card"
+        initial={reducedMotion ? false : { opacity: 0, x: 16, rotate: 2 }}
+        animate={{ opacity: 1, x: 0, rotate: 0 }}
+        exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: 16, rotate: 2 }}
+        transition={motionTransition(reducedMotion, SPRING.settle)}
+      >
         <header className="focus-head">
           <span className="focus-crumb">{hunk.file}</span>
           <span className={`focus-band ${band}`}>{bandLabel(band)}</span>
@@ -1648,9 +1762,17 @@ function FocusMode({
           <button className="primary" onClick={onApprove}>
             <span className="keycap">a</span> Approve
           </button>
-          <button className="danger" onClick={onFlag}>
-            <span className="keycap">x</span> Flag
-          </button>
+          <QuickFlagPicker
+            open={flagOpen}
+            reasons={flagReasons}
+            onPick={onPickFlag}
+            onCancel={onCancelFlag}
+            trigger={
+              <button className="danger" onClick={onFlag}>
+                <span className="keycap">x</span> Flag
+              </button>
+            }
+          />
           <button className="ghost" onClick={onSkip}>
             <span className="keycap">j</span> Skip
           </button>
@@ -1664,8 +1786,8 @@ function FocusMode({
             <span className="keycap">e</span> Open in editor
           </button>
         </div>
-      </article>
-    </ModalOverlay>
+      </motion.article>
+    </InstrumentDialog>
   );
 }
 
@@ -1727,6 +1849,11 @@ function Inspector({
   onToggleNits,
   onOpenEditor,
   onCopySuppression,
+  flagOpen,
+  flagReasons,
+  onOpenFlag,
+  onPickFlag,
+  onCancelFlag,
   onStatus,
   onUndo,
   onRevert,
@@ -1740,6 +1867,11 @@ function Inspector({
   onToggleNits(): void;
   onOpenEditor(hunk: ReviewHunk): void;
   onCopySuppression(reason: ReviewHunk["reasons"][number], hunk: ReviewHunk): void;
+  flagOpen: boolean;
+  flagReasons?: string[];
+  onOpenFlag(): void;
+  onPickFlag(note: string): void;
+  onCancelFlag(): void;
   onStatus(status: ReviewHunk["status"], note?: string): void;
   onUndo(): void;
   onRevert(hunk: ReviewHunk): void;
@@ -1770,16 +1902,24 @@ function Inspector({
       <section className="review-pinned" aria-label="Review actions">
         <div className="review-actions">
           <button className="primary" onClick={() => onStatus("approved", note)}>
-            Approve
+            <span className="keycap">a</span> Approve
           </button>
-          <button className="danger" onClick={() => onStatus("flagged", note)}>
-            Flag
-          </button>
+          <QuickFlagPicker
+            open={flagOpen}
+            reasons={flagReasons}
+            onPick={onPickFlag}
+            onCancel={onCancelFlag}
+            trigger={
+              <button className="danger" onClick={onOpenFlag}>
+                <span className="keycap">x</span> Flag
+              </button>
+            }
+          />
           <button className="ghost" onClick={onUndo}>
-            Undo
+            <span className="keycap">z</span> Undo
           </button>
           <button className="ghost" onClick={() => onOpenEditor(hunk)}>
-            Open in editor
+            <span className="keycap">e</span> Open in editor
           </button>
           <button
             className="ghost"
@@ -1787,7 +1927,7 @@ function Inspector({
             disabled={!canRevert}
             onClick={() => onRevert(hunk)}
           >
-            Revert
+            <span className="keycap">R</span> Revert
           </button>
         </div>
       </section>
@@ -1894,24 +2034,32 @@ function Inspector({
   );
 }
 
-function ModalOverlay({ className = "overlay", label, children }: { className?: string; label: string; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const previous = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    previous.current = captureFocus();
-    focusFirst(ref.current);
-    return () => restoreFocus(previous.current);
-  }, []);
+function InstrumentDialog({
+  label,
+  onClose,
+  className,
+  children
+}: {
+  label: string;
+  onClose(): void;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <div ref={ref} className={className} role="dialog" aria-modal="true" aria-label={label} onKeyDown={(event) => trapFocus(event.nativeEvent, ref.current)}>
-      {children}
-    </div>
+    <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-backdrop" />
+        <Dialog.Content className={`dialog-content ${className ?? ""}`} aria-label={label}>
+          {children}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
 function RevertConfirm({ hunk, onConfirm, onCancel }: { hunk: ReviewHunk; onConfirm(): void; onCancel(): void }) {
   return (
-    <ModalOverlay className="overlay revert-overlay" label="Confirm file revert">
+    <InstrumentDialog className="revert-overlay" label="Confirm file revert" onClose={onCancel}>
       <article className="revert-confirm">
         <h1>Revert {hunk.file}?</h1>
         <p>Discards +{hunk.addedLines}/−{hunk.removedLines} of changes to this file.</p>
@@ -1921,70 +2069,75 @@ function RevertConfirm({ hunk, onConfirm, onCancel }: { hunk: ReviewHunk; onConf
           <button className="ghost" onClick={onCancel}>Cancel</button>
         </div>
       </article>
-    </ModalOverlay>
+    </InstrumentDialog>
   );
 }
 
-function CommandPalette({ actions, onClose }: { actions: CommandAction[]; onClose(): void }) {
-  const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
-  const filtered = useMemo(() => actions.filter((action) => matchesAction(action, query)).slice(0, 40), [actions, query]);
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
+function CommandPalette({
+  actions,
+  recentIds,
+  onClose,
+  onExecute
+}: {
+  actions: CommandAction[];
+  recentIds: string[];
+  onClose(): void;
+  onExecute(action: CommandAction): void;
+}) {
+  const reducedMotion = useReducedMotion();
+  const recent = recentIds
+    .map((id) => actions.find((action) => action.id === id))
+    .filter((action): action is CommandAction => Boolean(action));
+  const groups = ["Review", "Navigate", "View", "Setup"].map((name) => ({
+    name,
+    actions: actions.filter((action) => commandGroup(action) === name && !recentIds.includes(action.id))
+  }));
 
-  function execute(action: CommandAction | undefined): void {
-    if (!action) {
-      return;
-    }
+  function execute(action: CommandAction): void {
     action.run();
+    onExecute(action);
     onClose();
   }
 
-  function onKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
-    }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveIndex((index) => Math.min(filtered.length - 1, index + 1));
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex((index) => Math.max(0, index - 1));
-    }
-    if (event.key === "Enter") {
-      event.preventDefault();
-      execute(filtered[activeIndex]);
-    }
-  }
-
   return (
-    <ModalOverlay className="overlay palette-overlay" label="Command palette">
-      <div className="palette">
-        <input
-          value={query}
-          placeholder="Run command or jump to file"
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={onKeyDown}
-        />
-        <div className="palette-list" role="listbox">
-          {filtered.map((action, index) => (
-            <button
-              key={action.id}
-              className={index === activeIndex ? "active" : ""}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => execute(action)}
-            >
-              <span>{action.title}</span>
-              <span className="palette-key">{action.shortcut ?? "—"}</span>
-            </button>
-          ))}
-          {filtered.length === 0 && <p>No matching commands</p>}
-        </div>
-      </div>
-    </ModalOverlay>
+    <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-backdrop" />
+        <Dialog.Content className="dialog-content palette-dialog" aria-label="Command palette">
+          <Dialog.Title className="sr-only">Command palette</Dialog.Title>
+          <motion.div
+            className="palette"
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={motionTransition(reducedMotion, SPRING.settle)}
+          >
+            <Command label="Command palette">
+              <Command.Input aria-label="Search commands" placeholder="Run command or jump to file" />
+              <Command.List>
+                <Command.Empty>No matching commands</Command.Empty>
+                {recent.length > 0 && <CommandGroup heading="Recent commands" actions={recent} onSelect={execute} />}
+                {groups.map((group) =>
+                  group.actions.length > 0 ? <CommandGroup key={group.name} heading={group.name} actions={group.actions} onSelect={execute} /> : null
+                )}
+              </Command.List>
+            </Command>
+          </motion.div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function CommandGroup({ heading, actions, onSelect }: { heading: string; actions: CommandAction[]; onSelect(action: CommandAction): void }) {
+  return (
+    <Command.Group heading={heading}>
+      {actions.map((action) => (
+        <Command.Item key={action.id} value={`${action.title} ${action.keywords ?? ""}`} onSelect={() => onSelect(action)}>
+          <span>{action.title}</span>
+          <span className="palette-key keycap">{action.shortcut ?? "—"}</span>
+        </Command.Item>
+      ))}
+    </Command.Group>
   );
 }
 
@@ -2003,7 +2156,8 @@ function TimelinePanel({
 }) {
   const hunkById = new Map(hunks.map((hunk) => [hunk.id, hunk]));
   return (
-    <aside className="timeline-panel" aria-label="Provenance timeline">
+    <InstrumentDialog className="timeline-dialog" label="Provenance timeline" onClose={onClose}>
+      <aside className="timeline-panel" aria-label="Provenance timeline">
       <div className="panel-heading">
         <h1>Timeline</h1>
         <button onClick={onClose}>Close</button>
@@ -2045,13 +2199,14 @@ function TimelinePanel({
             </div>
           </section>
         ))}
-    </aside>
+      </aside>
+    </InstrumentDialog>
   );
 }
 
 function StatsPanel({ stats, model, onClose }: { stats: StatsSnapshot; model: ReviewModel; onClose(): void }) {
   return (
-    <ModalOverlay label="Stats">
+    <InstrumentDialog label="Stats" onClose={onClose}>
       <div className="stats-panel">
         <div className="panel-heading">
           <h1>Stats</h1>
@@ -2090,7 +2245,7 @@ function StatsPanel({ stats, model, onClose }: { stats: StatsSnapshot; model: Re
           </div>
         </dl>
       </div>
-    </ModalOverlay>
+    </InstrumentDialog>
   );
 }
 
@@ -2109,26 +2264,37 @@ function MiniMap({
     return null;
   }
   return (
-    <div className="minimap" aria-label="Diff minimap">
-      {hunks.map((hunk, index) => {
-        const top = hunks.length === 1 ? 50 : (index / (hunks.length - 1)) * 100;
-        return (
-          <button
-            key={hunk.id}
-            className={`minimap-marker ${visualBand(hunk)} ${selectedId === hunk.id ? "current" : ""} ${searchHunkIds?.has(hunk.id) ? "search-match" : ""}`}
-            style={{ top: `${top}%` }}
-            title={`${hunk.file} risk ${hunk.risk}`}
-            onClick={() => onSelect(hunk.id)}
-          />
-        );
-      })}
-    </div>
+    <Tooltip.Provider delayDuration={180}>
+      <div className="minimap" aria-label="Diff minimap">
+        {hunks.map((hunk, index) => {
+          const top = hunks.length === 1 ? 50 : (index / (hunks.length - 1)) * 100;
+          return (
+            <Tooltip.Root key={hunk.id}>
+              <Tooltip.Trigger asChild>
+                <button
+                  className={`minimap-marker ${visualBand(hunk)} ${selectedId === hunk.id ? "current" : ""} ${searchHunkIds?.has(hunk.id) ? "search-match" : ""}`}
+                  style={{ top: `${top}%` }}
+                  aria-label={`${hunk.file} · score ${hunk.risk}`}
+                  onClick={() => onSelect(hunk.id)}
+                />
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content className="minimap-tooltip" side="left" sideOffset={8}>
+                  {hunk.file} · {hunk.risk}
+                  <Tooltip.Arrow />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          );
+        })}
+      </div>
+    </Tooltip.Provider>
   );
 }
 
 function HelpOverlay({ tour, onClose }: { tour: boolean; onClose(): void }) {
   return (
-    <ModalOverlay label="Keyboard shortcuts">
+    <InstrumentDialog label="Keyboard shortcuts" onClose={onClose}>
       <div className="help">
         <button onClick={onClose}>Close</button>
         <h1>Keys</h1>
@@ -2143,19 +2309,19 @@ function HelpOverlay({ tour, onClose }: { tour: boolean; onClose(): void }) {
           <p key={line}>{line}</p>
         ))}
       </div>
-    </ModalOverlay>
+    </InstrumentDialog>
   );
 }
 
 function FileModal({ modal, onClose }: { modal: { path: string; text: string }; onClose(): void }) {
   return (
-    <ModalOverlay label={`File ${modal.path}`}>
+    <InstrumentDialog label={`File ${modal.path}`} onClose={onClose}>
       <div className="file-modal">
         <button onClick={onClose}>Close</button>
         <h1>{modal.path}</h1>
         <pre>{modal.text}</pre>
       </div>
-    </ModalOverlay>
+    </InstrumentDialog>
   );
 }
 
@@ -2376,30 +2542,11 @@ function findSearchHits(model: ReviewModel | undefined, query: string): SearchHi
   });
 }
 
-function matchesAction(action: CommandAction, query: string): boolean {
-  const tokens = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (tokens.length === 0) {
-    return true;
-  }
-  const haystack = `${action.title} ${action.keywords ?? ""}`.toLowerCase();
-  return tokens.every((token) => haystack.includes(token) || fuzzyIncludes(haystack, token));
-}
-
-function fuzzyIncludes(haystack: string, needle: string): boolean {
-  let index = 0;
-  for (const char of haystack) {
-    if (char === needle[index]) {
-      index += 1;
-      if (index === needle.length) {
-        return true;
-      }
-    }
-  }
-  return false;
+function commandGroup(action: CommandAction): "Review" | "Navigate" | "View" | "Setup" {
+  if (action.id.startsWith("file:") || action.id.startsWith("next") || action.id.startsWith("prev")) return "Navigate";
+  if (["approve", "flag", "unreview", "approve-group", "focus", "revert-file", "recent-decisions"].includes(action.id)) return "Review";
+  if (["toggle-split", "cycle-sort", "toggle-theme", "theme-graphite", "theme-assay", "theme-paper", "cycle-code-size", "show-flagged", "toggle-nits", "search"].includes(action.id)) return "View";
+  return "Setup";
 }
 
 function findRelativeHunk(
