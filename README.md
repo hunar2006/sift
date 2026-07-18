@@ -53,6 +53,10 @@ pnpm sift
 |---|---|
 | ![Diff search](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/search.png) | ![Static report](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/report.png) |
 
+| The hallmark | Flagged checkpoint |
+|---|---|
+| ![Verified hallmark stamped over the focus card](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/stamp.png) | ![Flagged review checkpoint](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/flagged-checkpoint.png) |
+
 Regenerate the complete set with `pnpm shots`.
 
 [workbench]: https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/workbench-dark.png
