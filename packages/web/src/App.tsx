@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactNode, RefObject } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -154,7 +155,9 @@ export function App() {
   function showStamp(kind: "verified" | "flagged"): void {
     setStamp(kind);
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    window.setTimeout(() => setStamp(null), reduced ? 200 : 340);
+    // The hallmark is the one orchestrated moment: long enough to be read,
+    // short enough to never interrupt the next decision.
+    window.setTimeout(() => setStamp(null), reduced ? 240 : 640);
   }
 
   function dismissDecisionToast(): void {
@@ -1341,11 +1344,15 @@ export function App() {
           />
         )}
       </AnimatePresence>
-      {stamp && (
-        <div className="stamp-overlay" aria-hidden="true">
-          <Stamp kind={stamp} />
-        </div>
-      )}
+      {stamp &&
+        // The shell's isolation traps child z-indexes below Radix portals;
+        // the hallmark must punch above the focus dialog, so it portals out.
+        createPortal(
+          <div className="stamp-overlay" aria-hidden="true">
+            <Stamp kind={stamp} />
+          </div>,
+          document.body
+        )}
       {flaggedCheckpointActive && !completionDismissed && flaggedCount > 0 && !flaggedCheckpointDismissed && (
         <FlaggedReviewScreen
           hunks={flaggedHunks}
@@ -1599,7 +1606,7 @@ export function Stamp({ kind }: { kind: "verified" | "flagged" }) {
         aria-hidden="true"
         initial={reducedMotion ? false : { opacity: 0.5, scale: 0.86 }}
         animate={{ opacity: 0, scale: 1.16 }}
-        transition={motionTransition(reducedMotion, { duration: 0.34, ease: "easeOut" })}
+        transition={motionTransition(reducedMotion, { duration: 0.42, ease: "easeOut" })}
       />
       <motion.span
         className={`stamp stamp-${kind}`}

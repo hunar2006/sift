@@ -1791,16 +1791,44 @@ button.primary .keycap {
 .completion-flagged-file { font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--muted); }
 .completion-flagged-note { color: var(--muted); font-style: italic; }
 
-/* Flagged checkpoint */
-.flagged-review .completion-flagged { display: grid; gap: 8px; padding: 0; list-style: none; background: transparent; box-shadow: none; }
+/* Flagged checkpoint — the concerns, on the record, before the certificate */
+.flagged-review { justify-content: center; }
+
+.flagged-review > * { width: min(680px, 92vw); }
+
+.flagged-review h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.flagged-review > p { color: var(--text-lo); text-align: center; margin: 0; }
+
+.flagged-review .completion-flagged {
+  display: grid;
+  gap: 8px;
+  padding: 6px 20px;
+  list-style: none;
+  border-radius: 10px;
+  background: var(--ink-2);
+  box-shadow: var(--panel-light);
+}
+
 .flagged-review .completion-flagged li {
   display: grid;
   grid-template-columns: minmax(100px, auto) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   border-top: 1px solid var(--divider);
-  padding: 8px 0;
+  padding: 9px 0;
 }
+
+.flagged-review .completion-flagged li:first-child { border-top: none; }
+
+.flagged-review .completion-actions { width: auto; justify-content: center; }
+
 .flagged-review-actions { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
 
 /* ------------------------------------------------------------------ */
