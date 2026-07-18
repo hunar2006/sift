@@ -1032,9 +1032,8 @@ export function App() {
                     {isCollapsed ? "▸" : "▾"}
                   </span>
                   <span className="group-title">
-                    <span className="group-title-text">
-                      {group.title} · {reviewed}/{group.hunkIds.length}
-                    </span>
+                    <span className="group-title-text">{group.title}</span>
+                    <span className="group-tally">· {reviewed}/{group.hunkIds.length}</span>
                   </span>
                   <span className="group-ledger" aria-label={`${reviewed} of ${group.hunkIds.length} verdicts`}>
                     {model.hunks

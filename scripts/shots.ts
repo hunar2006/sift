@@ -114,6 +114,8 @@ try {
     await selectTheme(page, "graphite");
     await page.keyboard.press("f");
     await page.locator(".focus-card").waitFor({ state: "visible" });
+    // Let the tray-slide entrance settle before capturing.
+    await page.waitForTimeout(450);
     await page.screenshot({ path: path.join(shotsDir, "focus.png") });
     await page.locator(".focus-exit").click();
     await page.locator(".focus-card").waitFor({ state: "hidden" });

@@ -49,7 +49,7 @@
   --on-verdict: #052018;
 
   /* Geometry accent — structural only, never meaning */
-  --brass: #5E6E80;
+  --brass: #7488A0;
 
   /* Chips: band-tinted solids on ink-1 (contrast-audited) */
   --critical-chip-bg: #3A1F22;
@@ -65,10 +65,10 @@
   --green-text: #7FE3C0;
 
   /* Diff washes + word-level marks */
-  --add-wash: rgb(58 203 130 / 0.14);
-  --del-wash: rgb(232 90 82 / 0.13);
-  --mark-add: rgb(58 203 130 / 0.34);
-  --mark-del: rgb(232 90 82 / 0.30);
+  --add-wash: rgb(58 203 130 / 0.105);
+  --del-wash: rgb(232 90 82 / 0.10);
+  --mark-add: rgb(58 203 130 / 0.26);
+  --mark-del: rgb(232 90 82 / 0.24);
 
   /* Light + elevation */
   --key-light: inset 0 1px 0 rgb(255 255 255 / 0.05);
@@ -146,10 +146,10 @@
   --skim-text: #A9BEDC;
   --green-text: #84E8CF;
 
-  --add-wash: rgb(62 208 143 / 0.15);
-  --del-wash: rgb(240 86 78 / 0.14);
-  --mark-add: rgb(62 208 143 / 0.34);
-  --mark-del: rgb(240 86 78 / 0.30);
+  --add-wash: rgb(62 208 143 / 0.115);
+  --del-wash: rgb(240 86 78 / 0.11);
+  --mark-add: rgb(62 208 143 / 0.27);
+  --mark-del: rgb(240 86 78 / 0.25);
 
   --key-light: inset 0 1px 0 rgb(190 215 255 / 0.06);
   --raised-shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 28px rgb(0 0 0 / 0.45);
@@ -199,10 +199,10 @@
   --skim-text: #45526A;
   --green-text: #0B6656;
 
-  --add-wash: rgb(30 150 90 / 0.17);
-  --del-wash: rgb(192 52 64 / 0.14);
-  --mark-add: rgb(30 150 90 / 0.30);
-  --mark-del: rgb(192 52 64 / 0.26);
+  --add-wash: rgb(30 150 90 / 0.13);
+  --del-wash: rgb(192 52 64 / 0.115);
+  --mark-add: rgb(30 150 90 / 0.24);
+  --mark-del: rgb(192 52 64 / 0.21);
 
   --key-light: inset 0 1px 0 rgb(255 255 255 / 0.85);
   --raised-shadow: 0 1px 2px rgb(60 50 30 / 0.1), 0 10px 28px rgb(60 50 30 / 0.12);
@@ -427,7 +427,7 @@ button.primary .keycap {
 .brand-divider {
   width: 1px;
   height: 14px;
-  background: var(--divider);
+  background: color-mix(in srgb, var(--brass) 55%, transparent);
   flex: 0 0 auto;
 }
 
@@ -627,23 +627,35 @@ button.primary .keycap {
 .group-title::after {
   content: "";
   flex: 1 1 auto;
-  min-width: 12px;
-  border-top: 1px solid var(--divider);
+  min-width: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--brass) 40%, transparent);
 }
 
 .group-title > .group-title-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.group-tally {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-lo);
+  font-variant-numeric: tabular-nums;
 }
 
 .group-ledger {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  max-width: 110px;
+  max-width: 74px;
   overflow: hidden;
+  flex: 0 1 auto;
 }
 
 .ledger-tick {
@@ -1018,16 +1030,16 @@ button.primary .keycap {
   top: 0;
   bottom: 0;
   right: 1px;
-  width: 3px;
+  width: 4px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--line) 40%, transparent);
+  background: color-mix(in srgb, var(--line) 60%, transparent);
 }
 
 .minimap-marker {
   position: absolute;
   left: auto;
   right: 0;
-  width: 3px;
+  width: 4px;
   height: 3px !important;
   min-height: 3px;
   padding: 0;
@@ -1035,13 +1047,13 @@ button.primary .keycap {
   border-radius: 2px;
   transform: translateY(-50%);
   pointer-events: auto;
-  background: color-mix(in srgb, var(--medium) 75%, transparent);
+  background: color-mix(in srgb, var(--medium) 85%, transparent);
 }
 
-.minimap-marker.critical { background: var(--critical); width: 5px; }
-.minimap-marker.high { background: color-mix(in srgb, var(--high) 80%, transparent); }
-.minimap-marker.medium { background: color-mix(in srgb, var(--medium) 75%, transparent); }
-.minimap-marker.low, .minimap-marker.skim { background: color-mix(in srgb, var(--low) 75%, transparent); }
+.minimap-marker.critical { background: var(--critical); width: 7px; }
+.minimap-marker.high { background: var(--high); }
+.minimap-marker.medium { background: color-mix(in srgb, var(--medium) 85%, transparent); }
+.minimap-marker.low, .minimap-marker.skim { background: color-mix(in srgb, var(--low) 85%, transparent); }
 
 .minimap-marker.current {
   outline: none;
@@ -1118,7 +1130,7 @@ button.primary .keycap {
   text-transform: uppercase;
 }
 
-.inspector h2::after { content: ""; flex: 1 1 auto; border-top: 1px solid var(--divider); }
+.inspector h2::after { content: ""; flex: 1 1 auto; border-top: 1px solid color-mix(in srgb, var(--brass) 40%, transparent); }
 
 .inspector p { color: var(--text); line-height: 1.45; margin: 0; }
 
@@ -1430,12 +1442,13 @@ button.primary .keycap {
 
 /* Registration marks — the assay certificate's corner ticks */
 .modal, .focus-card, .completion-plate, .decision-log, .revert-confirm {
+  --mark-color: color-mix(in srgb, var(--brass) 65%, transparent);
   background-image:
-    linear-gradient(var(--brass), var(--brass)), linear-gradient(var(--brass), var(--brass)),
-    linear-gradient(var(--brass), var(--brass)), linear-gradient(var(--brass), var(--brass)),
-    linear-gradient(var(--brass), var(--brass)), linear-gradient(var(--brass), var(--brass)),
-    linear-gradient(var(--brass), var(--brass)), linear-gradient(var(--brass), var(--brass));
-  background-size: 10px 1px, 1px 10px, 10px 1px, 1px 10px, 10px 1px, 1px 10px, 10px 1px, 1px 10px;
+    linear-gradient(var(--mark-color), var(--mark-color)), linear-gradient(var(--mark-color), var(--mark-color)),
+    linear-gradient(var(--mark-color), var(--mark-color)), linear-gradient(var(--mark-color), var(--mark-color)),
+    linear-gradient(var(--mark-color), var(--mark-color)), linear-gradient(var(--mark-color), var(--mark-color)),
+    linear-gradient(var(--mark-color), var(--mark-color)), linear-gradient(var(--mark-color), var(--mark-color));
+  background-size: 14px 2px, 2px 14px, 14px 2px, 2px 14px, 14px 2px, 2px 14px, 14px 2px, 2px 14px;
   background-position: 0 0, 0 0, 100% 0, 100% 0, 0 100%, 0 100%, 100% 100%, 100% 100%;
   background-repeat: no-repeat;
 }
@@ -1718,11 +1731,11 @@ button.primary .keycap {
   left: 50%;
   z-index: 0;
   transform: translate(-50%, -50%) rotate(-8deg);
-  width: min(32vw, 260px);
-  height: min(32vw, 260px);
+  width: min(36vw, 340px);
+  height: min(36vw, 340px);
   fill: none;
-  stroke: color-mix(in srgb, var(--verdict) 13%, transparent);
-  stroke-width: 1.2;
+  stroke: color-mix(in srgb, var(--verdict) 6.5%, transparent);
+  stroke-width: 1;
   pointer-events: none;
 }
 
