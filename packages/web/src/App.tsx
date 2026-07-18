@@ -895,6 +895,8 @@ export function App() {
       <header className="topbar">
         <div className="brandline">
           <Logomark />
+          <span className="brand-name">Sift</span>
+          <span className="brand-divider" aria-hidden="true" />
           <span className="repo-name">{repoName(meta.repoRoot)}</span>
           <span className="eyebrow-chip">{meta.diffSpec}</span>
         </div>
@@ -1030,7 +1032,9 @@ export function App() {
                     {isCollapsed ? "▸" : "▾"}
                   </span>
                   <span className="group-title">
-                    {group.title} · {reviewed}/{group.hunkIds.length}
+                    <span className="group-title-text">
+                      {group.title} · {reviewed}/{group.hunkIds.length}
+                    </span>
                   </span>
                   <span className="group-ledger" aria-label={`${reviewed} of ${group.hunkIds.length} verdicts`}>
                     {model.hunks
@@ -1236,7 +1240,7 @@ export function App() {
           <input
             ref={searchRef}
             value={searchQuery}
-            placeholder="Search changes â€” use / to filter files"
+            placeholder="Search changes — use / to filter files"
             onChange={(event) => setSearchQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
@@ -1490,8 +1494,9 @@ function DiffViewer({
   }
   const reasonLines = new Set(hunk.reasons.flatMap((reason) => (reason.line ? [reason.line] : [])));
   const displayPath = widePath ? hunk.file : middleEllipsis(hunk.file, 36);
+  const band = visualBand(hunk);
   return (
-    <section ref={diffPaneRef} className={`diff ${split ? "split" : "unified"} ${pulse ? "decision-pulse" : ""}`} tabIndex={-1}>
+    <section ref={diffPaneRef} className={`diff band-${band} ${split ? "split" : "unified"} ${pulse ? "decision-pulse" : ""}`} tabIndex={-1}>
       <div className="diff-header">
         <div className="diff-title">
           <strong className={`diff-path ${displayPath !== hunk.file ? "is-truncated" : ""}`} title={hunk.file}>
@@ -1589,16 +1594,25 @@ export function Logomark({ size = 20 }: { size?: number }) {
 export function Stamp({ kind }: { kind: "verified" | "flagged" }) {
   const reducedMotion = useReducedMotion();
   return (
-    <motion.span
-      className={`stamp stamp-${kind}`}
-      role="img"
-      aria-label={kind === "verified" ? "Verified" : "Flagged"}
-      initial={reducedMotion ? false : { opacity: 0, scale: 0.8, rotate: -6 }}
-      animate={{ opacity: 1, scale: 1, rotate: -6 }}
-      transition={motionTransition(reducedMotion, SPRING.snap)}
-    >
-      {kind === "verified" ? "VERIFIED" : "FLAGGED"}
-    </motion.span>
+    <span className="stamp-wrap">
+      <motion.span
+        className={`stamp-shock stamp-${kind}`}
+        aria-hidden="true"
+        initial={reducedMotion ? false : { opacity: 0.5, scale: 0.86 }}
+        animate={{ opacity: 0, scale: 1.16 }}
+        transition={motionTransition(reducedMotion, { duration: 0.34, ease: "easeOut" })}
+      />
+      <motion.span
+        className={`stamp stamp-${kind}`}
+        role="img"
+        aria-label={kind === "verified" ? "Verified" : "Flagged"}
+        initial={reducedMotion ? false : { opacity: 0, scale: 1.24, rotate: -6 }}
+        animate={{ opacity: 1, scale: 1, rotate: -6 }}
+        transition={motionTransition(reducedMotion, { type: "spring", stiffness: 640, damping: 27 })}
+      >
+        {kind === "verified" ? "VERIFIED" : "FLAGGED"}
+      </motion.span>
+    </span>
   );
 }
 
@@ -1715,7 +1729,7 @@ function FocusMode({
   return (
     <InstrumentDialog className="focus-backdrop" label="Focus mode" onClose={onExit}>
       <motion.article
-        className="focus-card"
+        className={`focus-card band-${band}`}
         initial={reducedMotion ? false : { opacity: 0, x: 16, rotate: 2 }}
         animate={{ opacity: 1, x: 0, rotate: 0 }}
         exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: 16, rotate: 2 }}
@@ -1902,6 +1916,9 @@ function Inspector({
           <span className={`risk-band-name ${band}`}>{bandLabel(band)}</span>
         </div>
         {fresh && <span className="fresh-chip">fresh</span>}
+      </div>
+      <div className="risk-gauge" aria-hidden="true">
+        <span className={`risk-gauge-needle ${band}`} style={{ left: `${Math.min(100, Math.max(0, hunk.risk))}%` }} />
       </div>
       <section className="review-pinned" aria-label="Review actions">
         <div className="review-actions">
