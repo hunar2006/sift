@@ -64,6 +64,17 @@ const PAPER_SECONDARY_PAIRS: Array<[string, string]> = [
   ["--copy-rule", "--ink-0"], ["--copy-rule", "--ink-1"]
 ];
 
+// Meaning-carrying geometry (severity gutters, spectrum gauge) and tertiary
+// text must survive on every surface step — same 3:1 bar as accent text.
+const GEOMETRY_PAIRS: Array<[string, string]> = [
+  ["--brass", "--ink-0"], ["--brass", "--ink-1"], ["--brass", "--ink-2"],
+  ["--add", "--ink-0"], ["--del", "--ink-0"],
+  ["--subtle", "--ink-0"], ["--subtle", "--ink-1"], ["--subtle", "--ink-2"]
+];
+
+// Text rendered on the verdict accent itself (primary buttons, active pills).
+const ACTION_PAIRS: Array<[string, string]> = [["--on-verdict", "--verdict"]];
+
 function check(theme: Record<string, string>, fg: string, bg: string): number {
   const fgHex = theme[fg];
   const bgHex = theme[bg];
@@ -86,5 +97,11 @@ describe.each([["graphite", graphite], ["assay", assay], ["paper", paper]])("con
   }
   it.each(CHIP_PAIRS)("chip text %s on %s meets 3:1", (fg, bg) => {
     expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(3);
+  });
+  it.each(GEOMETRY_PAIRS)("meaning geometry %s on %s meets 3:1", (fg, bg) => {
+    expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(3);
+  });
+  it.each(ACTION_PAIRS)("action text %s on %s meets 4.5:1", (fg, bg) => {
+    expect(check(theme, fg, bg)).toBeGreaterThanOrEqual(4.5);
   });
 });
