@@ -55,7 +55,7 @@ pnpm sift
 
 | The hallmark | Flagged checkpoint |
 |---|---|
-| ![Verified hallmark stamped over the focus card](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/stamp.png) | ![Flagged review checkpoint](https://raw.githubusercontent.com/hunar2006/sift/main/docs/screenshots/flagged-checkpoint.png) |
+| ![Verified hallmark stamped over the focus card](https://raw.githubusercontent.com/hunar2006/sift/74e35e6fff36131de6e483b8deb7531d442baf53/docs/screenshots/stamp.png) | ![Flagged review checkpoint](https://raw.githubusercontent.com/hunar2006/sift/74e35e6fff36131de6e483b8deb7531d442baf53/docs/screenshots/flagged-checkpoint.png) |
 
 Regenerate the complete set with `pnpm shots`.
 
