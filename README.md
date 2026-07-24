@@ -3,7 +3,9 @@
 [![CI](https://github.com/hunar2006/sift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hunar2006/sift/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Sift orders repository diffs for review, with durable local decision history and keyboard-first undo/redo.
+**Sift is a local-first review cockpit for AI-generated diffs.** It ranks every hunk by risk, folds mechanical churn — renames, lockfiles, generated files — out of your way, and puts the code that actually needs a human first. You review entirely by keyboard, with a durable local decision history and undo/redo. Your diff never leaves your machine.
+
+When an agent writes half your pull request, the bottleneck moves to review. Sift is where you catch the risky change before it lands — no cloud, no account, no diff leaving your laptop.
 
 ![Sift demo](https://raw.githubusercontent.com/hunar2006/sift/main/docs/demo.gif)
 

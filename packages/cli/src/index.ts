@@ -61,7 +61,26 @@ program
   .version(SIFT_VERSION)
   .option("--json", "emit machine-readable output where supported")
   .option("--no-color", "disable colored output")
-  .option("--no-input", "skip interactive prompts");
+  .option("--no-input", "skip interactive prompts")
+  // A mistyped command should point the way, not just fail: `sift reprot` -> "did you mean report?".
+  .showSuggestionAfterError()
+  .showHelpAfterError("(run sift --help to see all commands)");
+
+// Examples indent four spaces so the docs-check command parser (which reads
+// two-space-indented lines under "Commands:") never mistakes them for commands.
+program.addHelpText(
+  "after",
+  `
+Examples:
+    sift                review your uncommitted changes in the browser
+    sift last           review the most recent commit
+    sift tui            review in the terminal instead of the browser
+    sift pr 128         review GitHub pull request #128
+    sift demo           try Sift on a sample repo, no checkout needed
+    sift check          gate CI on review debt and flagged hunks
+
+First time? Run sift setup to wire local hooks, the gate, and your editor.`
+);
 
 program
   .argument("[range]", "git ref/range to diff against HEAD")
@@ -157,6 +176,7 @@ program
 
 program
   .command("last")
+  .description("Review the last N commits in the web workbench")
   .argument("[n]", "number of commits")
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
@@ -202,6 +222,7 @@ program
 
 program
   .command("pr")
+  .description("Review a GitHub pull request's diff")
   .argument("[numberOrUrl]")
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
@@ -251,6 +272,7 @@ program
 
 program
   .command("report")
+  .description("Render a Markdown, HTML, or JSON review report")
   .option("--md", "emit markdown", true)
   .option("--html", "emit a static HTML report")
   .option("--json", "emit JSON")
@@ -281,6 +303,7 @@ program
 
 program
   .command("brief")
+  .description("Print a copy-paste review brief of flagged hunks")
   .option("--flagged", "include flagged hunks (the default)")
   .option("--unreviewed-high", "include unreviewed high-risk hunks instead")
   .option("-o, --output <file>", "write the brief to file")
@@ -309,6 +332,7 @@ program
 
 program
   .command("print")
+  .description("Print the review summary to the terminal")
   .argument("[range]", "git ref/range to diff against HEAD")
   .option("--staged", "review staged changes")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
@@ -328,7 +352,7 @@ program
     );
   });
 
-program.command("stats").option("--json", "emit JSON").option("--coverage <path>", "parse coverage artifact instead of autodetecting").action(async (options: JsonOption & CoverageOption) => {
+program.command("stats").description("Show review debt and coverage stats").option("--json", "emit JSON").option("--coverage <path>", "parse coverage artifact instead of autodetecting").action(async (options: JsonOption & CoverageOption) => {
   const result = await runPipeline({ cwd: process.cwd(), coverage: options.coverage });
   const { state } = await readReviewState(result.model.meta.repoRoot);
   const stats = computeStats(result.model, state);
@@ -341,6 +365,7 @@ program.command("stats").option("--json", "emit JSON").option("--coverage <path>
 
 program
   .command("check")
+  .description("Fail when review debt or flagged hunks exceed the limit (CI gate)")
   .option("--max-debt <pct>", "maximum allowed debt percentage", "40")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
   .action(async (options: { maxDebt: string } & CoverageOption) => {
@@ -358,8 +383,8 @@ program
     console.log(`Check passed: debt ${(stats.debt * 100).toFixed(1)}%, no flagged hunks.`);
   });
 
-const rules = program.command("rules");
-rules.command("lint").action(async () => {
+const rules = program.command("rules").description("Inspect and lint local Sift review rules");
+rules.command("lint").description("Validate local rule files").action(async () => {
   const repoRoot = await discoverRepoRoot(process.cwd());
   const reports = await lintRuleFiles(repoRoot);
   console.log(renderRuleReports(reports));
@@ -367,7 +392,7 @@ rules.command("lint").action(async () => {
     process.exitCode = 1;
   }
 });
-rules.command("list").option("--json", "emit JSON").action(async (options: JsonOption) => {
+rules.command("list").description("List the effective rules").option("--json", "emit JSON").action(async (options: JsonOption) => {
   const repoRoot = await discoverRepoRoot(process.cwd());
   const loaded = await loadRules(repoRoot);
   const wantsJson = options.json === true || process.argv.includes("--json");
@@ -384,22 +409,23 @@ rules.command("list").option("--json", "emit JSON").action(async (options: JsonO
   console.log(renderRulesList(loaded.rules));
 });
 
-const hooks = program.command("hooks");
-hooks.command("install").option("--project", "use repo-local Claude settings").action(async (options: HookOptions) => {
+const hooks = program.command("hooks").description("Manage the Claude Code capture hook");
+hooks.command("install").description("Install the Sift capture hook").option("--project", "use repo-local Claude settings").action(async (options: HookOptions) => {
   const file = await installHooks(process.cwd(), options.project);
   console.log(`Installed Sift hook in ${file}.`);
 });
-hooks.command("uninstall").option("--project", "use repo-local Claude settings").action(async (options: HookOptions) => {
+hooks.command("uninstall").description("Remove the Sift capture hook").option("--project", "use repo-local Claude settings").action(async (options: HookOptions) => {
   const file = await uninstallHooks(process.cwd(), options.project);
   console.log(`Removed Sift hook from ${file}.`);
 });
-hooks.command("status").option("--project", "use repo-local Claude settings").action(async (options: HookOptions) => {
+hooks.command("status").description("Report whether the hook is installed").option("--project", "use repo-local Claude settings").action(async (options: HookOptions) => {
   const installed = await hooksStatus(process.cwd(), options.project);
   console.log(installed ? "Sift hook installed." : "Sift hook not installed.");
   });
 
 program
   .command("demo")
+  .description("Review a bundled sample repo without any setup")
   .option("--dir <path>", "directory where the demo repo should be created")
   .option("--port <n>", "preferred localhost port", "4111")
   .option("--no-open", "do not open a browser")
@@ -413,6 +439,7 @@ program.command("hook-capture", { hidden: true }).action(async () => {
 
 program
   .command("mcp")
+  .description("Serve the review model to agents over MCP")
   .argument("[range]", "git ref/range to diff against HEAD")
   .option("--staged", "review staged changes")
   .option("--coverage <path>", "parse coverage artifact instead of autodetecting")
@@ -456,6 +483,7 @@ program
 
 program
   .command("tui")
+  .description("Review changes in a full-screen terminal UI")
   .argument("[range]", "git ref/range to diff against HEAD")
   .option("--staged", "review staged changes")
   .option("--watch", "watch working-tree changes and refresh the TUI")
