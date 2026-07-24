@@ -233,6 +233,7 @@ body {
   font-size: 13px;
   font-weight: 450;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button, input, textarea, select { font: inherit; }
@@ -276,7 +277,13 @@ button:disabled { opacity: 0.45; cursor: default; }
 
 ::selection { background: color-mix(in srgb, var(--verdict) 30%, transparent); }
 
-code, .risk, .mono { font-family: var(--mono); }
+/* Tab-indented source (Go, Make, many repos) renders at the browser default of
+   eight columns and buries the diff in whitespace. Two keeps the loudest
+   surface readable without re-wrapping anything. */
+code, .risk, .mono { font-family: var(--mono); tab-size: 2; }
+
+/* The caret is the one cursor the reviewer drives; give it the verdict hue. */
+input, textarea { caret-color: var(--verdict); }
 
 .sr-only {
   position: absolute;
@@ -541,6 +548,8 @@ button.primary .keycap {
 .queue, .inspector, .diff-body {
   scrollbar-color: var(--line) transparent;
   scrollbar-width: thin;
+  /* Each pane scrolls on its own; hitting an end must not chain to the page. */
+  overscroll-behavior: contain;
 }
 
 .queue::-webkit-scrollbar, .inspector::-webkit-scrollbar, .diff-body::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -549,6 +558,14 @@ button.primary .keycap {
   border: 2px solid transparent;
   border-radius: 6px;
   background: var(--line);
+  background-clip: padding-box;
+}
+
+/* The thumb answers the pointer without ever competing with the diff. */
+.queue::-webkit-scrollbar-thumb:hover,
+.inspector::-webkit-scrollbar-thumb:hover,
+.diff-body::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--line) 65%, var(--text-lo));
   background-clip: padding-box;
 }
 
